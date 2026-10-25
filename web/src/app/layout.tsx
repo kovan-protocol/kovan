@@ -1,14 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Manrope } from "next/font/google";
-import { CursorGlow } from "@/components/motion/cursor-glow";
-import { Kick } from "@/components/motion/kick";
-import { ProgressBar } from "@/components/motion/progress-bar";
-import { SmoothScroll } from "@/components/motion/smooth-scroll";
-import { SectionIndex } from "@/components/layout/section-index";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNav } from "@/components/layout/site-nav";
-import { Toaster } from "@/components/ui/toaster";
+import { RouteTransition } from "@/components/layout/route-transition";
+import { PreferenceProvider, preferenceScript } from "@/components/marketing/preferences";
 import "./globals.css";
+import "./marketing.css";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -32,13 +29,13 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kovan · Shared USDC budgets your AI agents can't overspend.",
+  title: { default: "Kovan — Agent autonomy. Human control.", template: "%s | Kovan" },
   description:
-    "One USDC pool. A smart-account wallet for every AI agent, bound by an on-chain covenant. Public beta on Stellar testnet.",
+    "One shared USDC pool. Clear on-chain spending rules for every AI agent. Explore the Kovan prototype on Stellar testnet.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07080B",
+  themeColor: "#FBFBFA",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -46,22 +43,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable} ${jetbrains.variable} js-anim`}>
+    <html lang="en" suppressHydrationWarning className={`${manrope.variable} ${inter.variable} ${jetbrains.variable}`}>
+      <head><script dangerouslySetInnerHTML={{ __html: preferenceScript }} /></head>
       <body>
-        <a className="skip" href="#main">
-          Skip to content
-        </a>
-        <SmoothScroll>
-          <ProgressBar />
-          <div className="grain" aria-hidden />
-          <CursorGlow />
-          <Kick />
-          <SectionIndex />
+        <PreferenceProvider>
           <SiteNav />
-          {children}
+          <RouteTransition>{children}</RouteTransition>
           <SiteFooter />
-          <Toaster />
-        </SmoothScroll>
+        </PreferenceProvider>
       </body>
     </html>
   );
