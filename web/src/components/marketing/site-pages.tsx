@@ -18,7 +18,7 @@ export function HomeContent() {
         <Link href="/developers" className="network-label"><span className="status-dot" />{t("Built on Stellar", "Sobre Stellar")}<span className="label-divider" />Testnet<ArrowUpRight size={13} /></Link>
         <h1>{t("Your agents move.", "Tus agentes avanzan.")}<span>{t("Your limits stay.", "Tus límites se respetan.")}</span></h1>
         <p className="hero-description">{t("One shared USDC pool. Clear spending rules for every AI agent. You're always in control.", "Un fondo común de USDC. Reglas claras para cada agente de IA. El control sigue en tus manos.")}</p>
-        <div className="hero-actions"><PrimaryAction /><TextLink href="/how-it-works">{t("How it works", "Cómo funciona")}</TextLink></div>
+        <div className="hero-actions"><PrimaryAction label={t("Try with your agent", "Prueba con tu agente")} /></div>
         <p className="hero-note"><ShieldCheck size={14} />{t("Human-defined. Enforced on-chain.", "Tú defines las reglas. La red las aplica.")}</p>
       </div>
       <div className="hero-visual"><ProductFlow locale={locale} /></div>
