@@ -1,6 +1,6 @@
 // Server-only: an agent account pays an x402 endpoint.
 import { Address, Contract, Keypair, Operation, rpc, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { assertAgentKeyMatches, env, onlyAgentEntry } from "./agent";
+import { env, onlyAgentEntry, resolveAgentSecret } from "./agent";
 import { signAgentEntry } from "./authpayload";
 import { explainError } from "./errors";
 import { addrVal, i128Val } from "./scval";
@@ -38,12 +38,11 @@ export type X402Result =
 const strip = (t: Terms) => ({ url: t.url, description: t.description, payTo: t.payTo, amount: t.amount, asset: t.asset, maxTimeoutSeconds: t.maxTimeoutSeconds });
 
 export async function payEndpoint(agent: string, url: string): Promise<X402Result> {
-  const secret = env("AGENT_SECRET");
   const feePayer = Keypair.fromSecret(env("FEE_PAYER_SECRET"));
   const { verifier, usdc } = ids();
   const server = rpcServer();
 
-  await assertAgentKeyMatches(agent, secret, verifier);
+  const secret = await resolveAgentSecret(agent, verifier);
 
   let terms: Terms;
   try {

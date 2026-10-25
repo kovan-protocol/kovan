@@ -24,6 +24,6 @@ export async function POST(req: Request) {
     return NextResponse.json(r, { status: r.ok ? 200 : 422 });
   } catch (e) {
     const msg = (e as Error).message;
-    return NextResponse.json({ ok: false, stage: "guard", error: msg }, { status: /SECRET|does not match/.test(msg) ? 400 : 500 });
+    return NextResponse.json({ ok: false, stage: "guard", error: msg }, { status: /SECRET|does not match|no key for agent/.test(msg) ? 400 : 500 });
   }
 }
