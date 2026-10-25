@@ -215,3 +215,106 @@ fn sum_limits_le_locked_after_two_agents() {
     assert_eq!(fx.pool.get_pool().sum_limits, LOCK);
     fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &1, &covenant(&fx));
 }
+
+// ---------------------------------------------------------------- lifecycle (Task 6)
+
+use kovan_covenant_policy::Amendment;
+
+fn amendment(expiry: u32) -> Amendment {
+    Amendment {
+        provider_per_transfer_cap: 4_000_000,
+        provider_total_cap: 8_000_000,
+        recipient_per_transfer_cap: 0,
+        recipient_total_cap: 0,
+        expiry,
+    }
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #6)")]
+fn revoke_blocks_draw() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.revoke(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_agent(&agent).status, Status::Revoked);
+    assert!(CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&agent).revoked);
+    fx.pool.draw(&agent, &1);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn revoke_requires_owner_or_parent() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.revoke(&agent, &Address::generate(&fx.e));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #9)")]
+fn amend_rejects_below_drawn() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    fx.pool.amend(&agent, &(LIMIT - 1), &amendment(10_000));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #4)")]
+fn amend_rejects_over_locked() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.amend(&agent, &(LOCK + 1), &amendment(10_000));
+}
+
+#[test]
+fn amend_updates_policy_caps() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.amend(&agent, &(LIMIT * 2), &amendment(20_000));
+    let rec = fx.pool.get_agent(&agent);
+    assert_eq!(rec.draw_limit, LIMIT * 2);
+    assert_eq!(fx.pool.get_pool().sum_limits, LIMIT * 2);
+    let s = CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&agent);
+    assert_eq!(s.params.provider_per_transfer_cap, 4_000_000);
+    assert_eq!(s.params.expiry, 20_000);
+}
+
+#[test]
+fn settle_then_close_requires_drawn_zero() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    fx.pool.settle(&agent);
+    assert_eq!(fx.pool.get_agent(&agent).status, Status::SettleRequested);
+    let r = fx.pool.try_close(&agent, &fx.owner);
+    assert!(r.is_err());
+    fx.pool.return_funds(&agent, &agent, &LIMIT);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_agent(&agent).status, Status::Closed);
+    assert_eq!(fx.pool.get_pool().sum_limits, 0);
+}
+
+#[test]
+fn dispute_records_and_owner_resolves() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    let ev = BytesN::<32>::random(&fx.e);
+    fx.pool.dispute(&agent, &agent, &ev);
+    let d = fx.pool.get_agent(&agent).dispute;
+    assert_eq!(d.len(), 1);
+    assert_eq!(d.get(0).unwrap().by, agent);
+    assert_eq!(d.get(0).unwrap().outcome, None);
+    fx.pool.resolve_dispute(&agent, &1);
+    assert_eq!(fx.pool.get_agent(&agent).dispute.get(0).unwrap().outcome, Some(1));
+}
+
+#[test]
+fn return_funds_allowed_after_revoke() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    fx.pool.revoke(&agent, &fx.owner);
+    fx.pool.return_funds(&agent, &fx.owner, &LIMIT);
+    assert_eq!(bal(&fx, &fx.pool_addr), LOCK);
+    assert_eq!(fx.pool.get_agent(&agent).drawn, 0);
+}

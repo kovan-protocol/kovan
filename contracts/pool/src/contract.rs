@@ -3,13 +3,13 @@
 //! The pool is the bank. It enforces one thing: how much each agent may draw.
 //! What an agent does with drawn funds is the covenant's job (see the policy
 //! crate). Invariant: sum of active draw limits <= locked.
-use kovan_covenant_policy::CovenantParams;
+use kovan_covenant_policy::{Amendment, CovenantParams, CovenantPolicyContractClient};
 use soroban_sdk::{
     contract, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
     IntoVal, Val, Vec,
 };
 
-use crate::storage::{self as st, AgentRecord, PoolError, PoolInfo, PoolKey, Status};
+use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status};
 
 #[contract]
 pub struct KovanPool;
@@ -110,6 +110,103 @@ impl KovanPool {
         st::set_agent(e, &agent, &rec);
     }
 
+    // ---- lifecycle ------------------------------------------------------
+
+    /// Kill switch. Owner or the agent's parent. Freezes spend and calls on
+    /// the covenant; `return_funds` keeps working. Recursive to children.
+    pub fn revoke(e: &Env, agent: Address, by: Address) {
+        let mut rec = st::get_agent(e, &agent);
+        Self::require_owner_or_parent(e, &rec, &by);
+        Self::revoke_inner(e, &agent, &mut rec);
+    }
+
+    /// Owner-only. Changes the draw limit and the covenant's numeric caps.
+    pub fn amend(e: &Env, agent: Address, draw_limit: i128, amendment: Amendment) {
+        Self::owner(e).require_auth();
+        positive(e, draw_limit);
+        let mut rec = st::get_agent(e, &agent);
+        if draw_limit < rec.drawn {
+            panic_with_error!(e, PoolError::BelowDrawn);
+        }
+        let sum = st::get_i128(e, PoolKey::SumLimits);
+        let new_sum = sum - rec.draw_limit + draw_limit;
+        if new_sum > st::get_i128(e, PoolKey::Locked) {
+            panic_with_error!(e, PoolError::ExceedsLocked);
+        }
+        rec.draw_limit = draw_limit;
+        rec.covenant.provider_per_transfer_cap = amendment.provider_per_transfer_cap;
+        rec.covenant.provider_total_cap = amendment.provider_total_cap;
+        rec.covenant.recipient_per_transfer_cap = amendment.recipient_per_transfer_cap;
+        rec.covenant.recipient_total_cap = amendment.recipient_total_cap;
+        rec.covenant.expiry = amendment.expiry;
+        st::set_agent(e, &agent, &rec);
+        st::set_i128(e, PoolKey::SumLimits, new_sum);
+        policy(e).amend(&agent, &amendment);
+    }
+
+    /// Agent asks to close.
+    pub fn settle(e: &Env, agent: Address) {
+        agent.require_auth();
+        let mut rec = st::get_agent(e, &agent);
+        if rec.status != Status::Active {
+            panic_with_error!(e, PoolError::NotActive);
+        }
+        rec.status = Status::SettleRequested;
+        st::set_agent(e, &agent, &rec);
+    }
+
+    /// Final. Owner or parent. Requires everything drawn to be back and all
+    /// children closed. Frees the draw limit: back to the parent if there is
+    /// one, otherwise out of the pool's sum of limits.
+    pub fn close(e: &Env, agent: Address, by: Address) {
+        let mut rec = st::get_agent(e, &agent);
+        Self::require_owner_or_parent(e, &rec, &by);
+        if rec.drawn != 0 {
+            panic_with_error!(e, PoolError::DrawnNotZero);
+        }
+        for child in rec.children.iter() {
+            if st::get_agent(e, &child).status != Status::Closed {
+                panic_with_error!(e, PoolError::NotActiveOrSettle);
+            }
+        }
+        match rec.parent.clone() {
+            Some(parent) => {
+                let mut p = st::get_agent(e, &parent);
+                p.draw_limit += rec.draw_limit;
+                st::set_agent(e, &parent, &p);
+            }
+            None => {
+                let sum = st::get_i128(e, PoolKey::SumLimits);
+                st::set_i128(e, PoolKey::SumLimits, sum - rec.draw_limit);
+            }
+        }
+        rec.status = Status::Closed;
+        st::set_agent(e, &agent, &rec);
+    }
+
+    /// Records an objection. Owner or agent. Nothing moves.
+    pub fn dispute(e: &Env, agent: Address, by: Address, evidence: BytesN<32>) {
+        if by != agent && by != Self::owner(e) {
+            panic_with_error!(e, PoolError::NotOwnerOrParent);
+        }
+        by.require_auth();
+        let mut rec = st::get_agent(e, &agent);
+        let mut v = Vec::new(e);
+        v.push_back(Dispute { by, evidence, outcome: None });
+        rec.dispute = v;
+        st::set_agent(e, &agent, &rec);
+    }
+
+    /// Owner rules on the recorded dispute.
+    pub fn resolve_dispute(e: &Env, agent: Address, outcome: u32) {
+        Self::owner(e).require_auth();
+        let mut rec = st::get_agent(e, &agent);
+        let Some(mut d) = rec.dispute.get(0) else { panic_with_error!(e, PoolError::NotActiveOrSettle) };
+        d.outcome = Some(outcome);
+        rec.dispute.set(0, d);
+        st::set_agent(e, &agent, &rec);
+    }
+
     // ---- reads ----------------------------------------------------------
 
     pub fn get_agent(e: &Env, agent: Address) -> AgentRecord {
@@ -132,6 +229,27 @@ impl KovanPool {
 }
 
 impl KovanPool {
+    fn require_owner_or_parent(e: &Env, rec: &AgentRecord, by: &Address) {
+        let ok = *by == Self::owner(e) || rec.parent.as_ref() == Some(by);
+        if !ok {
+            panic_with_error!(e, PoolError::NotOwnerOrParent);
+        }
+        by.require_auth();
+    }
+
+    fn revoke_inner(e: &Env, agent: &Address, rec: &mut AgentRecord) {
+        if rec.status == Status::Closed {
+            return;
+        }
+        rec.status = Status::Revoked;
+        st::set_agent(e, agent, rec);
+        policy(e).set_revoked(agent, &true);
+        for child in rec.children.iter() {
+            let mut c = st::get_agent(e, &child);
+            Self::revoke_inner(e, &child, &mut c);
+        }
+    }
+
     fn owner(e: &Env) -> Address {
         st::get_address(e, PoolKey::Owner)
     }
@@ -148,6 +266,10 @@ impl KovanPool {
             (agent_pubkey, verifier, policy, covenant_val, e.current_contract_address(), st::get_address(e, PoolKey::Usdc)),
         )
     }
+}
+
+fn policy(e: &Env) -> CovenantPolicyContractClient<'_> {
+    CovenantPolicyContractClient::new(e, &st::get_address(e, PoolKey::Policy))
 }
 
 fn usdc(e: &Env) -> token::TokenClient<'_> {
