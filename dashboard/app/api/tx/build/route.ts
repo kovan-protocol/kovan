@@ -15,11 +15,11 @@ export async function POST(req: Request) {
     const server = rpcServer();
     const id = ids(poolOverride);
     const account = await withRetry(() => server.getAccount(source));
+    if (fn === "create_pool" && !id.poolWasmHash) return NextResponse.json({ error: "pool_wasm_hash missing from deployments/testnet.json" }, { status: 500 });
     const op =
       fn === "create_pool"
         ? buildCreatePoolOp({ owner: source, usdc: id.usdc, poolWasmHash: id.poolWasmHash, accountWasmHash: id.accountWasmHash, policy: id.policy, verifier: id.verifier, salt: randomBytes(32) })
         : buildOwnerOp(id.pool, fn, args as OwnerArgs[OwnerFn], id.usdc);
-    if (fn === "create_pool" && !id.poolWasmHash) return NextResponse.json({ error: "pool_wasm_hash missing from deployments/testnet.json" }, { status: 500 });
     const tx = new TransactionBuilder(account, { fee: "1000", networkPassphrase: NETWORK_PASSPHRASE })
       .addOperation(op)
       .setTimeout(120)

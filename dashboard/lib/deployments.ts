@@ -15,9 +15,7 @@ export type Deployments = {
   pool_wasm_hash?: string;
 };
 
-let cached: Deployments | undefined;
 export function deployments(): Deployments {
-  if (cached) return cached;
   const candidates = [
     process.env.KOVAN_DEPLOYMENTS,
     path.join(process.cwd(), "..", "deployments", "testnet.json"),
@@ -25,8 +23,7 @@ export function deployments(): Deployments {
   ].filter(Boolean) as string[];
   for (const p of candidates) {
     if (fs.existsSync(p)) {
-      cached = JSON.parse(fs.readFileSync(p, "utf8")) as Deployments;
-      return cached;
+      return JSON.parse(fs.readFileSync(p, "utf8")) as Deployments; // tiny file, re-read so redeploys are picked up
     }
   }
   throw new Error("deployments/testnet.json not found; run `make deploy` or set KOVAN_DEPLOYMENTS");
