@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Magnetic } from "@/components/motion/magnetic";
 import { primaryCta } from "@/config/site";
+import { AmbientCarousel } from "./ambient-carousel";
 import { useCopy } from "./preferences";
 
 export function Brand({ symbol = false }: { symbol?: boolean }) {
@@ -50,5 +51,5 @@ export function Reveal({ children, className = "" }: { children: ReactNode; clas
 
 export function ClosingNote() {
   const t = useCopy();
-  return <Reveal className="closing-wrap container"><section className="closing"><div><p className="eyebrow">{t("AUTONOMY, WITH BOUNDARIES", "AUTONOMÍA, CON LÍMITES")}</p><h2>{t("Let your agents work.", "Deja actuar a tus agentes.")}<br /><span>{t("Keep the control.", "Conserva el control.")}</span></h2></div><PrimaryAction /></section></Reveal>;
+  return <Reveal className="closing-wrap container"><section className="closing"><AmbientCarousel variant="closing" /><div><p className="eyebrow">{t("AUTONOMY, WITH BOUNDARIES", "AUTONOMÍA, CON LÍMITES")}</p><h2>{t("Let your agents work.", "Deja actuar a tus agentes.")}<br /><span>{t("Keep the control.", "Conserva el control.")}</span></h2></div><PrimaryAction /></section></Reveal>;
 }

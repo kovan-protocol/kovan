@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, GitBranch, LockKeyhole, ShieldCheck, SlidersHorizontal, Wallet } from "lucide-react";
 import { CountUp } from "@/components/motion/count-up";
 import { contractUrl, deployment, drawLimit, fundUsdc } from "@/lib/testnet";
+import { AmbientCarousel } from "./ambient-carousel";
 import { useCopy, usePreferences } from "./preferences";
 import { ClosingNote, PrimaryAction, Reveal, TextLink } from "./primitives";
 import { ProductFlow } from "./product-flow";
@@ -27,7 +28,7 @@ export function HomeContent() {
       <div className="hero-visual"><ProductFlow locale={locale} /></div>
     </section>
 
-    <div className="infrastructure container"><span>{t("BUILT WITH", "CONSTRUIDO CON")}</span><div><span className="stack-word">Stellar</span><span className="stack-word">USDC</span><span className="stack-word">OpenZeppelin</span><span className="stack-word">Soroban</span></div></div>
+    <div className="infrastructure container"><AmbientCarousel variant="stack" /><span>{t("BUILT WITH", "CONSTRUIDO CON")}</span><div className="infrastructure-brands"><span className="stack-word">Stellar</span><span className="stack-word">USDC</span><span className="stack-word">OpenZeppelin</span><span className="stack-word">Soroban</span></div></div>
 
     <section className="home-principles container section-space">
       <Reveal className="section-heading"><p className="eyebrow">{t("LESS OVERSIGHT. MORE CERTAINTY.", "MENOS SUPERVISIÓN. MÁS CERTEZA.")}</p><h2>{t("Room to do more.", "Espacio para hacer más.")}<br /><span>{t("Boundaries that hold.", "Límites que se respetan.")}</span></h2></Reveal>
