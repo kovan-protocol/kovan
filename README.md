@@ -42,10 +42,10 @@ A developer running an agent that pays data or RPC providers per call over x402.
 
 | Component | Stellar feature | Contract ID (testnet) |
 |---|---|---|
-| `kovan-pool` | Soroban contract; USDC SAC transfers; deploys agent accounts via `deployer()` | [`CCO5PERBNCYJMOLARBNFEDJRRP7P3YZKP4PGZ4FGOPX3HCV7CZ45WIAW`](https://stellar.expert/explorer/testnet/contract/CCO5PERBNCYJMOLARBNFEDJRRP7P3YZKP4PGZ4FGOPX3HCV7CZ45WIAW) |
-| `kovan-covenant-policy` | OpenZeppelin smart-account policy (`stellar-accounts` 0.8.0) | [`CDMGB5SFQD4PEVSDU6RBKJ6WCEKTWUBXCHVBABOG7NTR4KB6KJYGV6LA`](https://stellar.expert/explorer/testnet/contract/CDMGB5SFQD4PEVSDU6RBKJ6WCEKTWUBXCHVBABOG7NTR4KB6KJYGV6LA) |
-| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; first agent [`CCUOVYCZC3DLCIL73KRJXJ4KSCM2YA3MI3T5ND43BVN4N54VKCMKJ5ZY`](https://stellar.expert/explorer/testnet/contract/CCUOVYCZC3DLCIL73KRJXJ4KSCM2YA3MI3T5ND43BVN4N54VKCMKJ5ZY) |
-| `kovan-ed25519-verifier` | OZ verifier for External signers | [`CAAKLFWLG42GIS3X444MKTORXW7UTPBSGJSQEX65L23NH5G2DDWTKL6J`](https://stellar.expert/explorer/testnet/contract/CAAKLFWLG42GIS3X444MKTORXW7UTPBSGJSQEX65L23NH5G2DDWTKL6J) |
+| `kovan-pool` | Soroban contract; USDC SAC transfers; deploys agent accounts via `deployer()` | [`CDL5XMV5S2WJYBKPVPJNNB6SFJFCYNJJ3RK3HQX6WGS4NMI7D4JF6GVO`](https://stellar.expert/explorer/testnet/contract/CDL5XMV5S2WJYBKPVPJNNB6SFJFCYNJJ3RK3HQX6WGS4NMI7D4JF6GVO) |
+| `kovan-covenant-policy` | OpenZeppelin smart-account policy (`stellar-accounts` 0.8.0) | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
+| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; first agent [`CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA`](https://stellar.expert/explorer/testnet/contract/CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA) |
+| `kovan-ed25519-verifier` | OZ verifier for External signers | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
 | USDC | Stellar Asset Contract | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
 | Payments | x402 (facilitator-settled `transfer` from the agent account) | see evidence |
 
@@ -55,9 +55,9 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 | Step | What it shows | Tx |
 |---|---|---|
-| deploy | verifier, policy, account wasm, pool | [`93cbd8…`](https://stellar.expert/explorer/testnet/tx/93cbd835476b9a658c1427ff26e32a987bdf807afb3691b07fe84ae169a30d4e) [`8b9e05…`](https://stellar.expert/explorer/testnet/tx/8b9e05847fa14d23d16f5a3a3aca4bc173092b6ea50d0d4dac59f7d16cf8a1ae) [`55526d…`](https://stellar.expert/explorer/testnet/tx/55526d37f1cedb76b2a6e668df1aa7abef370dbdf737c6ef881a398f9aac939f) [`f4c3fe…`](https://stellar.expert/explorer/testnet/tx/f4c3fe3553a262a66a040d8266b4fdfd0127a83b64f342f32ae4ae2b7fc1ee19) |
-| fund | Owner locks 5 testnet USDC in the pool | [`86dac8…`](https://stellar.expert/explorer/testnet/tx/86dac848707da290b679139600f1bccc349bbd8c5ae236c61ba4c2a5c2e047d2) |
-| create agent | Pool deploys a frozen agent account ($0.50 draw limit); events show one `Default` rule with one External signer and the covenant policy, plus the USDC allowance to the pool | [`13d8ee…`](https://stellar.expert/explorer/testnet/tx/13d8ee099643cc242cdf4d77f06cdf58f0e84154714acf9cf1dd537fd813b191) |
+| deploy | verifier, policy, pool (second deployment, after review fixes) | [`ff4977…`](https://stellar.expert/explorer/testnet/tx/ff4977411d20f7915c400ae4edb031241a4631872fc1d7459b7acc2fb5ac54dc) [`8b25ea…`](https://stellar.expert/explorer/testnet/tx/8b25ea4e8112195e72bf779bdd80cb1ba690fe6b00b5433d403799b5e56416fd) [`aeb089…`](https://stellar.expert/explorer/testnet/tx/aeb089402970cc503063bf223978f875aa829ec1b0e0d9adcaaff70d2f4b476c) |
+| fund | Owner locks 5 testnet USDC in the pool | [`79bd95…`](https://stellar.expert/explorer/testnet/tx/79bd95da131065c6e6116a707b298a12d2cd540eb1ccf15b6e4d8df740086afa) |
+| create agent | Pool deploys a frozen agent account ($0.50 draw limit); events show one `Default` rule with one External signer and the covenant policy, plus the USDC allowance to the pool | [`5135da…`](https://stellar.expert/explorer/testnet/tx/5135da2f492ad924c0f3a15decd0cf508d0e4e38ad3fe47545f05878c5dd27ec) |
 | draw | Only the draw amount leaves the pool, into the agent account | TBD |
 | x402 payment | Agent pays an allowlisted provider | TBD |
 | blocked payment | Covenant rejects a payment outside the rules | TBD |
@@ -69,7 +69,7 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
-make test                            # builds wasm, runs 65 tests
+make test                            # builds wasm, runs 83 tests
 OWNER=<identity> make deploy         # testnet only
 ```
 
