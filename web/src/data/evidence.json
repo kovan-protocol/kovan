@@ -1,0 +1,38 @@
+{
+  "firstAgent": "CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA",
+  "testCount": 83,
+  "fundUsdc": "5",
+  "drawLimit": "0.50",
+  "transactions": [
+    {
+      "id": "deploy-verifier",
+      "hash": "ff4977411d20f7915c400ae4edb031241a4631872fc1d7459b7acc2fb5ac54dc",
+      "group": "deploy",
+      "label": "verifier"
+    },
+    {
+      "id": "deploy-policy",
+      "hash": "8b25ea4e8112195e72bf779bdd80cb1ba690fe6b00b5433d403799b5e56416fd",
+      "group": "deploy",
+      "label": "policy"
+    },
+    {
+      "id": "deploy-pool",
+      "hash": "aeb089402970cc503063bf223978f875aa829ec1b0e0d9adcaaff70d2f4b476c",
+      "group": "deploy",
+      "label": "pool"
+    },
+    {
+      "id": "fund",
+      "hash": "79bd95da131065c6e6116a707b298a12d2cd540eb1ccf15b6e4d8df740086afa",
+      "group": "fund",
+      "label": "fund"
+    },
+    {
+      "id": "create-agent",
+      "hash": "5135da2f492ad924c0f3a15decd0cf508d0e4e38ad3fe47545f05878c5dd27ec",
+      "group": "create_agent",
+      "label": "create_agent"
+    }
+  ]
+}
