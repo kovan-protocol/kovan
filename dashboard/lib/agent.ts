@@ -119,7 +119,8 @@ export type AgentRunResult = SubmitResult & { stage: "guard" | "simulate" | "sub
 export async function runAgentAction(action: AgentAction, r: AgentRequest): Promise<AgentRunResult> {
   const feePayer = await feePayerKeypair();
   const server = rpcServer();
-  const { verifier, pool } = ids(r.pool);
+  const { verifier, pool, usdc } = ids(r.pool);
+  const ctx = { usdc, pool };
   if (r.pool) await assertKovanPool(pool);
 
   const secret = await resolveAgentSecret(r.agent, verifier);
@@ -129,7 +130,7 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
   const op = buildOp(action, r);
   const tx1 = new TransactionBuilder(source, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE }).addOperation(op).setTimeout(120).build();
   const sim1 = await withRetry(() => server.simulateTransaction(tx1));
-  if (rpc.Api.isSimulationError(sim1)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim1.error), raw: sim1.error };
+  if (rpc.Api.isSimulationError(sim1)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim1.error, ctx), raw: sim1.error };
 
   // Sign every entry that belongs to the agent account; leave any other as is.
   const entries = (sim1 as rpc.Api.SimulateTransactionSuccessResponse).result?.auth ?? [];
@@ -142,7 +143,7 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
     .setTimeout(120)
     .build();
   const sim2 = await withRetry(() => server.simulateTransaction(tx2));
-  if (rpc.Api.isSimulationError(sim2)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim2.error), raw: sim2.error };
+  if (rpc.Api.isSimulationError(sim2)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim2.error, ctx), raw: sim2.error };
 
   const prepared = rpc.assembleTransaction(tx2, sim2).build();
   prepared.sign(feePayer);

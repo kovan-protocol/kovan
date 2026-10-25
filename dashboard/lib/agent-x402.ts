@@ -39,7 +39,8 @@ const strip = (t: Terms) => ({ url: t.url, description: t.description, payTo: t.
 
 export async function payEndpoint(agent: string, url: string): Promise<X402Result> {
   const feePayer = await feePayerKeypair();
-  const { verifier, usdc } = ids();
+  const { verifier, usdc, pool } = ids();
+  const ctx = { usdc, pool };
   const server = rpcServer();
 
   const secret = await resolveAgentSecret(agent, verifier);
@@ -58,7 +59,7 @@ export async function payEndpoint(agent: string, url: string): Promise<X402Resul
   const source = await withRetry(() => server.getAccount(feePayer.publicKey()));
   const tx1 = new TransactionBuilder(source, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE }).addOperation(op).setTimeout(terms.maxTimeoutSeconds).build();
   const sim1 = await withRetry(() => server.simulateTransaction(tx1));
-  if (rpc.Api.isSimulationError(sim1)) return { ok: false, stage: "simulate", error: explainError(sim1.error), raw: sim1.error, terms: strip(terms) };
+  if (rpc.Api.isSimulationError(sim1)) return { ok: false, stage: "simulate", error: explainError(sim1.error, ctx), raw: sim1.error, terms: strip(terms) };
 
   const expirationLedger = latest + ledgerTimeout(terms.maxTimeoutSeconds);
   const signed = ((sim1 as rpc.Api.SimulateTransactionSuccessResponse).result?.auth ?? []).map((e) =>
@@ -71,7 +72,7 @@ export async function payEndpoint(agent: string, url: string): Promise<X402Resul
     .build();
   // Covenant check happens here, before the endpoint or facilitator see anything.
   const sim2 = await withRetry(() => server.simulateTransaction(tx2));
-  if (rpc.Api.isSimulationError(sim2)) return { ok: false, stage: "simulate", error: explainError(sim2.error), raw: sim2.error, terms: strip(terms) };
+  if (rpc.Api.isSimulationError(sim2)) return { ok: false, stage: "simulate", error: explainError(sim2.error, ctx), raw: sim2.error, terms: strip(terms) };
   const prepared = rpc.assembleTransaction(tx2, sim2).build();
 
   const header = encodePaymentHeader(terms.pr, terms.req, prepared.toXDR());
