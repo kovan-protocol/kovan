@@ -1,15 +1,17 @@
 import { CountUp } from "@/components/motion/count-up";
-import { fundUsdc, sorobanContracts, testCount, txsByGroup, verifiedTransactions } from "@/lib/testnet";
+import { deployment, fundUsdc, sorobanContracts, testCount, txsByGroup } from "@/lib/testnet";
 
 export function TestnetTicker() {
   const locked = Number(fundUsdc);
   const agents = txsByGroup("create_agent").length;
+  const pools = deployment.pool ? 1 : 0;
+  const contracts = sorobanContracts.length;
   const figures = [
-    { value: Number.isFinite(locked) ? locked : 0, label: "USDC locked" },
-    { value: agents, label: agents === 1 ? "agent account" : "agent accounts" },
-    { value: sorobanContracts.length, label: "Soroban contracts" },
-    { value: verifiedTransactions.length, label: "verified transactions" },
-    { value: testCount, label: "tests in the repo" },
+    { value: pools, label: pools === 1 ? "pool" : "pools" },
+    { value: Number.isFinite(locked) ? locked : 0, label: "USDC" },
+    { value: agents, label: agents === 1 ? "agent" : "agents" },
+    { value: contracts, label: contracts === 1 ? "contract" : "contracts" },
+    { value: testCount, label: testCount === 1 ? "test" : "tests" },
   ];
 
   return (
