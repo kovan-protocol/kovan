@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+contracts/target/
+node_modules/
+*.secret
+.superpowers/
