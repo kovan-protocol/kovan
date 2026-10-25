@@ -75,6 +75,16 @@ export default function Page() {
     else throw new Error(j.error ?? j.status ?? "failed");
   }
 
+  async function payX402(agent: string, url: string, label: string) {
+    const at = Date.now();
+    setLog((l) => [{ at, kind: "agent", label: `${label} (${agent.slice(0, 6)}) ${url}`, ok: null }, ...l]);
+    const r = await fetch("/api/x402", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent, url }) });
+    const j = (await r.json()) as { ok: boolean; txHash?: string; body?: string; error?: string; stage?: string; terms?: import("@/components/AgentActions").X402Terms };
+    setLog((l) => l.map((e) => (e.at === at ? { ...e, ok: !!j.ok, hash: j.txHash, detail: j.ok ? `paid ${j.terms ? usdc(j.terms.amount) : ""}` : `${j.stage ? j.stage + ": " : ""}${j.error ?? "failed"}` } : e)));
+    if (j.ok) await refresh();
+    return j;
+  }
+
   async function fund(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -141,7 +151,7 @@ export default function Page() {
                 latestLedger={state.latestLedger}
                 actions={
                   <>
-                  <AgentActions agent={a} run={agentRun} />
+                  <AgentActions agent={a} run={agentRun} payX402={payX402} />
                   <div className="flex flex-wrap gap-2 border-t pt-3">
                     <Button
                       size="sm"
