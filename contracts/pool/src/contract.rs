@@ -214,6 +214,44 @@ impl KovanPool {
         st::set_agent(e, &agent, &rec);
     }
 
+    // ---- delegation -----------------------------------------------------
+
+    /// A parent agent carves a narrower covenant for a child out of its own
+    /// remaining allowance. The child's limits must fit inside the parent's
+    /// on every dimension. The pool's sum of limits does not change.
+    pub fn delegate(e: &Env, parent: Address, child_pubkey: BytesN<32>, child_draw_limit: i128, child_covenant: CovenantParams) -> Address {
+        parent.require_auth();
+        positive(e, child_draw_limit);
+        let mut prec = st::get_agent(e, &parent);
+        if prec.status != Status::Active {
+            panic_with_error!(e, PoolError::NotActive);
+        }
+        if child_draw_limit > prec.draw_limit - prec.drawn {
+            panic_with_error!(e, PoolError::ChildExceedsParent);
+        }
+        Self::require_subset(e, &prec.covenant, &child_covenant);
+
+        let child = Self::deploy_account(e, child_pubkey, &child_covenant);
+        prec.draw_limit -= child_draw_limit;
+        prec.children.push_back(child.clone());
+        st::set_agent(e, &parent, &prec);
+        st::set_agent(
+            e,
+            &child,
+            &AgentRecord {
+                covenant: pinned(e, child_covenant),
+                draw_limit: child_draw_limit,
+                drawn: 0,
+                status: Status::Active,
+                parent: Some(parent),
+                children: Vec::new(e),
+                dispute: Vec::new(e),
+            },
+        );
+        st::push_agent(e, &child);
+        child
+    }
+
     // ---- reads ----------------------------------------------------------
 
     pub fn get_agent(e: &Env, agent: Address) -> AgentRecord {
@@ -236,6 +274,29 @@ impl KovanPool {
 }
 
 impl KovanPool {
+    /// Child covenant ⊆ parent covenant, or `ChildExceedsParent`.
+    fn require_subset(e: &Env, p: &CovenantParams, c: &CovenantParams) {
+        let fail = || panic_with_error!(e, PoolError::ChildExceedsParent);
+        for a in c.providers.iter() {
+            if !p.providers.contains(&a) { fail(); }
+        }
+        for a in c.recipients.iter() {
+            if !p.recipients.contains(&a) { fail(); }
+        }
+        for r in c.calls.iter() {
+            let ok = p.calls.iter().any(|pr| pr.contract == r.contract && pr.fn_name == r.fn_name && r.amount_cap <= pr.amount_cap);
+            if !ok { fail(); }
+        }
+        if c.provider_per_transfer_cap > p.provider_per_transfer_cap
+            || c.provider_total_cap > p.provider_total_cap
+            || c.recipient_per_transfer_cap > p.recipient_per_transfer_cap
+            || c.recipient_total_cap > p.recipient_total_cap
+            || c.expiry > p.expiry
+        {
+            fail();
+        }
+    }
+
     fn require_owner_or_parent(e: &Env, rec: &AgentRecord, by: &Address) {
         let ok = *by == Self::owner(e) || rec.parent.as_ref() == Some(by);
         if !ok {

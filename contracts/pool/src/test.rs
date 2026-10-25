@@ -318,3 +318,117 @@ fn return_funds_allowed_after_revoke() {
     assert_eq!(bal(&fx, &fx.pool_addr), LOCK);
     assert_eq!(fx.pool.get_agent(&agent).drawn, 0);
 }
+
+// ---------------------------------------------------------------- delegation (Task 7)
+
+fn parent_with_limit(fx: &Fx, limit: i128) -> Address {
+    fx.pool.fund(&LOCK);
+    fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &limit, &covenant(fx))
+}
+
+fn child_covenant(fx: &Fx) -> CovenantParams {
+    let mut c = covenant(fx);
+    c.provider_per_transfer_cap = 1_000_000;
+    c.provider_total_cap = 2_000_000;
+    c.expiry = 5_000;
+    c
+}
+
+#[test]
+fn delegate_carves_limit_from_parent() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    assert_eq!(fx.pool.get_agent(&parent).draw_limit, 6_000_000);
+    let c = fx.pool.get_agent(&child);
+    assert_eq!(c.draw_limit, 4_000_000);
+    assert_eq!(c.parent, Some(parent.clone()));
+    assert_eq!(fx.pool.get_agent(&parent).children, vec![&fx.e, child.clone()]);
+    assert_eq!(fx.pool.get_pool().sum_limits, 10_000_000);
+    assert_eq!(fx.pool.get_pool().agent_count, 2);
+    // child can draw from the pool
+    fx.pool.draw(&child, &4_000_000);
+    assert_eq!(bal(&fx, &child), 4_000_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]
+fn delegate_rejects_over_parent_remaining() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    fx.pool.draw(&parent, &7_000_000);
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]
+fn delegate_rejects_payee_not_in_parent() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let mut c = child_covenant(&fx);
+    c.providers = vec![&fx.e, Address::generate(&fx.e)];
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &c);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]
+fn delegate_rejects_cap_above_parent() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let mut c = child_covenant(&fx);
+    c.provider_per_transfer_cap = 2_000_001;
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &c);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]
+fn delegate_rejects_expiry_after_parent() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let mut c = child_covenant(&fx);
+    c.expiry = 10_001;
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &c);
+}
+
+#[test]
+#[should_panic(expected = "Error(Auth")]
+fn delegate_requires_parent_auth() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    fx.e.mock_auths(&[MockAuth {
+        address: &fx.owner,
+        invoke: &MockAuthInvoke { contract: &fx.pool_addr, fn_name: "delegate", args: Vec::new(&fx.e), sub_invokes: &[] },
+    }]);
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &child_covenant(&fx));
+}
+
+#[test]
+fn revoke_parent_revokes_children() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    fx.pool.revoke(&parent, &fx.owner);
+    assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
+    assert!(CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&child).revoked);
+}
+
+#[test]
+fn close_child_returns_limit_to_parent() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    fx.pool.close(&child, &parent);
+    assert_eq!(fx.pool.get_agent(&child).status, Status::Closed);
+    assert_eq!(fx.pool.get_agent(&parent).draw_limit, 10_000_000);
+    assert_eq!(fx.pool.get_pool().sum_limits, 10_000_000);
+}
+
+#[test]
+fn parent_can_revoke_own_child() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    fx.pool.revoke(&child, &parent);
+    assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
+    assert_eq!(fx.pool.get_agent(&parent).status, Status::Active);
+}

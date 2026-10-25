@@ -100,7 +100,7 @@
               "function_name": "create_agent",
               "args": [
                 {
-                  "bytes": "895a94172fccdf4c4acbf0eba57b7e5c4c5f5271caa5bd6b98513d84a7e3e4d1"
+                  "bytes": "406e9c59667a8784a1c52a5e8bb4b768295fdd24ffb73d4834845ee98af93740"
                 },
                 {
                   "i128": "5000000"
@@ -216,7 +216,7 @@
                   "address": "CBGTABLT4ICE2DMSCIN5GNVE33FTU7VL5KQ3PWUUMQJVRK5FH6ARJ5TL"
                 },
                 {
-                  "bytes": "ab63650b9613b36ee677f5077b2125ddaf84d9fa73147da2b737fb908ae53ac7"
+                  "bytes": "a10d1cd75db3e51e260d4f56b607745f8ec0606882df3751a34324e07309699b"
                 }
               ]
             }
@@ -722,7 +722,7 @@
                                 "symbol": "evidence"
                               },
                               "val": {
-                                "bytes": "ab63650b9613b36ee677f5077b2125ddaf84d9fa73147da2b737fb908ae53ac7"
+                                "bytes": "a10d1cd75db3e51e260d4f56b607745f8ec0606882df3751a34324e07309699b"
                               }
                             },
                             {
@@ -1106,7 +1106,7 @@
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                         },
                         {
-                          "bytes": "895a94172fccdf4c4acbf0eba57b7e5c4c5f5271caa5bd6b98513d84a7e3e4d1"
+                          "bytes": "406e9c59667a8784a1c52a5e8bb4b768295fdd24ffb73d4834845ee98af93740"
                         }
                       ]
                     }
@@ -1132,7 +1132,7 @@
                     "symbol": "SignerLookup"
                   },
                   {
-                    "bytes": "75f4872a9b7615fb520bfb903b834267ea19184dfa9bef8f1916d4f23facbbe6"
+                    "bytes": "5b6dd4c6eaadeb215052769c20a7362b5e0e6f05a93be9f37c55ac1127dde2c0"
                   }
                 ]
               },
