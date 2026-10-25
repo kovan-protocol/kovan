@@ -100,7 +100,7 @@
               "function_name": "create_agent",
               "args": [
                 {
-                  "bytes": "11811c1db9a2b301e4151d464470da199e474e53c593ddcf09cf86ca81053612"
+                  "bytes": "78b5683ca784c8637bfb9d6489be9697b3963bdf1a069a53576f0072fb0adcda"
                 },
                 {
                   "i128": "10000000"
@@ -213,7 +213,7 @@
                   "address": "CBGTABLT4ICE2DMSCIN5GNVE33FTU7VL5KQ3PWUUMQJVRK5FH6ARJ5TL"
                 },
                 {
-                  "bytes": "b7d144724beffcd7232ad0e5d8f1ca8e2f30d3d4da1a0c6828ef1b5398b7cce3"
+                  "bytes": "d11c3276fb274c2ce74d0fdb70ebac28fc2ce064c71a4fd5792a60bfc23b8772"
                 },
                 {
                   "i128": "4000000"
@@ -1479,7 +1479,7 @@
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                         },
                         {
-                          "bytes": "11811c1db9a2b301e4151d464470da199e474e53c593ddcf09cf86ca81053612"
+                          "bytes": "78b5683ca784c8637bfb9d6489be9697b3963bdf1a069a53576f0072fb0adcda"
                         }
                       ]
                     }
@@ -1505,7 +1505,7 @@
                     "symbol": "SignerLookup"
                   },
                   {
-                    "bytes": "4c043d250e43f330538eb69af4c8071bcc6a766990fbc2147cfd34466e41c426"
+                    "bytes": "0b889f72f57bfd483b36420913d0c32ca5cd348c0e59d2c535dddf1ec537afe0"
                   }
                 ]
               },
@@ -2150,7 +2150,7 @@
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                         },
                         {
-                          "bytes": "b7d144724beffcd7232ad0e5d8f1ca8e2f30d3d4da1a0c6828ef1b5398b7cce3"
+                          "bytes": "d11c3276fb274c2ce74d0fdb70ebac28fc2ce064c71a4fd5792a60bfc23b8772"
                         }
                       ]
                     }
@@ -2176,7 +2176,7 @@
                     "symbol": "SignerLookup"
                   },
                   {
-                    "bytes": "490ac95143d48bb581c0d474bf259ef6fec2ae0598871799cf372c4bb24cca0e"
+                    "bytes": "dee63ba14830d41b77a1d7bf320ac63f7dc7b54d5d36498c494834ffd7ff399b"
                   }
                 ]
               },

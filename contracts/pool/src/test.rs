@@ -22,6 +22,7 @@ pub struct Fx {
     pub usdc: Address,
     pub owner: Address,
     pub policy: Address,
+    pub verifier: Address,
     pub prov: Address,
 }
 
@@ -54,12 +55,12 @@ pub fn setup() -> Fx {
     let policy = e.register(CovenantPolicyContract, ());
     let verifier = e.register(Ed25519VerifierContract, ());
     let wasm_hash = e.deployer().upload_contract_wasm(account_wasm::WASM);
-    let pool_addr = e.register(KovanPool, (owner.clone(), usdc.clone(), wasm_hash, policy.clone(), verifier));
+    let pool_addr = e.register(KovanPool, (owner.clone(), usdc.clone(), wasm_hash, policy.clone(), verifier.clone()));
     let pool = KovanPoolClient::new(&e, &pool_addr);
     // Leak the env so the client can borrow it for 'static in the fixture.
     let pool = unsafe { core::mem::transmute::<KovanPoolClient<'_>, KovanPoolClient<'static>>(pool) };
     let prov = Address::generate(&e);
-    Fx { e, pool, pool_addr, usdc, owner, policy, prov }
+    Fx { e, pool, pool_addr, usdc, owner, policy, verifier, prov }
 }
 
 fn bal(fx: &Fx, who: &Address) -> i128 {
@@ -431,4 +432,144 @@ fn parent_can_revoke_own_child() {
     fx.pool.revoke(&child, &parent);
     assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
     assert_eq!(fx.pool.get_agent(&parent).status, Status::Active);
+}
+
+// ---------------------------------------------------------------- signed e2e (Task 9)
+//
+// No mocked auth: the agent's ed25519 key signs an OpenZeppelin AuthPayload
+// over the AuthDigestPreimage digest, exactly as the off-chain runtime will.
+// Helper construction follows OpenZeppelin stellar-contracts v0.8.0,
+// packages/accounts/src/smart_account/test/auth_entries.rs.
+
+mod e2e {
+    use super::*;
+    use ed25519_dalek::{Signer as Ed25519Signer, SigningKey};
+    use soroban_sdk::{
+        map,
+        testutils::Ledger as _,
+        xdr::{
+            Hash as XdrHash, HashIdPreimage, HashIdPreimageSorobanAuthorization, InvokeContractArgs,
+            Limits, ScVal, SorobanAddressCredentials, SorobanAuthorizationEntry,
+            SorobanAuthorizedFunction, SorobanAuthorizedInvocation, SorobanCredentials, VecM, WriteXdr,
+        },
+        Bytes, TryFromVal, Val,
+    };
+    use stellar_accounts::smart_account::{AuthDigestPreimage, AuthPayload, Signer};
+
+    const NONCE: i64 = 1;
+    const EXPIRATION_LEDGER: u32 = 100;
+    const RULE_ID: u32 = 0;
+    const SECRET_KEY: [u8; 32] = [
+        157, 97, 177, 157, 239, 253, 90, 96, 186, 132, 74, 244, 146, 236, 44, 196, 68, 73, 197, 105,
+        123, 50, 105, 25, 112, 59, 172, 3, 28, 174, 127, 96,
+    ];
+
+    fn to_scval<T: IntoVal<Env, Val>>(e: &Env, value: T) -> ScVal {
+        ScVal::try_from_val(e, &value.into_val(e)).unwrap()
+    }
+
+    fn contract_fn(contract: &Address, name: &str, args: std::vec::Vec<ScVal>) -> SorobanAuthorizedInvocation {
+        SorobanAuthorizedInvocation {
+            function: SorobanAuthorizedFunction::ContractFn(InvokeContractArgs {
+                contract_address: contract.into(),
+                function_name: name.try_into().unwrap(),
+                args: args.try_into().unwrap(),
+            }),
+            sub_invocations: VecM::default(),
+        }
+    }
+
+    fn signature_payload(e: &Env, invocation: &SorobanAuthorizedInvocation) -> BytesN<32> {
+        let preimage = HashIdPreimage::SorobanAuthorization(HashIdPreimageSorobanAuthorization {
+            network_id: XdrHash(e.ledger().get().network_id),
+            nonce: NONCE,
+            signature_expiration_ledger: EXPIRATION_LEDGER,
+            invocation: invocation.clone(),
+        });
+        let xdr = preimage.to_xdr(Limits::none()).unwrap();
+        e.crypto().sha256(&Bytes::from_slice(e, &xdr)).to_bytes()
+    }
+
+    /// Builds the agent account's auth entry for `root_invocation`, signed by `key`.
+    fn signed_entry(e: &Env, account: &Address, signer: &Signer, key: &SigningKey, root_invocation: SorobanAuthorizedInvocation) -> SorobanAuthorizationEntry {
+        let preimage = AuthDigestPreimage {
+            account: account.clone(),
+            signature_payload: signature_payload(e, &root_invocation),
+            context_rule_ids: vec![e, RULE_ID],
+        };
+        let digest = preimage.digest(e);
+        let sig = Bytes::from_array(e, &key.sign(&digest.to_array()).to_bytes());
+        let payload = AuthPayload { signers: map![e, (signer.clone(), sig)], context_rule_ids: vec![e, RULE_ID] };
+        SorobanAuthorizationEntry {
+            credentials: SorobanCredentials::Address(SorobanAddressCredentials {
+                address: account.into(),
+                nonce: NONCE,
+                signature_expiration_ledger: EXPIRATION_LEDGER,
+                signature: to_scval(e, payload),
+            }),
+            root_invocation,
+        }
+    }
+
+    struct Signed {
+        fx: Fx,
+        agent: Address,
+        signer: Signer,
+        key: SigningKey,
+    }
+
+    /// Pool funded, agent created with the test key, draw limit drawn into the account.
+    fn signed_setup() -> Signed {
+        let fx = setup();
+        let key = SigningKey::from_bytes(&SECRET_KEY);
+        let pubkey = BytesN::from_array(&fx.e, key.verifying_key().as_bytes());
+        fx.pool.fund(&LOCK);
+        let agent = fx.pool.create_agent(&pubkey, &LIMIT, &covenant(&fx));
+        fx.pool.draw(&agent, &LIMIT);
+        let signer = Signer::External(fx.verifier.clone(), Bytes::from_array(&fx.e, key.verifying_key().as_bytes()));
+        Signed { fx, agent, signer, key }
+    }
+
+    fn transfer_with_signature(s: &Signed, to: &Address, amount: i128) -> Result<(), ()> {
+        let e = &s.fx.e;
+        let inv = contract_fn(
+            &s.fx.usdc,
+            "transfer",
+            std::vec![to_scval(e, s.agent.clone()), to_scval(e, to.clone()), to_scval(e, amount)],
+        );
+        e.set_auths(&[signed_entry(e, &s.agent, &s.signer, &s.key, inv)]);
+        token::TokenClient::new(e, &s.fx.usdc).try_transfer(&s.agent, to, &amount).map(|_| ()).map_err(|_| ())
+    }
+
+    #[test]
+    fn signed_transfer_to_provider_succeeds() {
+        let s = signed_setup();
+        assert!(transfer_with_signature(&s, &s.fx.prov, 1_000_000).is_ok());
+        assert_eq!(bal(&s.fx, &s.fx.prov), 1_000_000);
+        let st = CovenantPolicyContractClient::new(&s.fx.e, &s.fx.policy).get_covenant(&s.agent);
+        assert_eq!(st.provider_spent, 1_000_000);
+    }
+
+    #[test]
+    fn signed_transfer_to_stranger_fails() {
+        let s = signed_setup();
+        let stranger = Address::generate(&s.fx.e);
+        assert!(transfer_with_signature(&s, &stranger, 1_000_000).is_err());
+        assert_eq!(bal(&s.fx, &stranger), 0);
+    }
+
+    #[test]
+    fn signed_transfer_with_wrong_key_fails() {
+        let mut s = signed_setup();
+        s.key = SigningKey::from_bytes(&[9u8; 32]);
+        assert!(transfer_with_signature(&s, &s.fx.prov, 1_000_000).is_err());
+        assert_eq!(bal(&s.fx, &s.fx.prov), 0);
+    }
+
+    #[test]
+    fn signed_transfer_over_cap_fails() {
+        let s = signed_setup();
+        assert!(transfer_with_signature(&s, &s.fx.prov, 2_000_001).is_err());
+        assert_eq!(bal(&s.fx, &s.fx.prov), 0);
+    }
 }
