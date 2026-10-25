@@ -56,6 +56,16 @@ pub struct Amended {
 pub struct Closed {
     #[topic]
     pub agent: Address,
+    pub recovered: i128,
+    pub consumed: i128,
+    pub released: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct SettlementRequested {
+    #[topic]
+    pub agent: Address,
 }
 
 #[contractevent]

@@ -29,13 +29,15 @@ POOL_ID=$(deploy kovan-pool $WASM/kovan_pool.wasm -- \
   --owner "$OWNER_ADDR" --usdc "$USDC_SAC_ID" --account_wasm_hash "$ACCOUNT_WASM_HASH" \
   --policy "$POLICY_ID" --verifier "$VERIFIER_ID")
 echo "pool:     $POOL_ID"
+POOL_WASM_HASH=$(sha256sum "$WASM/kovan_pool.wasm" | cut -d ' ' -f 1)
 
-python3 - "$OUT" "$VERIFIER_ID" "$POLICY_ID" "$ACCOUNT_WASM_HASH" "$POOL_ID" "$USDC_SAC_ID" "$OWNER_ADDR" <<'PY'
+python3 - "$OUT" "$VERIFIER_ID" "$POLICY_ID" "$ACCOUNT_WASM_HASH" "$POOL_ID" "$POOL_WASM_HASH" "$USDC_SAC_ID" "$OWNER_ADDR" <<'PY'
 import json, sys, datetime
-out, verifier, policy, wasm, pool, usdc, owner = sys.argv[1:]
+out, verifier, policy, wasm, pool, pool_wasm, usdc, owner = sys.argv[1:]
 json.dump({
   "network": "testnet",
   "verifier": verifier, "policy": policy, "account_wasm_hash": wasm, "pool": pool,
+  "pool_wasm_hash": pool_wasm,
   "usdc": usdc, "owner": owner,
   "deployed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
 }, open(out, "w"), indent=2)

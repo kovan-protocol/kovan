@@ -26,6 +26,8 @@ pub struct AgentRecord {
     pub covenant: CovenantParams,
     pub draw_limit: i128,
     pub drawn: i128,
+    /// Net pool funding consumed when this account was closed (not gross payments).
+    pub settled_spent: i128,
     pub status: Status,
     pub parent: Option<Address>,
     pub children: Vec<Address>,
@@ -36,10 +38,13 @@ pub struct AgentRecord {
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PoolInfo {
+    pub accounting_version: u32,
     pub owner: Address,
     pub usdc: Address,
     pub locked: i128,
     pub sum_limits: i128,
+    pub settled_spent: i128,
+    pub balance: i128,
     pub agent_count: u32,
 }
 
@@ -50,8 +55,9 @@ pub enum PoolKey {
     AccountWasm,
     Policy,
     Verifier,
-    Locked,
+    Outstanding,
     SumLimits,
+    SettledSpent,
     Salt,
     Agent(Address),
     Agents,
@@ -76,6 +82,7 @@ pub enum PoolError {
     AmountNotPositive = 13,
     UnknownAgent = 14,
     TooManyChildren = 15,
+    Expired = 16,
 }
 
 /// Children per parent, so `revoke` and `close` stay within one transaction's budget.

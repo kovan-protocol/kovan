@@ -2,14 +2,17 @@
 //!
 //! The pool is the bank. It enforces one thing: how much each agent may draw.
 //! What an agent does with drawn funds is the covenant's job (see the policy
-//! crate). Invariant: sum of active draw limits <= locked.
+//! crate). `locked` is pool cash plus outstanding advances, which remain
+//! reserved until closure. The sum of non-closed agents' draw limits must
+//! never exceed `locked`. Cash comes from the token balance so direct deposits
+//! cannot become stranded outside the pool's accounting.
 use kovan_covenant_types::{Amendment, CovenantParams};
 use soroban_sdk::{
     contract, contractclient, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
     IntoVal, Val, Vec,
 };
 
-use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, Returned, Revoked, Withdrawn};
+use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, Returned, Revoked, SettlementRequested, Withdrawn};
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
 
 /// The two pool-only calls on the covenant policy contract.
@@ -40,8 +43,7 @@ impl KovanPool {
         owner.require_auth();
         positive(e, amount);
         usdc(e).transfer(&owner, &e.current_contract_address(), &amount);
-        let locked = st::get_i128(e, PoolKey::Locked) + amount;
-        st::set_i128(e, PoolKey::Locked, locked);
+        let locked = Self::accounted_funds(e);
         Funded { amount, locked }.publish(e);
     }
 
@@ -50,13 +52,12 @@ impl KovanPool {
         let owner = Self::owner(e);
         owner.require_auth();
         positive(e, amount);
-        let locked = st::get_i128(e, PoolKey::Locked);
+        let locked = Self::accounted_funds(e);
         let sum = st::get_i128(e, PoolKey::SumLimits);
         if amount > locked - sum {
             panic_with_error!(e, PoolError::Insufficient);
         }
         usdc(e).transfer(&e.current_contract_address(), &owner, &amount);
-        st::set_i128(e, PoolKey::Locked, locked - amount);
         Withdrawn { amount, locked: locked - amount }.publish(e);
     }
 
@@ -64,8 +65,9 @@ impl KovanPool {
     pub fn create_agent(e: &Env, agent_pubkey: BytesN<32>, draw_limit: i128, covenant: CovenantParams) -> Address {
         Self::owner(e).require_auth();
         positive(e, draw_limit);
+        require_future_expiry(e, covenant.expiry);
         let sum = st::get_i128(e, PoolKey::SumLimits);
-        if sum + draw_limit > st::get_i128(e, PoolKey::Locked) {
+        if sum + draw_limit > Self::accounted_funds(e) {
             panic_with_error!(e, PoolError::ExceedsLocked);
         }
         let agent = Self::deploy_account(e, agent_pubkey, &covenant);
@@ -76,6 +78,7 @@ impl KovanPool {
                 covenant: pinned(e, covenant),
                 draw_limit,
                 drawn: 0,
+                settled_spent: 0,
                 status: Status::Active,
                 parent: None,
                 children: Vec::new(e),
@@ -98,11 +101,13 @@ impl KovanPool {
         if rec.status != Status::Active {
             panic_with_error!(e, PoolError::NotActive);
         }
+        require_future_expiry(e, rec.covenant.expiry);
         if rec.drawn + amount > rec.draw_limit {
             panic_with_error!(e, PoolError::ExceedsDrawLimit);
         }
         usdc(e).transfer(&e.current_contract_address(), &agent, &amount);
         rec.drawn += amount;
+        st::set_i128(e, PoolKey::Outstanding, st::get_i128(e, PoolKey::Outstanding) + amount);
         st::set_agent(e, &agent, &rec);
         Drawn { agent, amount, drawn: rec.drawn }.publish(e);
     }
@@ -117,9 +122,7 @@ impl KovanPool {
         by.require_auth();
         positive(e, amount);
         let mut rec = st::get_agent(e, &agent);
-        let me = e.current_contract_address();
-        usdc(e).transfer_from(&me, &agent, &me, &amount);
-        rec.drawn = (rec.drawn - amount).max(0);
+        Self::recover(e, &agent, &mut rec, amount);
         st::set_agent(e, &agent, &rec);
         Returned { agent, by, amount, drawn: rec.drawn }.publish(e);
     }
@@ -139,6 +142,7 @@ impl KovanPool {
     pub fn amend(e: &Env, agent: Address, draw_limit: i128, amendment: Amendment) {
         Self::owner(e).require_auth();
         positive(e, draw_limit);
+        require_future_expiry(e, amendment.expiry);
         let mut rec = st::get_agent(e, &agent);
         if rec.status == Status::Closed {
             panic_with_error!(e, PoolError::NotActive);
@@ -148,7 +152,7 @@ impl KovanPool {
         }
         let sum = st::get_i128(e, PoolKey::SumLimits);
         let new_sum = sum - rec.draw_limit + draw_limit;
-        if new_sum > st::get_i128(e, PoolKey::Locked) {
+        if new_sum > Self::accounted_funds(e) {
             panic_with_error!(e, PoolError::ExceedsLocked);
         }
         rec.draw_limit = draw_limit;
@@ -172,41 +176,53 @@ impl KovanPool {
         }
         rec.status = Status::SettleRequested;
         st::set_agent(e, &agent, &rec);
+        // A settlement request freezes outgoing payments as well as new draws.
+        policy(e).set_revoked(&agent, &true);
+        SettlementRequested { agent }.publish(e);
     }
 
-    /// Final. Owner or parent. Requires everything drawn to be back and all
-    /// children closed. Frees the draw limit: back to the parent if there is
-    /// one, otherwise out of the pool's sum of limits.
+    /// Final. Owner or parent. All children must be closed first. Atomically
+    /// freezes spending, recovers the wallet balance, and realizes any funding
+    /// consumed. Only the unused allocation becomes available again.
     pub fn close(e: &Env, agent: Address, by: Address) {
         let mut rec = st::get_agent(e, &agent);
         Self::require_owner_or_parent(e, &rec, &by);
         if rec.status == Status::Closed {
             panic_with_error!(e, PoolError::NotActive);
         }
-        if rec.drawn != 0 {
-            panic_with_error!(e, PoolError::DrawnNotZero);
-        }
         for child in rec.children.iter() {
             if st::get_agent(e, &child).status != Status::Closed {
                 panic_with_error!(e, PoolError::NotActiveOrSettle);
             }
         }
+        policy(e).set_revoked(&agent, &true);
+        let recovered = usdc(e).balance(&agent);
+        if recovered > 0 {
+            Self::recover(e, &agent, &mut rec, recovered);
+            Returned { agent: agent.clone(), by: by.clone(), amount: recovered, drawn: rec.drawn }.publish(e);
+        }
+        let consumed = rec.drawn;
+        let released = rec.draw_limit - consumed;
+        st::set_i128(e, PoolKey::Outstanding, st::get_i128(e, PoolKey::Outstanding) - consumed);
+        st::set_i128(e, PoolKey::SettledSpent, st::get_i128(e, PoolKey::SettledSpent) + consumed);
+        let sum = st::get_i128(e, PoolKey::SumLimits);
         match rec.parent.clone() {
             Some(parent) => {
                 let mut p = st::get_agent(e, &parent);
-                p.draw_limit += rec.draw_limit;
+                p.draw_limit += released;
                 st::set_agent(e, &parent, &p);
+                // Child consumption reduces the family's remaining allocation.
+                st::set_i128(e, PoolKey::SumLimits, sum - consumed);
             }
             None => {
-                let sum = st::get_i128(e, PoolKey::SumLimits);
                 st::set_i128(e, PoolKey::SumLimits, sum - rec.draw_limit);
             }
         }
+        rec.drawn = 0;
+        rec.settled_spent = consumed;
         rec.status = Status::Closed;
         st::set_agent(e, &agent, &rec);
-        // A closed account must not spend whatever it still holds.
-        policy(e).set_revoked(&agent, &true);
-        Closed { agent }.publish(e);
+        Closed { agent, recovered, consumed, released }.publish(e);
     }
 
     /// Records an objection. Owner or agent. Nothing moves.
@@ -244,6 +260,8 @@ impl KovanPool {
         if prec.status != Status::Active {
             panic_with_error!(e, PoolError::NotActive);
         }
+        require_future_expiry(e, prec.covenant.expiry);
+        require_future_expiry(e, child_covenant.expiry);
         if child_draw_limit > prec.draw_limit - prec.drawn {
             panic_with_error!(e, PoolError::ChildExceedsParent);
         }
@@ -263,6 +281,7 @@ impl KovanPool {
                 covenant: pinned(e, child_covenant),
                 draw_limit: child_draw_limit,
                 drawn: 0,
+                settled_spent: 0,
                 status: Status::Active,
                 parent: Some(parent.clone()),
                 children: Vec::new(e),
@@ -281,11 +300,15 @@ impl KovanPool {
     }
 
     pub fn get_pool(e: &Env) -> PoolInfo {
+        let balance = usdc(e).balance(&e.current_contract_address());
         PoolInfo {
+            accounting_version: 2,
             owner: Self::owner(e),
             usdc: st::get_address(e, PoolKey::Usdc),
-            locked: st::get_i128(e, PoolKey::Locked),
+            locked: balance + st::get_i128(e, PoolKey::Outstanding),
             sum_limits: st::get_i128(e, PoolKey::SumLimits),
+            settled_spent: st::get_i128(e, PoolKey::SettledSpent),
+            balance,
             agent_count: st::list_agents(e).len(),
         }
     }
@@ -296,6 +319,20 @@ impl KovanPool {
 }
 
 impl KovanPool {
+    fn accounted_funds(e: &Env) -> i128 {
+        usdc(e).balance(&e.current_contract_address()) + st::get_i128(e, PoolKey::Outstanding)
+    }
+
+    /// Repaid principal reduces outstanding funding. Earnings or deposits above
+    /// that amount increase the pool's accounted funds, rather than getting stuck.
+    fn recover(e: &Env, agent: &Address, rec: &mut AgentRecord, amount: i128) {
+        let me = e.current_contract_address();
+        usdc(e).transfer_from(&me, agent, &me, &amount);
+        let principal = amount.min(rec.drawn);
+        rec.drawn -= principal;
+        st::set_i128(e, PoolKey::Outstanding, st::get_i128(e, PoolKey::Outstanding) - principal);
+    }
+
     /// Child covenant ⊆ parent covenant, or `ChildExceedsParent`.
     fn require_subset(e: &Env, p: &CovenantParams, c: &CovenantParams) {
         let fail = || panic_with_error!(e, PoolError::ChildExceedsParent);
@@ -382,5 +419,11 @@ fn pinned(e: &Env, mut c: CovenantParams) -> CovenantParams {
 fn positive(e: &Env, amount: i128) {
     if amount <= 0 {
         panic_with_error!(e, PoolError::AmountNotPositive);
+    }
+}
+
+fn require_future_expiry(e: &Env, expiry: u32) {
+    if e.ledger().sequence() >= expiry {
+        panic_with_error!(e, PoolError::Expired);
     }
 }
