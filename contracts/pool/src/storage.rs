@@ -1,5 +1,5 @@
 //! Pool storage: keys, records and errors.
-use kovan_covenant_policy::CovenantParams;
+use kovan_covenant_types::CovenantParams;
 use soroban_sdk::{contracterror, contracttype, panic_with_error, Address, BytesN, Env, Vec};
 
 #[contracttype]

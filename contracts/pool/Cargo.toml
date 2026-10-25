@@ -11,7 +11,7 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-kovan-covenant-policy = { path = "../covenant-policy" }
+kovan-covenant-types = { path = "../covenant-types" }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

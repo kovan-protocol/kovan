@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["ed25519-verifier", "covenant-policy", "agent-account", "pool"]
+members = ["ed25519-verifier", "covenant-types", "covenant-policy", "agent-account", "pool"]
 
 [workspace.package]
 edition = "2021"

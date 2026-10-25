@@ -1,0 +1,12 @@
+[package]
+name = "kovan-covenant-types"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }

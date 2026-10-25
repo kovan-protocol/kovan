@@ -3,13 +3,20 @@
 //! The pool is the bank. It enforces one thing: how much each agent may draw.
 //! What an agent does with drawn funds is the covenant's job (see the policy
 //! crate). Invariant: sum of active draw limits <= locked.
-use kovan_covenant_policy::{Amendment, CovenantParams, CovenantPolicyContractClient};
+use kovan_covenant_types::{Amendment, CovenantParams};
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
+    contract, contractclient, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
     IntoVal, Val, Vec,
 };
 
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status};
+
+/// The two pool-only calls on the covenant policy contract.
+#[contractclient(name = "CovenantPolicyClient")]
+pub trait CovenantPolicyAdmin {
+    fn set_revoked(e: &Env, smart_account: Address, revoked: bool);
+    fn amend(e: &Env, smart_account: Address, amendment: Amendment);
+}
 
 #[contract]
 pub struct KovanPool;
@@ -268,8 +275,8 @@ impl KovanPool {
     }
 }
 
-fn policy(e: &Env) -> CovenantPolicyContractClient<'_> {
-    CovenantPolicyContractClient::new(e, &st::get_address(e, PoolKey::Policy))
+fn policy(e: &Env) -> CovenantPolicyClient<'_> {
+    CovenantPolicyClient::new(e, &st::get_address(e, PoolKey::Policy))
 }
 
 fn usdc(e: &Env) -> token::TokenClient<'_> {

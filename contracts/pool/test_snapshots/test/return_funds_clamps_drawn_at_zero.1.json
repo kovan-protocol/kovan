@@ -100,7 +100,7 @@
               "function_name": "create_agent",
               "args": [
                 {
-                  "bytes": "4dba1711d0dcdc94ab5487bf840045c48af3a250f253a6a16b728b9a040ff56e"
+                  "bytes": "2dbd37d59ea6128dbcdbd33b9469b45dfbae29c2e6c3bc81a9be38f5da51b348"
                 },
                 {
                   "i128": "5000000"
@@ -1099,7 +1099,7 @@
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                         },
                         {
-                          "bytes": "4dba1711d0dcdc94ab5487bf840045c48af3a250f253a6a16b728b9a040ff56e"
+                          "bytes": "2dbd37d59ea6128dbcdbd33b9469b45dfbae29c2e6c3bc81a9be38f5da51b348"
                         }
                       ]
                     }
@@ -1125,7 +1125,7 @@
                     "symbol": "SignerLookup"
                   },
                   {
-                    "bytes": "deafbb8d56c32077493e5e0940640e1e8af2b3bd6ff57af56fd26d2c81433421"
+                    "bytes": "c4089234fadd4128fd13f11bcfddfc7f2fffc6a9d01ce236943748675843c2d1"
                   }
                 ]
               },
