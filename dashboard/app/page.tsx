@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentActions } from "@/components/AgentActions";
 import { AgentCard } from "@/components/AgentCard";
 import { CreateAgentForm } from "@/components/CreateAgentForm";
+import { LogPanel } from "@/components/LogPanel";
 import { PoolPanel } from "@/components/PoolPanel";
 import { WalletButton } from "@/components/WalletButton";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,6 @@ import type { CovenantArgs } from "@/lib/covenant-form";
 import { unitsFromUsdc, usdc } from "@/lib/format";
 import type { OwnerArgs, OwnerFn } from "@/lib/owner";
 import { runOwnerAction } from "@/lib/wallet";
-
-const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 export default function Page() {
   const [state, setState] = useState<State | null>(null);
@@ -178,32 +177,7 @@ export default function Page() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Log</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {log.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Transactions you send from here will appear with their result and explorer link.</p>
-              ) : (
-                <ul className="flex flex-col gap-2 text-sm">
-                  {log.map((e) => (
-                    <li key={e.at} className="flex flex-col font-mono text-xs">
-                      <span className={e.ok === false ? "text-destructive" : undefined}>
-                        {e.ok === null ? "…" : e.ok ? "✓" : "✗"} {e.label}
-                      </span>
-                      {e.detail ? <span className="text-muted-foreground">{e.detail}</span> : null}
-                      {e.hash ? (
-                        <a className="text-muted-foreground underline-offset-4 hover:underline" href={`${EXPLORER}/tx/${e.hash}`} target="_blank" rel="noreferrer">
-                          {e.hash.slice(0, 10)}… on explorer
-                        </a>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <LogPanel session={log} />
         </aside>
       </div>
     </main>
