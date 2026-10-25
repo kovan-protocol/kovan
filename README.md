@@ -42,9 +42,9 @@ A developer running an agent that pays data or RPC providers per call over x402.
 
 | Component | Stellar feature | Contract ID (testnet) |
 |---|---|---|
-| `kovan-pool` | Soroban contract; USDC SAC transfers; deploys agent accounts via `deployer()` | [`CDL5XMV5S2WJYBKPVPJNNB6SFJFCYNJJ3RK3HQX6WGS4NMI7D4JF6GVO`](https://stellar.expert/explorer/testnet/contract/CDL5XMV5S2WJYBKPVPJNNB6SFJFCYNJJ3RK3HQX6WGS4NMI7D4JF6GVO) |
+| `kovan-pool` | Soroban contract; USDC SAC transfers; deploys agent accounts via `deployer()` | [`CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ`](https://stellar.expert/explorer/testnet/contract/CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ) |
 | `kovan-covenant-policy` | OpenZeppelin smart-account policy (`stellar-accounts` 0.8.0) | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
-| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; first agent [`CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA`](https://stellar.expert/explorer/testnet/contract/CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA) |
+| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; first agent [`CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ`](https://stellar.expert/explorer/testnet/contract/CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ) |
 | `kovan-ed25519-verifier` | OZ verifier for External signers | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
 | USDC | Stellar Asset Contract | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
 | Payments | x402 (facilitator-settled `transfer` from the agent account) | see evidence |
@@ -56,8 +56,8 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 | Step | What it shows | Tx |
 |---|---|---|
 | deploy | verifier, policy, pool (second deployment, after review fixes) | [`ff4977…`](https://stellar.expert/explorer/testnet/tx/ff4977411d20f7915c400ae4edb031241a4631872fc1d7459b7acc2fb5ac54dc) [`8b25ea…`](https://stellar.expert/explorer/testnet/tx/8b25ea4e8112195e72bf779bdd80cb1ba690fe6b00b5433d403799b5e56416fd) [`aeb089…`](https://stellar.expert/explorer/testnet/tx/aeb089402970cc503063bf223978f875aa829ec1b0e0d9adcaaff70d2f4b476c) |
-| fund | Owner locks 5 testnet USDC in the pool | [`79bd95…`](https://stellar.expert/explorer/testnet/tx/79bd95da131065c6e6116a707b298a12d2cd540eb1ccf15b6e4d8df740086afa) |
-| create agent | Pool deploys a frozen agent account ($0.50 draw limit); events show one `Default` rule with one External signer and the covenant policy, plus the USDC allowance to the pool | [`5135da…`](https://stellar.expert/explorer/testnet/tx/5135da2f492ad924c0f3a15decd0cf508d0e4e38ad3fe47545f05878c5dd27ec) |
+| fund | Owner locks 5 testnet USDC in the pool | [`647e1a…`](https://stellar.expert/explorer/testnet/tx/647e1a6bcdd1c85dc7bb31a708ba04f745aa14ed35ba71e63308e399fcc9f8ff) |
+| create agent | Pool deploys a frozen agent account ($0.50 draw limit); events show one `Default` rule with one External signer and the covenant policy, plus the USDC allowance to the pool | [`6ff00f…`](https://stellar.expert/explorer/testnet/tx/6ff00f25f92b27da9034383d606e9e56428d480ad30c10019ace6323649f1033) |
 | draw | Only the draw amount leaves the pool, into the agent account | TBD |
 | x402 payment | Agent pays an allowlisted provider | TBD |
 | blocked payment | Covenant rejects a payment outside the rules | TBD |
@@ -69,7 +69,7 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
-make test                            # builds wasm, runs 83 tests
+make test                            # builds wasm, runs 87 tests
 OWNER=<identity> make deploy         # testnet only
 ```
 

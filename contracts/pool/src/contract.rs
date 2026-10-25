@@ -9,6 +9,7 @@ use soroban_sdk::{
     IntoVal, Val, Vec,
 };
 
+use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, Returned, Revoked, Withdrawn};
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
 
 /// The two pool-only calls on the covenant policy contract.
@@ -39,7 +40,9 @@ impl KovanPool {
         owner.require_auth();
         positive(e, amount);
         usdc(e).transfer(&owner, &e.current_contract_address(), &amount);
-        st::set_i128(e, PoolKey::Locked, st::get_i128(e, PoolKey::Locked) + amount);
+        let locked = st::get_i128(e, PoolKey::Locked) + amount;
+        st::set_i128(e, PoolKey::Locked, locked);
+        Funded { amount, locked }.publish(e);
     }
 
     /// Takes back USDC that no covenant is backing.
@@ -54,6 +57,7 @@ impl KovanPool {
         }
         usdc(e).transfer(&e.current_contract_address(), &owner, &amount);
         st::set_i128(e, PoolKey::Locked, locked - amount);
+        Withdrawn { amount, locked: locked - amount }.publish(e);
     }
 
     /// Creates an agent: deploys its frozen smart account and records its covenant.
@@ -80,6 +84,7 @@ impl KovanPool {
         );
         st::push_agent(e, &agent);
         st::set_i128(e, PoolKey::SumLimits, sum + draw_limit);
+        AgentCreated { agent: agent.clone(), draw_limit }.publish(e);
         agent
     }
 
@@ -99,6 +104,7 @@ impl KovanPool {
         usdc(e).transfer(&e.current_contract_address(), &agent, &amount);
         rec.drawn += amount;
         st::set_agent(e, &agent, &rec);
+        Drawn { agent, amount, drawn: rec.drawn }.publish(e);
     }
 
     /// Moves USDC from the agent's account back to the pool. The agent or the
@@ -115,6 +121,7 @@ impl KovanPool {
         usdc(e).transfer_from(&me, &agent, &me, &amount);
         rec.drawn = (rec.drawn - amount).max(0);
         st::set_agent(e, &agent, &rec);
+        Returned { agent, by, amount, drawn: rec.drawn }.publish(e);
     }
 
     // ---- lifecycle ------------------------------------------------------
@@ -125,6 +132,7 @@ impl KovanPool {
         let mut rec = st::get_agent(e, &agent);
         Self::require_owner_or_parent(e, &rec, &by);
         Self::revoke_inner(e, &agent, &mut rec);
+        Revoked { agent, by }.publish(e);
     }
 
     /// Owner-only. Changes the draw limit and the covenant's numeric caps.
@@ -152,6 +160,7 @@ impl KovanPool {
         st::set_agent(e, &agent, &rec);
         st::set_i128(e, PoolKey::SumLimits, new_sum);
         policy(e).amend(&agent, &amendment);
+        Amended { agent, draw_limit }.publish(e);
     }
 
     /// Agent asks to close.
@@ -197,6 +206,7 @@ impl KovanPool {
         st::set_agent(e, &agent, &rec);
         // A closed account must not spend whatever it still holds.
         policy(e).set_revoked(&agent, &true);
+        Closed { agent }.publish(e);
     }
 
     /// Records an objection. Owner or agent. Nothing moves.
@@ -254,12 +264,13 @@ impl KovanPool {
                 draw_limit: child_draw_limit,
                 drawn: 0,
                 status: Status::Active,
-                parent: Some(parent),
+                parent: Some(parent.clone()),
                 children: Vec::new(e),
                 dispute: Vec::new(e),
             },
         );
         st::push_agent(e, &child);
+        Delegated { parent, child: child.clone(), draw_limit: child_draw_limit }.publish(e);
         child
     }
 

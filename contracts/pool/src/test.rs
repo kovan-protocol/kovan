@@ -5,7 +5,7 @@ use kovan_covenant_policy::{CovenantParams, CovenantPolicyContract, CovenantPoli
 use kovan_ed25519_verifier::Ed25519VerifierContract;
 use soroban_sdk::{
     testutils::{Address as _, BytesN as _, MockAuth, MockAuthInvoke},
-    token, vec, Address, BytesN, Env, IntoVal, Vec,
+    token, vec, Address, BytesN, Env, IntoVal, TryFromVal, Vec,
 };
 
 use crate::contract::{KovanPool, KovanPoolClient};
@@ -699,4 +699,59 @@ fn revoke_parent_after_child_already_revoked() {
     fx.pool.revoke(&parent, &fx.owner);
     assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
     assert_eq!(fx.pool.get_agent(&parent).status, Status::Revoked);
+}
+
+// ---------------------------------------------------------------- events (console Task 1)
+
+mod events {
+    use super::*;
+    use soroban_sdk::{testutils::Events as _, xdr::{ContractEventBody, ScVal}};
+
+    /// (first topic as string, second topic as ScVal if any) of the last pool event.
+    fn last_pool_event(fx: &Fx) -> (std::string::String, Option<ScVal>) {
+        let evs = fx.e.events().all().filter_by_contract(&fx.pool_addr);
+        let ev = evs.events().last().expect("no pool event").clone();
+        let ContractEventBody::V0(v0) = ev.body;
+        let topics: std::vec::Vec<ScVal> = v0.topics.to_vec();
+        let name = match &topics[0] { ScVal::Symbol(s) => std::string::String::from_utf8(s.0.to_vec()).unwrap(), other => panic!("topic0 {:?}", other) };
+        (name, topics.get(1).cloned())
+    }
+
+    fn addr_scval(fx: &Fx, a: &Address) -> ScVal {
+        ScVal::try_from_val(&fx.e, &a.to_val()).unwrap()
+    }
+
+    #[test]
+    fn fund_emits_funded() {
+        let fx = setup();
+        fx.pool.fund(&LOCK);
+        assert_eq!(last_pool_event(&fx).0, "funded");
+    }
+
+    #[test]
+    fn create_agent_emits_agent_created() {
+        let fx = setup();
+        let agent = funded_agent(&fx);
+        let (name, topic1) = last_pool_event(&fx);
+        assert_eq!(name, "agent_created");
+        assert_eq!(topic1, Some(addr_scval(&fx, &agent)));
+    }
+
+    #[test]
+    fn draw_emits_drawn() {
+        let fx = setup();
+        let agent = funded_agent(&fx);
+        fx.pool.draw(&agent, &LIMIT);
+        let (name, topic1) = last_pool_event(&fx);
+        assert_eq!(name, "drawn");
+        assert_eq!(topic1, Some(addr_scval(&fx, &agent)));
+    }
+
+    #[test]
+    fn delegate_emits_delegated() {
+        let fx = setup();
+        let parent = parent_with_limit(&fx, 10_000_000);
+        fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &child_covenant(&fx));
+        assert_eq!(last_pool_event(&fx).0, "delegated");
+    }
 }
