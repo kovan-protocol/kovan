@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kovan · Hero dashboard mockup</title>
+<meta name="theme-color" content="#FBFBFA">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBFBFA;--white:#FFF;--stone:#F3F3F1;--line:#E6E6E1;--line2:#D9D9D3;
+  --ink:#0E1116;--ink2:#5B6270;--dim:#626A76;
+  --blue:#014CFE;--blue-soft:#EAF0FF;--blue-2:#6E95FF;
+  --ok:#2FD38A;--deny:#FF5C5C;
+  --ok-t:#0E7A4C;--ok-bg:#E8F7EF;--deny-t:#C62828;--deny-bg:#FDECEC;--warn-t:#9A5B00;--warn-bg:#FFF4E0;
+  --f-d:"Manrope",ui-sans-serif,system-ui,sans-serif;--f-b:"Inter",ui-sans-serif,system-ui,sans-serif;--f-m:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.7,.1,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-b);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.mono{font-family:var(--f-m);font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:56px 24px 72px}
+.intro{margin-bottom:28px;max-width:720px}
+.eyebrow{font:500 11px/1 var(--f-m);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.intro h1{font:800 clamp(30px,4vw,48px)/1.04 var(--f-d);letter-spacing:-.035em;margin-top:14px}
+.intro h1 span{color:#7C838E}
+
+/* Stage: tinted panel + dot grid, window floats inside (Ramp hero pattern) */
+.stage{position:relative;background:var(--stone);border:1px solid var(--line);border-radius:16px;padding:56px 64px 124px;perspective:1600px;isolation:isolate}
+.dots{position:absolute;inset:0;border-radius:inherit;background-image:radial-gradient(#C9C9C2 1px,transparent 1.2px);background-size:16px 16px;opacity:.55;-webkit-mask-image:linear-gradient(180deg,#000 0,transparent 85%);mask-image:linear-gradient(180deg,#000 0,transparent 85%);z-index:-1}
+.app{background:var(--white);border:1px solid var(--line2);border-radius:12px;box-shadow:0 1px 0 rgba(14,17,22,.04),0 30px 70px -30px rgba(14,17,22,.35);overflow:hidden;transform-origin:50% 0;will-change:transform}
+.bar{height:38px;display:flex;align-items:center;gap:7px;padding:0 14px;border-bottom:1px solid var(--line);background:#FCFCFB}
+.bar i{width:9px;height:9px;border-radius:50%;background:#DEDED8}
+.bar b{flex:1;text-align:center;font:500 12px var(--f-b);color:var(--dim)}
+.tag{font:500 10px/1 var(--f-m);letter-spacing:.1em;text-transform:uppercase;padding:4px 6px;border-radius:4px;background:var(--stone);border:1px solid var(--line2);color:var(--dim);white-space:nowrap}
+.tag-net{background:var(--blue-soft);border-color:#CFDCFF;color:#0039C4}
+.body{display:grid;grid-template-columns:200px 1fr}
+.side{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px;background:#FDFDFC}
+.brand{display:flex;align-items:center;gap:8px;font:800 16px var(--f-d);letter-spacing:-.02em;padding:0 8px 16px}
+.brand svg{width:22px;height:22px}
+.nav{display:flex;align-items:center;gap:10px;padding:8px;border-radius:7px;font-size:13.5px;color:var(--ink2)}
+.nav.on{background:var(--stone);color:var(--ink);font-weight:500}
+.nav svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6}
+.net{margin-top:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(47,211,138,.2);flex:none}
+.main{padding:22px 26px 26px;min-width:0}
+.crumb{font-size:12.5px;color:var(--dim)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 18px}
+.head h2{font:800 26px/1.1 var(--f-d);letter-spacing:-.03em}
+.btn{font:500 13px var(--f-b);background:var(--blue);color:#fff;border-radius:7px;padding:0 14px;height:36px;display:inline-flex;align-items:center;border:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{padding:14px 16px;border-left:1px solid var(--line);min-width:0}
+.kpi:first-child{border-left:0}
+.kpi .l{font-size:12px;color:var(--dim);display:flex;gap:6px;align-items:center;justify-content:space-between}
+.kpi .v{font:500 22px/1.2 var(--f-m);letter-spacing:-.02em;margin-top:6px}
+.kpi .v small{font:500 11px var(--f-b);color:var(--dim);margin-left:3px}
+.kpi .v.inv{font-size:16px;color:var(--ok-t);padding-top:5px}
+.alloc{margin:14px 0 18px}
+.track{height:8px;border-radius:99px;background:var(--stone);overflow:hidden}
+.fill{height:100%;width:10%;background:var(--blue);border-radius:99px;transform-origin:0 50%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--blue);vertical-align:0}
+.legend span.free::before{background:var(--line2)}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+.card{border:1px solid var(--line);border-radius:10px;min-width:0;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:500;color:var(--ink2)}
+.ag{padding:13px 14px;border-top:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.ag:first-of-type{border-top:0}
+.av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font:600 12px var(--f-b);background:var(--blue-soft);color:var(--blue);grid-row:span 2}
+.ag .n{font-weight:600;font-size:13.5px;display:flex;gap:8px;align-items:center;min-width:0}
+.ag .p{font-size:11.5px;color:var(--dim)}
+.ag .lim{font:500 12.5px var(--f-m);text-align:right}
+.ag .lim small{display:block;font:400 11px var(--f-b);color:var(--dim)}
+.ag .bar2{grid-column:2/4;height:6px;border-radius:99px;background:var(--stone);overflow:hidden;margin-top:6px}
+.ag .bar2 i{display:block;height:100%;border-radius:99px;background:var(--blue);transform-origin:0 50%}
+.ag.ex .av{background:var(--stone);color:var(--dim)}
+.ag.ex .bar2 i{background:repeating-linear-gradient(135deg,var(--blue-2) 0 4px,#9DB6FF 4px 8px)}
+.ag.ex .n{color:var(--ink2)}
+.chip{display:inline-flex;align-items:center;gap:5px;font:500 11px/1 var(--f-b);padding:4px 7px;border-radius:99px;white-space:nowrap}
+.chip::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.c-ok{background:var(--ok-bg);color:var(--ok-t)}
+.c-bad{background:var(--deny-bg);color:var(--deny-t)}
+.c-warn{background:var(--warn-bg);color:var(--warn-t)}
+.pay{display:grid;grid-template-columns:22px 1fr auto;gap:2px 10px;padding:11px 14px;border-top:1px solid var(--line);align-items:center}
+.pay:first-of-type{border-top:0}
+.ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;grid-row:span 2}
+.ic.ok{background:var(--ok-bg);color:var(--ok-t)}.ic.bad{background:var(--deny-bg);color:var(--deny-t)}
+.pay .t{font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pay .s{font-size:11.5px;color:var(--dim);grid-column:2}
+.pay .a{font:500 12.5px var(--f-m);text-align:right;grid-row:span 2;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.pay.blocked{background:linear-gradient(90deg,rgba(255,92,92,.07),transparent 70%)}
+.pay.blocked .t{color:var(--deny-t)}
+.pay.blocked .a{text-decoration:line-through;text-decoration-color:rgba(198,40,40,.5)}
+.pay.blocked .a .chip{text-decoration:none}
+
+/* floating cards: overlap the window edge, like Ramp's phone + card */
+.float{position:absolute;background:var(--white);border:1px solid var(--line2);border-radius:12px;box-shadow:0 24px 60px -24px rgba(14,17,22,.4);z-index:2}
+.toast{right:24px;bottom:30px;width:300px;padding:14px 16px}
+.toast-h{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px}
+.toast-h .dot{background:var(--deny);box-shadow:0 0 0 3px rgba(255,92,92,.2)}
+.toast-h em{margin-left:auto;font-style:normal;font-weight:400;font-size:11.5px;color:var(--dim)}
+.toast p{font-size:12.5px;color:var(--ink2);margin:6px 0 12px}
+.toast p b{color:var(--ink);font-weight:600}
+.toast .acts{display:flex;gap:8px}
+.toast .acts span{font:500 12px var(--f-b);height:30px;padding:0 11px;border-radius:6px;display:inline-flex;align-items:center;border:1px solid var(--line2)}
+.toast .acts span:first-child{background:var(--ink);color:#fff;border-color:var(--ink)}
+.cov{left:22px;bottom:30px;width:250px;padding:14px 16px}
+.cov-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cov-h b{font:600 13.5px var(--f-b)}
+.cr{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
+.cr b{font:500 12px var(--f-m);color:var(--ink)}
+.cr.real b::after{content:"testnet";font:500 9.5px var(--f-m);letter-spacing:.06em;text-transform:uppercase;color:#0039C4;background:var(--blue-soft);border-radius:3px;padding:2px 4px;margin-left:6px}
+.cov small{display:block;font-size:11px;color:var(--dim);margin-top:6px}
+
+.cap{display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:13px;color:var(--ink2);max-width:860px}
+.cap a{color:var(--blue);text-underline-offset:3px}
+
+@media (max-width:1080px){.side{display:none}.body{grid-template-columns:1fr}.cov{display:none}.stage{padding:40px 32px 110px}}
+@media (max-width:860px){
+  .grid{grid-template-columns:1fr}
+  .stage{padding-bottom:48px}
+  .toast{position:relative;right:auto;bottom:auto;width:auto;margin:-28px 14px 0}
+}
+@media (max-width:600px){
+  .wrap{padding:32px 16px 48px}
+  .stage{padding:16px 12px 16px;border-radius:14px}
+  .main{padding:16px 14px 16px}
+  .head h2{font-size:22px}
+  .bar b{font-size:11px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{border-left:0;border-top:1px solid var(--line)}
+  .kpi:nth-child(-n+2){border-top:0}.kpi:nth-child(even){border-left:1px solid var(--line)}
+  .kpi .v{font-size:19px}
+  .kpi .v.inv{font-size:13px;white-space:nowrap}
+  .toast{margin:-18px 6px 0}
+  .btn{height:44px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="intro">
+    <p class="eyebrow">Mockup · hero dashboard</p>
+    <h1>Owner dashboard. <span>One pool, agents inside limits.</span></h1>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="dots" aria-hidden="true"></div>
+
+    <div class="app" id="app" role="img" aria-label="Example owner dashboard: a pool with 5.00 USDC locked, the monitor agent with a 0.50 USDC limit, and a payments feed with one blocked payment">
+      <div class="bar" aria-hidden="true"><i></i><i></i><i></i><b>Kovan · Owner dashboard</b><span class="tag">Preview</span></div>
+      <div class="body">
+        <aside class="side">
+          <div class="brand"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 401 505" role="img" aria-label="Kovan"><g transform="translate(0 0) scale(1)" fill="#014CFE"><polygon points="0,183 401,0 401,153 0,336"/><polygon points="62,350 330,229 330,505"/></g></svg>Kovan</div>
+          <div class="nav on"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2v6h6"/></svg>Pool</div>
+          <div class="nav"><svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.5"/><path d="M3 14c.6-2.8 2.6-4 5-4s4.4 1.2 5 4"/></svg>Agents</div>
+          <div class="nav"><svg viewBox="0 0 16 16"><path d="M8 1.8 13 4v4c0 3-2.2 5.2-5 6.2C5.2 13.2 3 11 3 8V4z"/></svg>Covenants</div>
+          <div class="nav"><svg viewBox="0 0 16 16"><path d="M1.5 8h3l2-5 3 10 2-5h3"/></svg>Payments</div>
+          <div class="net"><span class="dot"></span>Stellar testnet</div>
+        </aside>
+        <div class="main">
+          <div class="crumb">Pools / kovan-pool</div>
+          <div class="head"><h2>Pool</h2><span class="btn">+ New agent</span></div>
+
+          <div class="kpis">
+            <div class="kpi"><div class="l">Locked <span class="tag tag-net">testnet</span></div><div class="v mono"><span data-n="5.00">5.00</span><small>USDC</small></div></div>
+            <div class="kpi"><div class="l">Assigned to agents</div><div class="v mono"><span data-n="0.50">0.50</span><small>USDC</small></div></div>
+            <div class="kpi"><div class="l">Free</div><div class="v mono"><span data-n="4.50">4.50</span><small>USDC</small></div></div>
+            <div class="kpi"><div class="l">Invariant</div><div class="v inv mono">Σ 0.50 ≤ 5.00</div></div>
+          </div>
+
+          <div class="alloc">
+            <div class="track"><div class="fill" data-grow></div></div>
+            <div class="legend"><span>monitor 0.50</span><span class="free">free 4.50</span></div>
+          </div>
+
+          <div class="grid">
+            <section class="card" aria-label="Agents and covenant limits">
+              <div class="card-h">Agents · covenant limits <span class="tag">1 live</span></div>
+              <div class="ag" data-in>
+                <div class="av">M</div>
+                <div class="n">monitor <span class="tag tag-net">testnet</span></div>
+                <div class="lim">0.50<small>draw limit</small></div>
+                <div class="p">Smart account · bound by covenant</div>
+                <div class="bar2" title="0.50 of 5.00 USDC pool"><i style="width:10%" data-grow></i></div>
+              </div>
+              <div class="ag ex" data-in>
+                <div class="av">S</div>
+                <div class="n">scout <span class="tag">Example</span></div>
+                <div class="lim">0.25<small>draw limit</small></div>
+                <div class="p">Sub-agent of monitor · not deployed</div>
+                <div class="bar2"><i style="width:5%" data-grow></i></div>
+              </div>
+              <div class="ag ex" data-in>
+                <div class="av">R</div>
+                <div class="n">research <span class="tag">Example</span></div>
+                <div class="lim">1.00<small>draw limit</small></div>
+                <div class="p">Not deployed · illustrative</div>
+                <div class="bar2"><i style="width:20%" data-grow></i></div>
+              </div>
+            </section>
+
+            <section class="card" aria-label="Payments feed (example)">
+              <div class="card-h">Payments <span class="tag">Example</span></div>
+              <div class="pay" data-in>
+                <div class="ic ok">✓</div><div class="t">x402 · data-provider</div>
+                <div class="a">0.05<span class="chip c-ok">Settled</span></div>
+                <div class="s">monitor · GET /feed</div>
+              </div>
+              <div class="pay" data-in>
+                <div class="ic ok">✓</div><div class="t">x402 · data-provider</div>
+                <div class="a">0.05<span class="chip c-ok">Settled</span></div>
+                <div class="s">monitor · GET /feed</div>
+              </div>
+              <div class="pay blocked" id="blocked" data-in>
+                <div class="ic bad">✕</div><div class="t">transfer → GDX7…Q2LM</div>
+                <div class="a">0.50<span class="chip c-bad">Blocked</span></div>
+                <div class="s">payee not in covenant</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="float toast" id="toast" role="img" aria-label="Example notification: payment blocked">
+      <div class="toast-h"><span class="dot"></span>Payment blocked<em>Example</em></div>
+      <p><b>monitor</b> tried to send <b>0.50 USDC</b> to GDX7…Q2LM. The covenant refused it, so the transaction failed on-chain.</p>
+      <div class="acts"><span>Revoke monitor</span><span>Details</span></div>
+    </div>
+
+    <div class="float cov" id="cov" role="img" aria-label="Covenant card for monitor">
+      <div class="cov-h"><b>Covenant · monitor</b><span class="tag">Example</span></div>
+      <div class="cr real"><span>Draw limit</span><b>0.50</b></div>
+      <div class="cr"><span>Payee</span><b>data-provider</b></div>
+      <div class="cr"><span>Per transfer</span><b>0.10</b></div>
+      <div class="cr"><span>Expiry</span><b>ledger +17,280</b></div>
+      <small>Set by the owner. The agent can't edit it.</small>
+    </div>
+  </div>
+
+  <p class="cap"><span class="tag">Example</span><span>Illustrative UI. Live on Stellar testnet: 1 pool with 5.00 USDC locked and 1 agent (monitor) with a 0.50 USDC draw limit (<a href="https://stellar.expert/explorer/testnet/contract/CDL5XMV5S2WJYBKPVPJNNB6SFJFCYNJJ3RK3HQX6WGS4NMI7D4JF6GVO" target="_blank" rel="noopener">pool on Stellar Expert</a>). The other agents, the payments and the blocked payment are examples. The owner dashboard is still being built.</span></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+(function(){
+  if(!window.gsap) return;                       // no CDN: everything stays visible
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  gsap.registerPlugin(ScrollTrigger);
+  var E='power3.out', $=function(s){return gsap.utils.toArray(s)};
+
+  var tl=gsap.timeline({defaults:{ease:E},scrollTrigger:{trigger:'#stage',start:'top 80%',once:true}});
+  tl.from('#app',{y:48,opacity:0,duration:.9})
+    .from('.kpi',{y:14,opacity:0,duration:.5,stagger:.07},'-=.45')
+    .add(function(){ $('[data-n]').forEach(function(el){
+        var o={v:0},t=parseFloat(el.dataset.n);
+        gsap.to(o,{v:t,duration:1.1,ease:'power2.out',onUpdate:function(){el.textContent=o.v.toFixed(2)}});
+      }); },'<')
+    .from('[data-grow]',{scaleX:0,duration:.8,stagger:.08,ease:'power2.out'},'-=.2')
+    .from('[data-in]',{x:14,opacity:0,duration:.45,stagger:.09},'<')
+    .fromTo('#blocked',{backgroundColor:'rgba(255,92,92,.28)'},{backgroundColor:'rgba(255,92,92,0)',duration:1.1,ease:'power1.out',clearProps:'backgroundColor'},'-=.05')
+    .from('#toast',{y:18,scale:.96,opacity:0,duration:.6,ease:'back.out(1.5)'},'<+.1')
+    .from('#cov',{y:18,opacity:0,duration:.6},'<+.15');
+
+  // Desktop only: window tilts flat as it scrolls in; floats drift (parallax)
+  gsap.matchMedia().add('(min-width:861px)',function(){
+    gsap.fromTo('#app',{rotateX:9,scale:.965},{rotateX:0,scale:1,ease:'none',
+      scrollTrigger:{trigger:'#stage',start:'top 95%',end:'top 25%',scrub:.6}});
+    gsap.to('#toast',{y:-28,ease:'none',scrollTrigger:{trigger:'#stage',start:'top bottom',end:'bottom top',scrub:.6}});
+    gsap.to('#cov',{y:-14,ease:'none',scrollTrigger:{trigger:'#stage',start:'top bottom',end:'bottom top',scrub:.6}});
+  });
+})();
+</script>
+</body>
+</html>

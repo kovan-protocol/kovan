@@ -1,5 +1,6 @@
 # Kovan
 
+Shared USDC budgets your AI agents can't overspend.
 > **Testnet only.** Hackathon prototype on Stellar testnet. Testnet USDC has no value. Not audited. Not a financial product. Not legal advice.
 
 HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that spend")
