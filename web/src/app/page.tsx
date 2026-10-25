@@ -1,4 +1,5 @@
 import { AttackReplay } from "@/components/sections/attack-replay";
+import { Autopilot } from "@/components/sections/autopilot";
 import { Cta } from "@/components/sections/cta";
 import { Developers } from "@/components/sections/developers";
 import { Faq } from "@/components/sections/faq";
@@ -16,6 +17,7 @@ export default function Page() {
       <Hero />
       <StackMarquee />
       <Problem />
+      <Autopilot />
       <HowItWorks />
       <WhyKovan />
       <AttackReplay />

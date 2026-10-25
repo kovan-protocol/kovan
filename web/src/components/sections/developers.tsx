@@ -32,12 +32,12 @@ export function Developers() {
   const created = txsByGroup("create_agent")[0];
 
   return (
-    <section className="sec" id="developers" data-sec="07" data-title="Developers" style={{ paddingTop: 40 }}>
+    <section className="sec" id="developers" data-sec="08" data-title="Developers" style={{ paddingTop: 40 }}>
       <div className="wrap">
         <div className="sec-head">
           <div>
             <div className="eyebrow" data-reveal>
-              <b>§07</b> Developers
+              <b>§08</b> Developers
             </div>
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="Open source." />

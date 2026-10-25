@@ -32,7 +32,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kovan · Humans configure, agents only execute inside limits",
+  title: "Kovan · Shared USDC budgets your AI agents can't overspend.",
   description:
     "One USDC pool. A smart-account wallet for every AI agent, bound by an on-chain covenant. Public beta on Stellar testnet.",
 };

@@ -2,7 +2,8 @@ import { DOCS_URL } from "@/config/site";
 import { PrimaryLink } from "@/components/primary-link";
 import { Magnetic } from "@/components/motion/magnetic";
 import { SplitWords } from "@/components/motion/split-words";
-import { PoolFlow } from "@/components/sections/pool-flow";
+import { OwnerDashboard } from "@/components/sections/owner-dashboard";
+import { TestnetTicker } from "@/components/sections/testnet-ticker";
 import {
   contractUrl,
   deployedAtLabel,
@@ -40,8 +41,9 @@ export function Hero() {
       </div>
       <div className="bgdots" />
       <div className="glow" />
-      <PoolFlow />
       <div className="wrap">
+        <TestnetTicker />
+        <div className="hero-top">
         <div className="hero-copy">
           <a className="badge" href="#developers">
             <span className="pill">
@@ -51,13 +53,9 @@ export function Hero() {
             Stellar testnet <span aria-hidden>→</span>
           </a>
           <h1>
-            <SplitWords text="Humans configure." />
-            <span className="l2">
-              <em className="split">
-                <SplitWords text="Agents only execute inside limits." />
-              </em>
-            </span>
+            <SplitWords text="Shared USDC budgets your AI agents can't overspend." />
           </h1>
+          <p className="subhead">Humans configure. Agents only execute inside limits.</p>
           <p className="lede">
             One USDC pool. A smart-account wallet for every AI agent, bound by an on-chain covenant it
             can&apos;t rewrite, can&apos;t exceed, and can&apos;t hand down wider than it was given.
@@ -81,7 +79,8 @@ export function Hero() {
             <span className="ext">Stellar Expert ↗</span>
           </a>
         </div>
-        <div className="hero-canvas-space" id="canvasSpace" aria-hidden />
+        <OwnerDashboard />
+        </div>
         <div className="proof" role="group" aria-label="Live on Stellar testnet">
           <div className="proof-head">
             <span className="l">
@@ -102,9 +101,6 @@ export function Hero() {
           </div>
         </div>
       </div>
-      <span className="canvas-label" aria-hidden>
-        Illustrative flow
-      </span>
     </section>
   );
 }

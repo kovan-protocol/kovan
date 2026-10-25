@@ -118,12 +118,12 @@ export function Simulator() {
   };
 
   return (
-    <section className="sec paper scrub" id="simulator" data-sec="05" data-title="Playground">
+    <section className="sec paper scrub" id="simulator" data-sec="06" data-title="Playground">
       <div className="wrap">
         <div className="sec-head">
           <div>
             <div className="eyebrow" data-reveal>
-              <b>§05</b> Playground
+              <b>§06</b> Playground
             </div>
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="Let the agent act." />

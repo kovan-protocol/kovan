@@ -3,12 +3,12 @@ import { SplitWords } from "@/components/motion/split-words";
 
 export function Guarantees() {
   return (
-    <section className="sec" id="guarantees" data-sec="06" data-title="Guarantees">
+    <section className="sec" id="guarantees" data-sec="07" data-title="Guarantees">
       <div className="wrap">
         <div className="sec-head">
           <div>
             <div className="eyebrow" data-reveal>
-              <b>§06</b> Guarantees
+              <b>§07</b> Guarantees
             </div>
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="Enforced by contracts," />

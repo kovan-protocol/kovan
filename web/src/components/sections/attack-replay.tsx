@@ -75,14 +75,14 @@ export function AttackReplay() {
   };
 
   return (
-    <section className="attack" id="attack" data-sec="04" data-title="Security">
+    <section className="attack" id="attack" data-sec="05" data-title="Security">
       <div className="attack-scroll">
         <div className="attack-pin" id="attackPin">
           <div className="wrap">
             <div className="attack-top">
               <div>
                 <div className="eyebrow">
-                  <b>§04</b> Security
+                  <b>§05</b> Security
                 </div>
                 <h2 style={{ marginTop: 12 }}>
                   A compromised agent, <span style={{ color: "var(--blue-t)" }}>contained.</span>

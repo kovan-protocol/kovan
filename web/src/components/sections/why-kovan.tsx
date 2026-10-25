@@ -81,12 +81,12 @@ export function WhyKovan() {
   const hash = BLOCKED_PAYMENT_HASH;
 
   return (
-    <section className="sec" id="different" data-sec="03" data-title="Why Kovan" style={{ paddingTop: 40 }}>
+    <section className="sec" id="different" data-sec="04" data-title="Why Kovan" style={{ paddingTop: 40 }}>
       <div className="wrap">
         <div className="sec-head">
           <div>
             <div className="eyebrow" data-reveal>
-              <b>§03</b> Why Kovan
+              <b>§04</b> Why Kovan
             </div>
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="More than a spending limit." />

@@ -31,11 +31,11 @@ const items = [
 
 export function Faq() {
   return (
-    <section className="sec" id="faq" data-sec="08" data-title="FAQ" style={{ paddingTop: 40 }}>
+    <section className="sec" id="faq" data-sec="09" data-title="FAQ" style={{ paddingTop: 40 }}>
       <div className="wrap faq">
         <div>
           <div className="eyebrow" data-reveal>
-            <b>§08</b> FAQ
+            <b>§09</b> FAQ
           </div>
           <h2 style={{ marginTop: 18 }}>
             <SplitWords text="Straight answers." />

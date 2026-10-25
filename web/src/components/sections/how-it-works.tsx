@@ -32,12 +32,12 @@ export function HowItWorks() {
   }, []);
 
   return (
-    <section className="sec" id="how" data-sec="02" data-title="How it works" style={{ paddingTop: 60 }}>
+    <section className="sec" id="how" data-sec="03" data-title="How it works" style={{ paddingTop: 60 }}>
       <div className="wrap">
         <div className="sec-head">
           <div>
             <div className="eyebrow" data-reveal>
-              <b>§02</b> How it works
+              <b>§03</b> How it works
             </div>
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="Three moves." />

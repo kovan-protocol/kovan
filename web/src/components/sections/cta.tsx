@@ -6,7 +6,7 @@ import { SplitWords } from "@/components/motion/split-words";
 export function Cta() {
   const cta = primaryCta();
   return (
-    <section className="cta" data-sec="09" data-title="Get started">
+    <section className="cta" data-sec="10" data-title="Get started">
       <div className="wrap">
         <div className="cta-box scrub" data-reveal>
           <svg className="bigmark" viewBox="0 0 401 505" aria-hidden>
