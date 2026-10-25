@@ -1,83 +1,63 @@
 "use client";
 
-import { DOCS_URL } from "@/config/site";
-import { PrimaryLink } from "@/components/primary-link";
-import { Magnetic } from "@/components/motion/magnetic";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Globe2, Menu, Moon, Sun, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Brand, PrimaryAction } from "@/components/marketing/primitives";
+import { useCopy, usePreferences } from "@/components/marketing/preferences";
 
 const links = [
-  { href: "#how", label: "How it works" },
-  { href: "#different", label: "Why Kovan" },
-  { href: "#attack", label: "Security" },
-  { href: "#simulator", label: "Playground" },
-  { href: "#developers", label: "Developers" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/how-it-works", en: "How it works", es: "Cómo funciona" },
+  { href: "/why-kovan", en: "Why Kovan", es: "Por qué Kovan" },
+  { href: "/security", en: "Security", es: "Seguridad" },
+  { href: "/developers", en: "Developers", es: "Desarrolladores" },
 ];
 
 export function SiteNav() {
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const open = openPath === pathname;
+  const setOpen = (value: boolean) => setOpenPath(value ? pathname : null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const nav = useRef<HTMLElement>(null);
+  const { locale, theme, setLocale, setTheme } = usePreferences();
+  const t = useCopy();
 
   useEffect(() => {
-    const nav = document.getElementById("nav");
-    if (!nav) return;
-    let lastY = window.scrollY;
-    const onScroll = () => {
-      const y = window.scrollY;
-      nav.classList.toggle("scrolled", y > 40);
-      if (Math.abs(y - lastY) < 8) return;
-      const hide = y > lastY && y > 760 && !nav.matches(":focus-within") && !nav.classList.contains("open");
-      nav.classList.toggle("hide", hide);
-      lastY = y;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    document.getElementById("nav")?.classList.toggle("open", open);
+    if (!open) return;
+    function dismiss(event: KeyboardEvent) {
+      if (event.key === "Escape") { setOpenPath(null); toggle.current?.focus(); }
+    }
+    function outside(event: PointerEvent) {
+      if (!nav.current?.contains(event.target as Node)) setOpenPath(null);
+    }
+    document.addEventListener("keydown", dismiss);
+    document.addEventListener("pointerdown", outside);
+    return () => { document.removeEventListener("keydown", dismiss); document.removeEventListener("pointerdown", outside); };
   }, [open]);
 
-  return (
-    <header className="nav" id="nav">
-      <a className="logo" href="#top" aria-label="Kovan home" onClick={() => setOpen(false)}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/lockup-dark.svg" alt="" height={24} />
-      </a>
-      <ul>
-        {links.map((link) => (
-          <li key={link.href}>
-            <a href={link.href}>{link.label}</a>
-          </li>
-        ))}
-      </ul>
-      <a className="navdocs" href={DOCS_URL} target="_blank" rel="noopener noreferrer">
-        Docs
-      </a>
-      <Magnetic>
-        <PrimaryLink className="btn btn-primary magnet" />
-      </Magnetic>
-      <button
-        type="button"
-        className="menu-btn"
-        aria-expanded={open}
-        aria-controls="nav-panel"
-        onClick={() => setOpen((value) => !value)}
-      >
-        {open ? "Close" : "Menu"}
-      </button>
-      {open ? (
-        <div className="nav-panel" id="nav-panel">
-          {links.map((link) => (
-            <a key={link.href} href={link.href} onClick={() => setOpen(false)}>
-              {link.label}
-            </a>
-          ))}
-          <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-            Docs
-          </a>
+  return <>
+    <a className="skip" href="#main">{t("Skip to content", "Saltar al contenido")}</a>
+    <header className="site-header" ref={nav}>
+      <div className="nav-inner container">
+        <Link href="/" className="brand-link" aria-label={t("Kovan home", "Kovan inicio")} onClick={() => setOpen(false)}><Brand /></Link>
+        <nav className="desktop-nav" aria-label={t("Main navigation", "Navegación principal")}>
+          {links.map(link => <Link key={link.href} href={link.href} aria-current={pathname === link.href ? "page" : undefined}>{t(link.en, link.es)}</Link>)}
+        </nav>
+        <div className="nav-controls">
+          <button type="button" className="locale-control" aria-label={t("Cambiar a español", "Switch to English")} onClick={() => setLocale(locale === "en" ? "es" : "en")}><Globe2 size={15} aria-hidden="true" /><span>{locale.toUpperCase()}</span></button>
+          <button type="button" className="icon-button" aria-label={theme === "light" ? t("Switch to dark theme", "Cambiar a tema oscuro") : t("Switch to light theme", "Cambiar a tema claro")} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+            {theme === "light" ? <Moon size={17} aria-hidden="true" /> : <Sun size={17} aria-hidden="true" />}
+          </button>
+          <div className="nav-cta"><PrimaryAction small /></div>
+          <button type="button" ref={toggle} className="icon-button mobile-toggle" aria-expanded={open} aria-controls="mobile-navigation" aria-label={open ? t("Close menu", "Cerrar menú") : t("Open menu", "Abrir menú")} onClick={() => setOpen(!open)}>{open ? <X size={21} /> : <Menu size={21} />}</button>
         </div>
-      ) : null}
+      </div>
+      {open && <nav className="mobile-navigation" id="mobile-navigation" aria-label={t("Mobile navigation", "Navegación móvil")}>
+        {links.map(link => <Link key={link.href} href={link.href} aria-current={pathname === link.href ? "page" : undefined} onClick={() => setOpen(false)}>{t(link.en, link.es)}</Link>)}
+        <Link href="/playground" onClick={() => setOpen(false)}>{t("Interactive demo", "Demo interactiva")}</Link>
+      </nav>}
     </header>
-  );
+  </>;
 }

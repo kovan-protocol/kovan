@@ -95,6 +95,8 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ## Setup
 
+Verification snapshot (2026-10-25): **221 tests** pass in the current source — 107 contract tests and 114 dashboard tests. This verifies the repository, not a deployment of its latest contracts.
+
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
 make test                            # builds WASM and runs the contract tests

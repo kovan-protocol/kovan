@@ -6,7 +6,7 @@
  *   Empty → button label "View demo".
  * DEMO_VIDEO_URL — walkthrough video. Leave "" while it is still coming soon.
  *   Set  → "View demo" links here.
- *   Empty → "View demo" links to the in-page attack replay (#attack).
+ *   Empty → "View demo" links to the interactive playground.
  *
  * The primary CTA must never point at GitHub. GitHub is only the separate
  * source button (nav is Docs + primary; the closing row and footer link the repo).
@@ -17,8 +17,8 @@ export const APP_URL = "";
 /** Empty while the walkthrough video is still coming soon. */
 export const DEMO_VIDEO_URL = "";
 
-/** In-page replay used when APP_URL and DEMO_VIDEO_URL are both empty. */
-export const DEMO_REPLAY_HREF = "#attack";
+/** Interactive demo used when APP_URL and DEMO_VIDEO_URL are both empty. */
+export const DEMO_REPLAY_HREF = "/playground";
 
 export const DOCS_URL = "https://github.com/kovan-protocol/kovan#readme";
 
@@ -65,7 +65,7 @@ export function primaryCta(): PrimaryCta {
       href: DEMO_REPLAY_HREF,
       external: false,
       kicker: "Demo",
-      detail: "Scripted replay on this page",
+      detail: "Interactive covenant simulation",
     };
   }
 
