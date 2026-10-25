@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stellar-raven": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@latest", "https://raven.stellar.org/mcp", "--transport", "http-only"]
+    }
+  }
+}

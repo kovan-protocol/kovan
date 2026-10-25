@@ -1,0 +1,4 @@
+# Stellar Raven MCP via mcp-remote bridge (no native remote/OAuth support in Codex)
+[mcp_servers.stellar-raven]
+command = "npx"
+args = ["-y", "mcp-remote@latest", "https://raven.stellar.org/mcp", "--transport", "http-only"]
