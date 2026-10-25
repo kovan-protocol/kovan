@@ -11,6 +11,13 @@ function invoked(op: xdr.Operation) {
 }
 
 describe("buildOwnerOp", () => {
+  it("close_pool has no caller-controlled destination or amount", () => {
+    const { contract, fn, args } = invoked(buildOwnerOp(POOL, "close_pool", {}));
+    expect(contract).toBe(POOL);
+    expect(fn).toBe("close_pool");
+    expect(args).toHaveLength(0);
+    expect(ownerFns).toContain("close_pool");
+  });
   it("fund → pool.fund(amount)", () => {
     const { contract, fn, args } = invoked(buildOwnerOp(POOL, "fund", { amount: "5000000" }));
     expect(contract).toBe(POOL);

@@ -54,6 +54,7 @@ export default function Page() {
   }, [refresh]);
 
   const isOwner = !!state && !!address && address === state.pool.owner;
+  const poolClosed = state?.pool.closed === true;
 
   function selectPool(id: string) {
     if (ownerInFlight.current) return;
@@ -102,6 +103,7 @@ export default function Page() {
 
   async function owner<F extends OwnerFn>(fn: F, args: OwnerArgs[F], label: string) {
     if (!address || !isOwner || !state) throw new Error("Connect the pool owner's wallet first");
+    if (poolClosed && fn !== "withdraw" && fn !== "return_funds") throw new Error("This pool is permanently closed. Create a new pool to continue.");
     if (ownerInFlight.current) throw new Error("Wait for the current owner transaction to finish");
     ownerInFlight.current = true;
     try {
@@ -132,6 +134,7 @@ export default function Page() {
         run: (step) => submitOwner(step.fn, step.args, step.label, source, poolId),
       });
       if (mode === "withdraw") return "Available USDC returned to the original pool owner’s wallet. See the session log for the transaction.";
+      if (mode === "close") return "Pool permanently closed. Remaining pool USDC returned to its original owner. This pool cannot be reused; create a new pool to continue.";
       const remaining = result.state.agents.filter((a) => statusOf(a.status) !== "Closed").length;
       return remaining
         ? `Unspent funds recovered and unused limits released. ${remaining} legacy allocation(s) remain revoked, not closed. ${usdc(withdrawable(result.state))} is available via Return to wallet.`
@@ -231,9 +234,9 @@ export default function Page() {
         <form onSubmit={fund} className="flex flex-wrap items-end gap-3 border-t pt-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fund-amount">Lock USDC in the pool</Label>
-            <Input id="fund-amount" inputMode="decimal" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} disabled={!!pendingOwner} className="w-40 font-mono" />
+            <Input id="fund-amount" inputMode="decimal" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} disabled={!!pendingOwner || poolClosed} className="w-40 font-mono" />
           </div>
-          <Button type="submit" disabled={!isOwner || !!pendingOwner}>
+          <Button type="submit" disabled={!isOwner || !!pendingOwner || poolClosed}>
             Fund
           </Button>
           {ownerDisabledReason ? <span className="text-xs text-muted-foreground">{ownerDisabledReason}</span> : null}
@@ -258,7 +261,7 @@ export default function Page() {
             <div className="h-48 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" />
           ) : state.agents.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">No agents yet. Create one with the form.</CardContent>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">{poolClosed ? "This closed pool has no agent history. Create a new pool to continue." : "No agents yet. Create one with the form."}</CardContent>
             </Card>
           ) : (
             state.agents.map((a) => (
@@ -312,7 +315,7 @@ export default function Page() {
               <CardTitle>Create agent</CardTitle>
             </CardHeader>
             <CardContent>
-              <CreateAgentForm latestLedger={state?.latestLedger ?? 0} disabled={!isOwner || !!pendingOwner} disabledReason={pendingOwner ? "Wait for the current owner transaction." : ownerDisabledReason} onSubmit={createAgent} owner={isOwner ? address : null} pool={state?.ids.pool ?? null} />
+              <CreateAgentForm latestLedger={state?.latestLedger ?? 0} disabled={!isOwner || !!pendingOwner || poolClosed} disabledReason={poolClosed ? "This pool is permanently closed. Use New pool to continue." : pendingOwner ? "Wait for the current owner transaction." : ownerDisabledReason} onSubmit={createAgent} owner={isOwner ? address : null} pool={state?.ids.pool ?? null} />
             </CardContent>
           </Card>
 

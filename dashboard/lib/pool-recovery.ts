@@ -2,9 +2,14 @@ import { statusOf, type State } from "./client";
 import { shortId, usdc } from "./format";
 import type { OwnerArgs } from "./owner";
 
-export type RecoveryMode = "free" | "withdraw";
-type RecoveryFn = "revoke" | "return_funds" | "close" | "amend" | "withdraw";
+export type RecoveryMode = "close" | "recover" | "withdraw";
+type RecoveryFn = "revoke" | "return_funds" | "close" | "amend" | "withdraw" | "close_pool";
 export type RecoveryStep = { [F in RecoveryFn]: { fn: F; args: OwnerArgs[F]; label: string } }[RecoveryFn];
+
+/** Old V1 and V2 deployments do not expose a permanent pool lifecycle. */
+export function supportsPoolClosure(state: State): boolean {
+  return typeof state.pool.closed === "boolean";
+}
 
 /** Cash and accounting must both permit a withdrawal, including on legacy pools. */
 export function withdrawable(state: State): bigint {
@@ -91,9 +96,13 @@ export async function runPoolRecovery({ mode, pool, owner, read, run }: Recovery
     return state;
   }
   let state = await checkedRead();
+  if (mode === "close") {
+    if (!supportsPoolClosure(state)) throw new Error("This deployed pool cannot be permanently closed. Recover its funds separately; a new contract deployment is required for shutdown support.");
+    if (state.pool.closed) return { state, transactions: 0 };
+  }
   if (mode === "withdraw") {
     const amount = withdrawable(state);
-    if (amount === 0n) throw new Error("No USDC is available to withdraw. Free the pool first if agents still have allocations.");
+    if (amount === 0n) throw new Error("No USDC is available to withdraw. Recover agent allocations first, or close a supported pool to return all remaining funds.");
     await run({ fn: "withdraw", args: { amount: amount.toString() }, label: `Return ${usdc(amount)} to owner wallet` });
     return { state: await checkedRead(), transactions: 1 };
   }
@@ -104,8 +113,16 @@ export async function runPoolRecovery({ mode, pool, owner, read, run }: Recovery
   let previous = "";
   for (;;) {
     if (state.agents.some((a) => !approvedAgents.has(a.id))) throw new Error("An agent was added during recovery. Review the pool and start again.");
-    const step = nextRecoveryStep(state);
-    if (!step) return { state, transactions };
+    if (mode === "close" && !supportsPoolClosure(state)) throw new Error("Pool closure support changed. Refresh before continuing.");
+    if (mode === "close" && state.pool.closed) return { state, transactions };
+    let step = nextRecoveryStep(state);
+    if (!step) {
+      if (mode !== "close") return { state, transactions };
+      if (state.agents.some((a) => statusOf(a.status) !== "Closed") || BigInt(state.pool.sum_limits) !== 0n || BigInt(state.pool.locked) !== BigInt(state.pool.balance!)) {
+        throw new Error("Pool still has open allocations or outstanding advances. It has not been closed.");
+      }
+      step = { fn: "close_pool", args: {}, label: `Permanently close pool · return ${usdc(state.pool.balance!)} to owner` };
+    }
     // A refreshed ledger number can change the proposed legacy expiry without
     // advancing the allocation itself. Do not ask the owner to sign it twice.
     const fingerprint = step.fn === "amend"

@@ -36,6 +36,8 @@ function describe(ev: ChainEvent): string {
       return d.consumed === undefined ? "allocation closed" : `recovered ${amt("recovered")} · consumed ${amt("consumed")} · released ${amt("released")}`;
     case "settlement_requested":
       return "spending stopped; awaiting closure";
+    case "pool_closed":
+      return `pool permanently closed · returned ${amt("returned")} to owner`;
     default:
       return typeof ev.data === "object" && ev.data ? Object.keys(ev.data as object).join(", ") : "";
   }

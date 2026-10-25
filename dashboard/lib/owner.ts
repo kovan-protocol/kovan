@@ -3,7 +3,7 @@
 import { Address, Contract, Operation, xdr } from "@stellar/stellar-sdk";
 import { addrVal, amendmentToScVal, bytes32Val, covenantToScVal, i128Val, type CovenantInput } from "./scval";
 
-export const ownerFns = ["fund", "withdraw", "create_agent", "revoke", "amend", "close", "return_funds", "resolve_dispute"] as const;
+export const ownerFns = ["fund", "withdraw", "create_agent", "revoke", "amend", "close", "close_pool", "return_funds", "resolve_dispute"] as const;
 export type OwnerFn = (typeof ownerFns)[number];
 
 // JSON shapes the browser sends. Amounts are base-unit strings.
@@ -14,6 +14,7 @@ export type OwnerArgs = {
   revoke: { agent: string; by: string };
   amend: { agent: string; draw_limit: string; amendment: Parameters<typeof amendmentToScVal>[0] };
   close: { agent: string; by: string };
+  close_pool: Record<string, never>;
   return_funds: { agent: string; by: string; amount: string };
   resolve_dispute: { agent: string; outcome: number };
 };
@@ -22,6 +23,8 @@ export type OwnerArgs = {
 export function buildOwnerOp<F extends OwnerFn>(pool: string, fn: F, args: OwnerArgs[F], usdc = pool): xdr.Operation {
   const c = new Contract(pool);
   switch (fn) {
+    case "close_pool":
+      return c.call(fn);
     case "fund":
     case "withdraw": {
       const a = args as OwnerArgs["fund"];

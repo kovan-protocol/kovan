@@ -38,7 +38,7 @@ export function normalizeEvent(e: RawEvent, idsIn: { pool: string; policy: strin
   try {
     const t0 = xdr.ScVal.fromXDR(e.topic[0], "base64");
     if (t0.switch() === xdr.ScValType.scvSymbol()) kind = t0.sym().toString();
-    if (e.topic[1]) {
+    if (e.topic[1] && kind !== "pool_closed") {
       const t1 = xdr.ScVal.fromXDR(e.topic[1], "base64");
       if (t1.switch() === xdr.ScValType.scvAddress()) agent = Address.fromScVal(t1).toString();
     }
