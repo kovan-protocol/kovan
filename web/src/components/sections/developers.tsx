@@ -2,7 +2,6 @@
 
 import { CopyButton } from "@/components/copy-button";
 import { CountUp } from "@/components/motion/count-up";
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 import { GITHUB_URL } from "@/config/site";
 import {
@@ -45,12 +44,10 @@ export function Developers() {
               <SplitWords text="Check every claim." />
             </h2>
           </div>
-          <Drift>
-            <p className="lede" data-reveal>
+          <p className="lede" data-reveal>
               Rust and Soroban, built on OpenZeppelin <span className="mono" style={{ fontSize: ".9em" }}>stellar-accounts</span>.
               Contract IDs and transactions below are real and live on Stellar testnet.
             </p>
-          </Drift>
         </div>
         <div className="stats" data-reveal>
           <div>

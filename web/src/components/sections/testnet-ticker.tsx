@@ -5,7 +5,7 @@ export function TestnetTicker() {
   const locked = Number(fundUsdc);
   const agents = txsByGroup("create_agent").length;
   const pools = deployment.pool ? 1 : 0;
-  const contracts = sorobanContracts.length;
+  const contracts: number = sorobanContracts.length;
   const figures = [
     { value: pools, label: pools === 1 ? "pool" : "pools" },
     { value: Number.isFinite(locked) ? locked : 0, label: "USDC" },

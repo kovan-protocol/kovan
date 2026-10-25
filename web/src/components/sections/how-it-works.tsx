@@ -1,6 +1,5 @@
 "use client";
 
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 import { howSvg } from "@/components/sections/howSvg";
 import { useEffect } from "react";
@@ -49,13 +48,11 @@ export function HowItWorks() {
               .
             </h2>
           </div>
-          <Drift>
-            <p className="lede" data-reveal>
+          <p className="lede" data-reveal>
               Four Soroban contracts: a pool, a per-agent OpenZeppelin smart account, a covenant policy and a
               signature verifier. The owner sets the rules once; every payment is checked against them by the
               network.
             </p>
-          </Drift>
         </div>
         <div className="how-grid">
           <div className="how-stage" aria-hidden>

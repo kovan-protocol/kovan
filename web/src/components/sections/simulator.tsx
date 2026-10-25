@@ -1,6 +1,5 @@
 "use client";
 
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 import { DRAW, PER, TOTAL, evaluatePayment, type Payee } from "@/lib/simulator";
 import { useRef, useState } from "react";
@@ -131,12 +130,10 @@ export function Simulator() {
               <SplitWords text="Watch the rules hold." />
             </h2>
           </div>
-          <Drift>
-            <p className="lede" data-reveal>
+          <p className="lede" data-reveal>
               Pick a payee and an amount, freeze the agent or let the covenant expire. The same checks the pool
               and policy run on-chain, replayed locally in your browser.
             </p>
-          </Drift>
         </div>
         <div className="simgrid" data-reveal>
           <div className={revoked ? "cov frozen" : "cov"} id="cov">

@@ -2,7 +2,7 @@ import { DOCS_URL } from "@/config/site";
 import { PrimaryLink } from "@/components/primary-link";
 import { Magnetic } from "@/components/motion/magnetic";
 import { SplitWords } from "@/components/motion/split-words";
-import { OwnerDashboard } from "@/components/sections/owner-dashboard";
+import { HeroStage } from "@/components/sections/hero-stage";
 import { TestnetTicker } from "@/components/sections/testnet-ticker";
 import {
   contractUrl,
@@ -43,7 +43,6 @@ export function Hero() {
       <div className="glow" />
       <div className="wrap">
         <TestnetTicker />
-        <div className="hero-top">
         <div className="hero-copy">
           <a className="badge" href="#developers">
             <span className="pill">
@@ -79,8 +78,7 @@ export function Hero() {
             <span className="ext">Stellar Expert ↗</span>
           </a>
         </div>
-        <OwnerDashboard />
-        </div>
+        <HeroStage />
         <div className="proof" role="group" aria-label="Live on Stellar testnet">
           <div className="proof-head">
             <span className="l">

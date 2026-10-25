@@ -1,4 +1,3 @@
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 
 export function Guarantees() {
@@ -16,12 +15,10 @@ export function Guarantees() {
               <SplitWords text="not by good behavior." />
             </h2>
           </div>
-          <Drift>
-            <p className="lede" data-reveal>
+          <p className="lede" data-reveal>
               Each guarantee is covered by the open-source test suite and enforced by the contracts deployed on
               Stellar testnet.
             </p>
-          </Drift>
         </div>
         <div className="bento">
           <article className="card spot w2" data-reveal>

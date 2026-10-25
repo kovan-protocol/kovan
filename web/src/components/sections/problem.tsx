@@ -1,5 +1,18 @@
 import { SplitWords } from "@/components/motion/split-words";
 
+function Words({ text }: { text: string }) {
+  const parts = text.split(/(\s+)/);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (/^\s+$/.test(part)) return part;
+    return (
+      <span className="w" key={`${part}-${index}`}>
+        {part}
+      </span>
+    );
+  });
+}
+
 export function Problem() {
   return (
     <section className="problem" data-sec="01" data-title="Problem">
@@ -10,6 +23,20 @@ export function Problem() {
         <h2 style={{ marginTop: 18 }}>
           <SplitWords text="A raw key, or a card with no limit." />
         </h2>
+        <p className="reveal-text" id="rtext" style={{ marginTop: 28 }}>
+          <Words text="AI agents now pay for their own data, one API call at a time. To let them, you either hand over" />{" "}
+          <span className="bad">
+            <Words text="a wallet they can empty" />
+          </span>
+          <Words text=", or refill it by hand forever. A bug, a loop or" />{" "}
+          <span className="bad">
+            <Words text="one injected prompt" />
+          </span>{" "}
+          <Words text="is all it takes. Kovan gives every agent" />{" "}
+          <span className="hl">
+            <Words text="a budget, not a blank check." />
+          </span>
+        </p>
         <p className="lede" data-reveal style={{ marginTop: 18 }}>
           Agents pay for data one call at a time. Today that money sits in a wallet they can empty, or on a
           payment method that never checks a rule. A bug, a loop, or one injected prompt is enough. The two

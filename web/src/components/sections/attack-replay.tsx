@@ -1,8 +1,12 @@
 "use client";
 
 import { atkSvg } from "@/components/sections/atkSvg";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useLenis } from "lenis/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const beats = [
   { i: "01", label: "Injection" },
@@ -27,56 +31,55 @@ function paint(beat: number) {
 export function AttackReplay() {
   const lenis = useLenis();
   const reduce = useRef(false);
+  const trigger = useRef<ScrollTrigger | null>(null);
   const [beat, setBeat] = useState(0);
 
-  useEffect(() => {
-    reduce.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduce.current) return;
+  useLayoutEffect(() => {
     const bar = document.getElementById("atkbar");
-    if (bar) bar.style.transform = "scaleX(1)";
-    const id = window.setTimeout(() => setBeat(4), 0);
-    return () => window.clearTimeout(id);
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reduce.current = prefersReduced;
+    if (prefersReduced) {
+      if (bar) bar.style.transform = "scaleX(1)";
+      const id = window.setTimeout(() => setBeat(4), 0);
+      return () => window.clearTimeout(id);
+    }
+    const st = ScrollTrigger.create({
+      trigger: "#attackPin",
+      start: "top top",
+      end: () => `+=${window.innerHeight * 3.2}`,
+      pin: true,
+      scrub: true,
+      anticipatePin: 1,
+      onUpdate: (self) => {
+        const next = Math.min(4, Math.floor(self.progress * 5.2));
+        setBeat((prev) => (prev === next ? prev : next));
+        if (bar) bar.style.transform = `scaleX(${self.progress})`;
+      },
+    });
+    trigger.current = st;
+    return () => {
+      st.kill();
+      trigger.current = null;
+    };
   }, []);
 
   useEffect(() => {
     paint(beat);
   }, [beat]);
 
-  useEffect(() => {
-    const section = document.querySelector<HTMLElement>(".attack-scroll");
-    if (!section) return;
-    const onScroll = () => {
-      if (reduce.current) return;
-      const rect = section.getBoundingClientRect();
-      const travel = section.clientHeight - window.innerHeight;
-      const p = travel <= 0 ? 1 : Math.min(1, Math.max(0, -rect.top / travel));
-      const next = Math.min(4, Math.floor(p * 5.2));
-      setBeat((prev) => (prev === next ? prev : next));
-      const bar = document.getElementById("atkbar");
-      if (bar) bar.style.transform = `scaleX(${p})`;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const jump = (index: number) => {
-    if (reduce.current) {
+    const st = trigger.current;
+    if (!st || reduce.current) {
       setBeat(index);
       return;
     }
-    const section = document.querySelector<HTMLElement>(".attack-scroll");
-    if (!section) return;
-    const start = section.getBoundingClientRect().top + window.scrollY;
-    const travel = Math.max(0, section.clientHeight - window.innerHeight);
-    const y = start + travel * ((index + 0.5) / 5.2);
+    const y = st.start + (st.end - st.start) * ((index + 0.5) / 5.2);
     if (lenis) lenis.scrollTo(y);
-    else window.scrollTo({ top: y, behavior: "smooth" });
+    else window.scrollTo({ top: y });
   };
 
   return (
     <section className="attack" id="attack" data-sec="05" data-title="Security">
-      <div className="attack-scroll">
         <div className="attack-pin" id="attackPin">
           <div className="wrap">
             <div className="attack-top">
@@ -173,7 +176,6 @@ export function AttackReplay() {
             </div>
           </div>
         </div>
-      </div>
     </section>
   );
 }

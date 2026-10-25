@@ -1,6 +1,5 @@
 "use client";
 
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 import { BLOCKED_PAYMENT_HASH } from "@/config/site";
 import { contractUrl, deployment, firstAgent, shortId, txUrl } from "@/lib/testnet";
@@ -92,13 +91,11 @@ export function WhyKovan() {
               <SplitWords text="More than a spending limit." />
             </h2>
           </div>
-          <Drift>
-            <p className="lede" data-reveal>
+          <p className="lede" data-reveal>
               Plenty of agent wallets have a cap. Kovan adds what a cap alone can&apos;t do: one pool for many
               agents that can&apos;t be over-assigned, delegation that can only narrow, and refusals you can
               verify on-chain.
             </p>
-          </Drift>
         </div>
         <div className="diff">
           <article className="card spot c1" data-reveal>

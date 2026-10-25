@@ -1,4 +1,3 @@
-import { Drift } from "@/components/motion/drift";
 import { SplitWords } from "@/components/motion/split-words";
 
 export function Autopilot() {
@@ -13,12 +12,10 @@ export function Autopilot() {
             <h2 style={{ marginTop: 18 }}>
               <SplitWords text="Set agent access on autopilot." />
             </h2>
-            <Drift>
-              <p className="lede" data-reveal>
+            <p className="lede" data-reveal>
                 Limits, allowlists, and expiry, per agent. The owner sets them once. The pool writes them into a
                 smart account the agent cannot edit.
               </p>
-            </Drift>
             <ul className="feature-points" data-reveal>
               <li>A draw limit, carved from USDC already locked in the pool</li>
               <li>An allowlist of payees, each with a per-transfer cap and a total cap</li>

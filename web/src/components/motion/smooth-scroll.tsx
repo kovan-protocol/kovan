@@ -23,9 +23,11 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   return (
     <ReactLenis
       root
+      autoRaf={!smooth}
       options={{
-        autoRaf: true,
+        autoRaf: !smooth,
         duration: 1.15,
+        easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: smooth,
         anchors: false,
       }}
@@ -50,7 +52,7 @@ function HashLinks() {
       event.preventDefault();
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (lenis && !reduce) {
-        lenis.scrollTo(el, { offset: href === "#top" ? 0 : -12 });
+        lenis.scrollTo(el, { offset: href === "#top" ? 0 : -10 });
       } else {
         el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
       }

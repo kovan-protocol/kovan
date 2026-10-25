@@ -1,10 +1,23 @@
 "use client";
 
-import { motion, useScroll, useSpring } from "framer-motion";
+import { useEffect, useRef } from "react";
 
+/** Direct scroll progress, matching the v2 prototype (no spring lag). */
 export function ProgressBar() {
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
+  const ref = useRef<HTMLDivElement>(null);
 
-  return <motion.div className="progress" style={{ scaleX }} aria-hidden />;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = height > 0 ? window.scrollY / height : 0;
+      el.style.transform = `scaleX(${progress})`;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return <div ref={ref} className="progress" aria-hidden />;
 }

@@ -1,38 +1,40 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLayoutEffect, useRef } from "react";
 
+gsap.registerPlugin(ScrollTrigger);
+
+/** Real figures only. Tween matches the prototype: 1.8s, power3.out, once at top 92%. */
 export function CountUp({ value }: { value: number }) {
   const ref = useRef<HTMLElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    let raf = 0;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        io.disconnect();
-        const start = performance.now();
-        const tick = (now: number) => {
-          const t = Math.min(1, (now - start) / 1800);
-          const eased = 1 - Math.pow(1 - t, 3);
-          el.textContent = String(Math.round(eased * value));
-          if (t < 1) raf = requestAnimationFrame(tick);
-        };
-        el.textContent = "0";
-        raf = requestAnimationFrame(tick);
+    const state = { v: 0 };
+    el.textContent = "0";
+    const tween = gsap.to(state, {
+      v: value,
+      duration: 1.8,
+      ease: "power3.out",
+      scrollTrigger: { trigger: el, start: "top 92%", once: true },
+      onUpdate: () => {
+        el.textContent = String(Math.round(state.v));
       },
-      { rootMargin: "0px 0px -8% 0px" },
-    );
-    io.observe(el);
+    });
     return () => {
-      cancelAnimationFrame(raf);
-      io.disconnect();
+      tween.scrollTrigger?.kill();
+      tween.kill();
     };
   }, [value]);
 
-  return <b ref={ref}>{value}</b>;
+  return (
+    <b ref={ref} data-count={value}>
+      {value}
+    </b>
+  );
 }
