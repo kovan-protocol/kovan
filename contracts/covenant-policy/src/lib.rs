@@ -1,2 +1,7 @@
+//! Kovan covenant policy: the rules attached to an agent's smart account.
 #![no_std]
-use soroban_sdk as _;
+
+pub mod covenant;
+
+#[cfg(test)]
+mod test;
