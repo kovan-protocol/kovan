@@ -30,7 +30,9 @@ Open http://localhost:3000. `npm run build` and `npm run lint` are the productio
 
 ## Pages and preferences
 
-The home page is a short overview. `/how-it-works`, `/why-kovan`, `/security`, `/developers` and `/playground` are separate routes. Developer evidence and expandable FAQs live on `/developers#faq`.
+The home page is a short overview. `/how-it-works`, `/why-kovan`, `/security`, `/developers`, `/playground` and `/agent-example` are separate routes. Developer evidence and expandable FAQs live on `/developers#faq`.
+
+The hero's **Try with your agent** button opens `/agent-example`. It contains a copyable Node.js function that calls the Kovan console's existing `POST /api/x402` route with an agent account and an HTTPS paid resource. The caller needs a locally running console and an app-managed agent with that provider allowlisted; the agent's key stays on the console. The adjacent preview uses the local `evaluatePayment` model and never calls the API. Running the copied function against a configured console can submit a testnet payment.
 
 All marketing pages support English and Spanish. The header controls persist language and light/dark appearance in local storage. Without a saved theme, the site follows the system preference. Preferences also work for the current tab when browser storage is unavailable.
 

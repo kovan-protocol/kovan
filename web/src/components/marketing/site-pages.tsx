@@ -22,7 +22,7 @@ export function HomeContent() {
         <h1><RiseText text={t("Shared USDC budgets your AI agents can't overspend.", "Presupuestos compartidos en USDC que tus agentes de IA no pueden sobrepasar.")} /></h1>
         <p className="hero-subtitle">{t("Your agents move. Your limits stay.", "Tus agentes avanzan. Tus límites se respetan.")}</p>
         <p className="hero-description">{t("Humans configure. Agents only execute inside limits.", "Las personas configuran. Los agentes solo ejecutan dentro de los límites.")}</p>
-        <div className="hero-actions"><PrimaryAction label={t("Try with your agent", "Prueba con tu agente")} /></div>
+        <div className="hero-actions"><PrimaryAction href="/agent-example" label={t("Try with your agent", "Prueba con tu agente")} /></div>
       </div>
       <div className="hero-visual"><ProductFlow locale={locale} /></div>
     </section>
