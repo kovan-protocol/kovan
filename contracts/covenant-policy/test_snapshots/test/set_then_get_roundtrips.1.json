@@ -1,16 +1,33 @@
 {
   "generators": {
-    "address": 5,
+    "address": 7,
     "nonce": 0,
     "mux_id": 0
   },
   "auth": [
     [],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "",
+              "args": []
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [],
+    [],
     []
   ],
   "ledger": {
     "protocol_version": 28,
-    "sequence_number": 0,
+    "sequence_number": 100,
     "timestamp": 0,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
@@ -49,7 +66,44 @@
                             "symbol": "calls"
                           },
                           "val": {
-                            "vec": []
+                            "vec": [
+                              {
+                                "map": [
+                                  {
+                                    "key": {
+                                      "symbol": "amount_arg"
+                                    },
+                                    "val": {
+                                      "u32": 0
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "amount_cap"
+                                    },
+                                    "val": {
+                                      "i128": "10"
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "contract"
+                                    },
+                                    "val": {
+                                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                                    }
+                                  },
+                                  {
+                                    "key": {
+                                      "symbol": "fn_name"
+                                    },
+                                    "val": {
+                                      "symbol": "ping"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
                           }
                         },
                         {
@@ -57,7 +111,7 @@
                             "symbol": "expiry"
                           },
                           "val": {
-                            "u32": 1000
+                            "u32": 200
                           }
                         },
                         {
@@ -101,7 +155,7 @@
                             "symbol": "recipient_per_transfer_cap"
                           },
                           "val": {
-                            "i128": "0"
+                            "i128": "1000000"
                           }
                         },
                         {
@@ -109,7 +163,7 @@
                             "symbol": "recipient_total_cap"
                           },
                           "val": {
-                            "i128": "0"
+                            "i128": "1000000"
                           }
                         },
                         {
@@ -117,7 +171,11 @@
                             "symbol": "recipients"
                           },
                           "val": {
-                            "vec": []
+                            "vec": [
+                              {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                              }
+                            ]
                           }
                         },
                         {
@@ -169,7 +227,7 @@
           },
           "ext": "v0"
         },
-        "live_until": 518400
+        "live_until": 518500
       },
       {
         "entry": {
@@ -192,7 +250,27 @@
           },
           "ext": "v0"
         },
-        "live_until": 4095
+        "live_until": 4195
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+              "key": {
+                "ledger_key_nonce": {
+                  "nonce": "801925984706572462"
+                }
+              },
+              "durability": "temporary",
+              "val": "void"
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 6312099
       },
       {
         "entry": {
@@ -206,7 +284,7 @@
           },
           "ext": "v0"
         },
-        "live_until": 4095
+        "live_until": 4195
       }
     ]
   },
