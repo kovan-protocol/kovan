@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kovan technical review — 2026-10-25</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body { max-width: 980px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #8885; padding: 10px; text-align: left; vertical-align: top; }
+    code { font-family: ui-monospace, monospace; }
+    .high { color: #d33; font-weight: 700; }
+    .medium { color: #c80; font-weight: 700; }
+    .low { color: #789; font-weight: 700; }
+    .no { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #d332; color: #d33; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Kovan technical review</h1>
+  <p><strong>Snapshot:</strong> <code>5910f01</code> plus uncommitted Task 7 delegation work, 2026-10-25. <strong>Verdict:</strong> <span class="no">Not ready for deployment</span></p>
+  <p>The implemented architecture is directionally consistent with Stellar smart accounts, SAC USDC, and x402 auth-entry settlement. The policy, frozen account, and pool lifecycle compile and have useful negative tests. The remaining gaps affect the core accounting and authorization promises, so passing tests do not yet establish the design invariants.</p>
+
+  <h2>Scores</h2>
+  <table>
+    <tr><th>Dimension</th><th>Grade</th><th>Reason</th></tr>
+    <tr><td>Security</td><td>C</td><td>No missing owner/agent auth found in implemented entrypoints, but state transitions and the unverified real-signature path remain material risks.</td></tr>
+    <tr><td>Correctness</td><td>C</td><td>Repeated close / amend-after-close can corrupt <code>sum_limits</code>; revoked agent returns do not match the specification.</td></tr>
+    <tr><td>Error handling</td><td>B-</td><td>Typed errors and positive-amount checks are good; arithmetic relies on release overflow traps and several initialization reads use opaque <code>expect</code>.</td></tr>
+    <tr><td>Testing</td><td>C+</td><td>65 unit tests pass, including delegation boundaries, malformed values, and cap boundaries, but no real signed smart-account authorization or testnet round-trip exists.</td></tr>
+    <tr><td>Organization</td><td>B</td><td>Contracts are separated clearly, and shared ABI types now live in a dedicated rlib crate.</td></tr>
+    <tr><td>Documentation</td><td>C</td><td>The design and plan are detailed; the public README is effectively empty and status checkboxes lag the implementation.</td></tr>
+  </table>
+
+  <h2>Findings</h2>
+  <table>
+    <tr><th>Severity</th><th>Finding</th><th>Required fix</th></tr>
+    <tr><td class="high">High</td><td><code>close</code> has no closed-state guard, and <code>amend</code> accepts closed agents. Repeated subtraction or amendment corrupts the pool invariant; with child covenants, repeated child close can inflate the parent limit.</td><td>Model allowed transitions explicitly. Reject double close and amend-after-close; add regression tests before delegation.</td></tr>
+    <tr><td class="high">High</td><td>The covenant checks <code>revoked</code> before recognizing pool returns. This blocks agent-authorized <code>return_funds</code> and direct USDC returns after revocation, contrary to the stated invariant.</td><td>Allow only the validated return-to-pool contexts before the revoke guard; keep draw, spend, calls, settle, dispute, and delegate blocked as designed.</td></tr>
+    <tr><td class="high">High</td><td>SDK 28 is built with Stellar CLI 26.1.0. The live testnet is protocol 29 and the CLI reports incomplete support for its settings.</td><td>Use CLI 28.1.0+ with SDK 28, pin it in CI/tooling, and rerun build, simulation, and deployment checks.</td></tr>
+    <tr><td class="medium">Medium</td><td>All current contract tests pass, but the central external-ed25519 <code>AuthPayload → __check_auth → Policy::enforce</code> flow is not tested without mocks.</td><td>Finish the planned four signed auth-entry tests and one live x402 C-account settlement.</td></tr>
+    <tr><td class="medium">Medium</td><td>No typed contract events exist for material state transitions.</td><td>Publish and test events for fund, create, draw, return, revoke, amend, settle, close, dispute, resolve, and delegate.</td></tr>
+    <tr><td class="medium">Medium</td><td>Vectors and recursive child traversal are unbounded.</td><td>Cap allowlists, call rules, child count, and hierarchy depth; test near network resource limits.</td></tr>
+    <tr><td class="low">Low</td><td>Formatting and strict Clippy gates fail; the pool fixture uses an unnecessary unsafe lifetime transmute.</td><td>Run formatter, fix lint, and store <code>Env</code>/<code>Address</code> in the fixture while creating clients on demand.</td></tr>
+  </table>
+
+  <h2>Checks performed</h2>
+  <ul>
+    <li><code>cargo test --workspace</code>: 65 passed.</li>
+    <li><code>stellar contract build</code>: succeeded; verifier 1,283 B, policy 16,557 B, account 45,928 B, pool 17,350 B. The pool exports only its 16 intended functions.</li>
+    <li><code>cargo fmt --all -- --check</code>: failed.</li>
+    <li><code>cargo clippy --workspace --all-targets -- -D warnings</code>: failed.</li>
+    <li>Live RPC: testnet protocol 29, RPC 30.0.0.</li>
+  </ul>
+
+  <h2>Resolved during review</h2>
+  <p>Commit <code>5910f01</code> extracted <code>kovan-covenant-types</code>. This removed the covenant-policy implementation entrypoints from the pool WASM and reduced the optimized pool from 24,202 B to 17,350 B.</p>
+
+  <h2>Skill alignment</h2>
+  <p><strong>Matches:</strong> <code>smart-contracts</code>, <code>assets</code>, and <code>agentic-payments</code> describe the correct Stellar primitives. SAC/G-account trustline separation is correct, C-accounts can hold SAC balances without trustlines, and the x402 exact specification supports C-account auth-entry payers.</p>
+  <p><strong>Needs updating:</strong> the local smart-contract skill is written against protocol 27 while this project is on SDK 28/testnet protocol 29. The generic x402 buyer recipe assumes a G-account signer; Kovan's custom C-account payload builder is therefore a project-specific extension and still needs the planned signed and live tests.</p>
+</body>
+</html>

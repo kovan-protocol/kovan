@@ -4,8 +4,8 @@ extern crate std;
 use kovan_covenant_policy::{CovenantParams, CovenantPolicyContract, CovenantPolicyContractClient};
 use kovan_ed25519_verifier::Ed25519VerifierContract;
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as _, MockAuth, MockAuthInvoke},
-    token, vec, Address, BytesN, Env, IntoVal, Vec,
+    testutils::{Address as _, BytesN as _, Ledger as _, MockAuth, MockAuthInvoke},
+    token, vec, Address, BytesN, Env, IntoVal, TryFromVal, Vec,
 };
 
 use crate::contract::{KovanPool, KovanPoolClient};
@@ -187,6 +187,7 @@ fn return_funds_clamps_drawn_at_zero() {
     fx.pool.return_funds(&agent, &agent, &6_000_000);
     assert_eq!(fx.pool.get_agent(&agent).drawn, 0);
     assert_eq!(bal(&fx, &fx.pool_addr), LOCK + 1_000_000);
+    assert_eq!(fx.pool.get_pool().locked, LOCK + 1_000_000);
 }
 
 #[test]
@@ -281,18 +282,192 @@ fn amend_updates_policy_caps() {
 }
 
 #[test]
-fn settle_then_close_requires_drawn_zero() {
+fn settle_then_close_recovers_outstanding_balance() {
     let fx = setup();
     let agent = funded_agent(&fx);
     fx.pool.draw(&agent, &LIMIT);
     fx.pool.settle(&agent);
     assert_eq!(fx.pool.get_agent(&agent).status, Status::SettleRequested);
-    let r = fx.pool.try_close(&agent, &fx.owner);
-    assert!(r.is_err());
-    fx.pool.return_funds(&agent, &agent, &LIMIT);
+    assert!(CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&agent).revoked);
     fx.pool.close(&agent, &fx.owner);
     assert_eq!(fx.pool.get_agent(&agent).status, Status::Closed);
     assert_eq!(fx.pool.get_pool().sum_limits, 0);
+    assert_eq!(fx.pool.get_agent(&agent).drawn, 0);
+    assert_eq!(fx.pool.get_pool().locked, LOCK);
+    assert_eq!(bal(&fx, &agent), 0);
+}
+
+/// Available pool funds must be backed by actual tokens, even while agents
+/// have outstanding advances. Closed accounts no longer reserve allocations.
+fn assert_accounting(fx: &Fx) {
+    let info = fx.pool.get_pool();
+    let mut limits = 0;
+    let mut outstanding = 0;
+    let mut consumed = 0;
+    for agent in fx.pool.list_agents().iter() {
+        let rec = fx.pool.get_agent(&agent);
+        assert!(rec.drawn >= 0 && rec.drawn <= rec.draw_limit);
+        consumed += rec.settled_spent;
+        if rec.status != Status::Closed {
+            limits += rec.draw_limit;
+            outstanding += rec.drawn;
+        } else {
+            assert_eq!(rec.drawn, 0);
+        }
+    }
+    assert_eq!(info.sum_limits, limits);
+    assert_eq!(info.settled_spent, consumed);
+    assert!(info.locked >= limits);
+    assert!(info.balance >= info.locked - limits);
+    assert_eq!(info.balance + outstanding, info.locked);
+}
+
+#[test]
+fn close_after_partial_spend_releases_only_unused_funding() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    let spent = 2_000_000;
+    token::TokenClient::new(&fx.e, &fx.usdc).transfer(&agent, &fx.prov, &spent);
+    // Closing needs only the owner's approval, not the agent's key.
+    fx.e.mock_auths(&[MockAuth {
+        address: &fx.owner,
+        invoke: &MockAuthInvoke {
+            contract: &fx.pool_addr, fn_name: "close",
+            args: (agent.clone(), fx.owner.clone()).into_val(&fx.e), sub_invokes: &[],
+        },
+    }]);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.e.auths().len(), 1);
+    assert_eq!(fx.e.auths()[0].0, fx.owner);
+    assert_eq!(fx.pool.get_agent(&agent).settled_spent, spent);
+    assert_eq!(fx.pool.get_pool().locked, LOCK - spent);
+    assert_eq!(fx.pool.get_pool().sum_limits, 0);
+    assert_eq!(bal(&fx, &agent), 0);
+    assert_accounting(&fx);
+    fx.e.mock_all_auths();
+    fx.pool.withdraw(&(LOCK - spent));
+    assert_eq!(bal(&fx, &fx.pool_addr), 0);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn return_unused_then_close_records_consumption_once() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    token::TokenClient::new(&fx.e, &fx.usdc).transfer(&agent, &fx.prov, &2_000_000);
+    fx.pool.revoke(&agent, &fx.owner);
+    fx.pool.return_funds(&agent, &fx.owner, &3_000_000);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_pool().settled_spent, 2_000_000);
+    let info = fx.pool.get_pool();
+    assert!(fx.pool.try_close(&agent, &fx.owner).is_err());
+    assert_eq!(fx.pool.get_pool(), info);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn fully_spent_agent_cannot_reallocate_consumed_money() {
+    let fx = setup();
+    fx.pool.fund(&LIMIT);
+    let agent = fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &LIMIT, &covenant(&fx));
+    fx.pool.draw(&agent, &LIMIT);
+    token::TokenClient::new(&fx.e, &fx.usdc).transfer(&agent, &fx.prov, &LIMIT);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_pool().locked, 0);
+    assert!(fx.pool.try_create_agent(&BytesN::<32>::random(&fx.e), &1, &covenant(&fx)).is_err());
+    assert!(fx.pool.try_withdraw(&1).is_err());
+    assert_accounting(&fx);
+}
+
+#[test]
+fn closing_one_agent_preserves_another_agents_backing() {
+    let fx = setup();
+    fx.pool.fund(&(2 * LIMIT));
+    let a = fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &LIMIT, &covenant(&fx));
+    let b = fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &LIMIT, &covenant(&fx));
+    fx.pool.draw(&a, &LIMIT);
+    token::TokenClient::new(&fx.e, &fx.usdc).transfer(&a, &fx.prov, &2_000_000);
+    fx.pool.close(&a, &fx.owner);
+    fx.pool.withdraw(&3_000_000);
+    assert!(fx.pool.try_withdraw(&1).is_err());
+    fx.pool.draw(&b, &LIMIT);
+    assert_eq!(bal(&fx, &b), LIMIT);
+    assert_accounting(&fx);
+    fx.pool.close(&b, &fx.owner);
+    fx.pool.withdraw(&LIMIT);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn closure_credits_surplus_and_later_refunds() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    token::StellarAssetClient::new(&fx.e, &fx.usdc).mint(&agent, &1_000_000);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_pool().locked, LOCK + 1_000_000);
+    token::StellarAssetClient::new(&fx.e, &fx.usdc).mint(&agent, &2_000_000);
+    fx.pool.return_funds(&agent, &fx.owner, &2_000_000);
+    assert_eq!(fx.pool.get_pool().locked, LOCK + 3_000_000);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn direct_pool_deposits_and_unattributed_returns_do_not_strand_cash() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    let token = token::TokenClient::new(&fx.e, &fx.usdc);
+    // A raw transfer is a pool deposit; use return_funds to also reconcile
+    // the agent's outstanding advance. Either route must leave cash usable.
+    token.transfer(&agent, &fx.pool_addr, &LIMIT);
+    token.transfer(&fx.owner, &fx.pool_addr, &1_000_000);
+    assert_accounting(&fx);
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(fx.pool.get_pool().locked, LOCK + 1_000_000);
+    fx.pool.withdraw(&(LOCK + 1_000_000));
+    assert_eq!(bal(&fx, &fx.pool_addr), 0);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn failed_recovery_rolls_back_closure_and_revocation() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &LIMIT);
+    token::TokenClient::new(&fx.e, &fx.usdc).approve(&agent, &fx.pool_addr, &0, &10_000);
+    let before = fx.pool.get_pool();
+    assert!(fx.pool.try_close(&agent, &fx.owner).is_err());
+    assert_eq!(fx.pool.get_pool(), before);
+    assert_eq!(fx.pool.get_agent(&agent).status, Status::Active);
+    assert!(!CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&agent).revoked);
+    assert_accounting(&fx);
+}
+
+#[test]
+fn close_rejects_stranger_and_missing_owner_signature() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    assert!(fx.pool.try_close(&agent, &Address::generate(&fx.e)).is_err());
+    fx.e.mock_auths(&[]);
+    assert!(fx.pool.try_close(&agent, &fx.owner).is_err());
+    assert_eq!(fx.pool.get_agent(&agent).status, Status::Active);
+}
+
+#[test]
+fn expiry_blocks_new_draws_and_delegation_but_allows_recovery() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.draw(&agent, &1_000_000);
+    fx.e.ledger().set_sequence_number(10_000);
+    assert_eq!(fx.pool.try_draw(&agent, &1), Err(Ok(soroban_sdk::Error::from_contract_error(16))));
+    assert!(fx.pool.try_delegate(&agent, &BytesN::<32>::random(&fx.e), &1, &child_covenant(&fx)).is_err());
+    assert!(fx.pool.try_create_agent(&BytesN::<32>::random(&fx.e), &1, &covenant(&fx)).is_err());
+    fx.pool.close(&agent, &fx.owner);
+    assert_eq!(bal(&fx, &agent), 0);
+    assert_accounting(&fx);
 }
 
 #[test]
@@ -425,6 +600,26 @@ fn close_child_returns_limit_to_parent() {
 }
 
 #[test]
+fn child_consumption_is_not_returned_to_parent_as_spendable_budget() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    fx.pool.draw(&child, &4_000_000);
+    token::TokenClient::new(&fx.e, &fx.usdc).transfer(&child, &fx.prov, &1_000_000);
+    // A parent cannot be closed while its child's allocation is live.
+    assert!(fx.pool.try_close(&parent, &fx.owner).is_err());
+    fx.pool.close(&child, &parent);
+    assert_eq!(fx.pool.get_agent(&parent).draw_limit, 9_000_000);
+    assert_eq!(fx.pool.get_pool().sum_limits, 9_000_000);
+    assert_eq!(fx.pool.get_pool().locked, LOCK - 1_000_000);
+    assert_accounting(&fx);
+    fx.pool.draw(&parent, &9_000_000);
+    fx.pool.close(&parent, &fx.owner);
+    assert_eq!(fx.pool.get_pool().settled_spent, 1_000_000);
+    assert_accounting(&fx);
+}
+
+#[test]
 fn parent_can_revoke_own_child() {
     let fx = setup();
     let parent = parent_with_limit(&fx, 10_000_000);
@@ -446,7 +641,6 @@ mod e2e {
     use ed25519_dalek::{Signer as Ed25519Signer, SigningKey};
     use soroban_sdk::{
         map,
-        testutils::Ledger as _,
         xdr::{
             Hash as XdrHash, HashIdPreimage, HashIdPreimageSorobanAuthorization, InvokeContractArgs,
             Limits, ScVal, SorobanAddressCredentials, SorobanAuthorizationEntry,
@@ -577,6 +771,33 @@ mod e2e {
         assert_eq!(bal(&s.fx, &s.fx.prov), 0);
     }
 
+    #[test]
+    fn signed_payment_then_owner_closure_recovers_and_settles() {
+        let s = signed_setup();
+        assert!(transfer_with_signature(&s, &s.fx.prov, 1_000_000).is_ok());
+        s.fx.e.mock_auths(&[MockAuth {
+            address: &s.fx.owner,
+            invoke: &MockAuthInvoke {
+                contract: &s.fx.pool_addr, fn_name: "close",
+                args: (s.agent.clone(), s.fx.owner.clone()).into_val(&s.fx.e), sub_invokes: &[],
+            },
+        }]);
+        s.fx.pool.close(&s.agent, &s.fx.owner);
+        assert_eq!(s.fx.pool.get_agent(&s.agent).settled_spent, 1_000_000);
+        assert_eq!(s.fx.pool.get_pool().locked, LOCK - 1_000_000);
+        assert_accounting(&s.fx);
+    }
+
+    #[test]
+    fn settlement_request_blocks_signed_spending() {
+        let s = signed_setup();
+        let e = &s.fx.e;
+        e.set_auths(&[pool_call_with_signature(&s, 10, "settle", std::vec![to_scval(e, s.agent.clone())])]);
+        s.fx.pool.settle(&s.agent);
+        assert!(transfer_with_signature(&s, &s.fx.prov, 1_000_000).is_err());
+        assert_eq!(bal(&s.fx, &s.agent), LIMIT);
+    }
+
     /// Signs a call on the pool from the agent account.
     fn pool_call_with_signature(s: &Signed, nonce: i64, fn_name: &str, args: std::vec::Vec<ScVal>) -> SorobanAuthorizationEntry {
         let inv = contract_fn(&s.fx.pool_addr, fn_name, args);
@@ -699,4 +920,59 @@ fn revoke_parent_after_child_already_revoked() {
     fx.pool.revoke(&parent, &fx.owner);
     assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
     assert_eq!(fx.pool.get_agent(&parent).status, Status::Revoked);
+}
+
+// ---------------------------------------------------------------- events (console Task 1)
+
+mod events {
+    use super::*;
+    use soroban_sdk::{testutils::Events as _, xdr::{ContractEventBody, ScVal}};
+
+    /// (first topic as string, second topic as ScVal if any) of the last pool event.
+    fn last_pool_event(fx: &Fx) -> (std::string::String, Option<ScVal>) {
+        let evs = fx.e.events().all().filter_by_contract(&fx.pool_addr);
+        let ev = evs.events().last().expect("no pool event").clone();
+        let ContractEventBody::V0(v0) = ev.body;
+        let topics: std::vec::Vec<ScVal> = v0.topics.to_vec();
+        let name = match &topics[0] { ScVal::Symbol(s) => std::string::String::from_utf8(s.0.to_vec()).unwrap(), other => panic!("topic0 {:?}", other) };
+        (name, topics.get(1).cloned())
+    }
+
+    fn addr_scval(fx: &Fx, a: &Address) -> ScVal {
+        ScVal::try_from_val(&fx.e, &a.to_val()).unwrap()
+    }
+
+    #[test]
+    fn fund_emits_funded() {
+        let fx = setup();
+        fx.pool.fund(&LOCK);
+        assert_eq!(last_pool_event(&fx).0, "funded");
+    }
+
+    #[test]
+    fn create_agent_emits_agent_created() {
+        let fx = setup();
+        let agent = funded_agent(&fx);
+        let (name, topic1) = last_pool_event(&fx);
+        assert_eq!(name, "agent_created");
+        assert_eq!(topic1, Some(addr_scval(&fx, &agent)));
+    }
+
+    #[test]
+    fn draw_emits_drawn() {
+        let fx = setup();
+        let agent = funded_agent(&fx);
+        fx.pool.draw(&agent, &LIMIT);
+        let (name, topic1) = last_pool_event(&fx);
+        assert_eq!(name, "drawn");
+        assert_eq!(topic1, Some(addr_scval(&fx, &agent)));
+    }
+
+    #[test]
+    fn delegate_emits_delegated() {
+        let fx = setup();
+        let parent = parent_with_limit(&fx, 10_000_000);
+        fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &child_covenant(&fx));
+        assert_eq!(last_pool_event(&fx).0, "delegated");
+    }
 }

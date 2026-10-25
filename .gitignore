@@ -6,3 +6,5 @@ node_modules/
 *.secret
 .superpowers/
 contracts/**/test_snapshots/
+dashboard/.env*.local
+dashboard/.next/
