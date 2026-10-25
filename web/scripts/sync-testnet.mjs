@@ -32,14 +32,14 @@ if (deployment.network !== "testnet") {
 
 const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
 
-function countContractTests(dir) {
+function countMatches(dir, extension, pattern) {
   let total = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) total += countContractTests(path);
-    else if (entry.name.endsWith(".rs")) {
+    if (entry.isDirectory()) total += countMatches(path, extension, pattern);
+    else if (entry.name.endsWith(extension)) {
       const source = readFileSync(path, "utf8");
-      total += source.match(/#\[test\]/g)?.length ?? 0;
+      total += source.match(pattern)?.length ?? 0;
     }
   }
   return total;
@@ -47,9 +47,11 @@ function countContractTests(dir) {
 
 const contractsDir = join(repoRoot, "contracts");
 if (existsSync(contractsDir)) {
-  const counted = countContractTests(contractsDir);
+  let counted = countMatches(contractsDir, ".rs", /#\[test\]/g);
+  const dashboardTests = join(repoRoot, "dashboard", "tests");
+  if (existsSync(dashboardTests)) counted += countMatches(dashboardTests, ".ts", /(?:^|\s)it(?:\.\w+)?\s*\(/gm);
   if (evidence.testCount !== counted) {
-    console.error(`evidence.json testCount is ${evidence.testCount}; contracts/ has ${counted} #[test] functions`);
+    console.error(`evidence.json testCount is ${evidence.testCount}; the repository has ${counted} tests`);
     process.exit(1);
   }
 }

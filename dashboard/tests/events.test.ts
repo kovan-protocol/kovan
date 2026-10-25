@@ -16,6 +16,12 @@ function raw(contractId: string, topics: xdr.ScVal[], value: xdr.ScVal, over: Pa
 }
 
 describe("normalizeEvent", () => {
+  it("does not label the pool closure's owner topic as an agent", () => {
+    const owner = "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC";
+    const ev = normalizeEvent(raw(POOL, [sym("pool_closed"), new Address(owner).toScVal()], map({ returned: nativeToScVal(99n, { type: "i128" }) })), { pool: POOL, policy: POLICY });
+    expect(ev).toMatchObject({ kind: "pool_closed", source: "pool", data: { returned: "99" } });
+    expect(ev.agent).toBeUndefined();
+  });
   it("decodes pool `drawn` with the agent topic", () => {
     const ev = normalizeEvent(
       raw(POOL, [sym("drawn"), new Address(AGENT).toScVal()], map({ amount: nativeToScVal(5_000_000n, { type: "i128" }), drawn: nativeToScVal(5_000_000n, { type: "i128" }) })),

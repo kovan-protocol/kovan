@@ -21,6 +21,15 @@ function harness(initial = fixture()) {
   const add = (a: string | undefined, b: bigint) => (BigInt(a ?? "0") + b).toString();
   async function run(step: RecoveryStep) {
     calls.push(step);
+    if (step.fn === "close_pool") {
+      expect(state.pool.closed).toBe(false);
+      expect(state.agents.every((a) => statusOf(a.status) === "Closed")).toBe(true);
+      expect(state.pool.sum_limits).toBe("0");
+      state.pool.closed = true;
+      state.pool.balance = "0";
+      state.pool.locked = "0";
+      return;
+    }
     if (step.fn === "withdraw") {
       expect(BigInt(step.args.amount)).toBeLessThanOrEqual(withdrawable(state));
       state.pool.balance = add(state.pool.balance, -BigInt(step.args.amount));
@@ -67,15 +76,91 @@ function harness(initial = fixture()) {
     }
   }
   const read = async () => structuredClone(state);
-  const free = () => runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read, run });
+  const recover = () => runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read, run });
   const withdraw = () => runPoolRecovery({ mode: "withdraw", pool: "pool", owner: "owner", read, run });
-  return { state, calls, run, read, free, withdraw };
+  const close = () => runPoolRecovery({ mode: "close", pool: "pool", owner: "owner", read, run });
+  return { state, calls, run, read, recover, withdraw, close };
 }
+
+describe("permanent pool closure", () => {
+  function closable() {
+    const s = fixture();
+    s.pool.closed = false;
+    return s;
+  }
+
+  it("recovers agents then permanently closes and refunds the pool", async () => {
+    const h = harness(closable());
+    await h.close();
+    expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "close", "close_pool"]);
+    expect(h.calls.at(-1)?.label).toContain("9.99 USDC");
+    expect(h.state.pool).toMatchObject({ closed: true, balance: "0", sum_limits: "0" });
+    expect((await h.close()).transactions).toBe(0);
+  });
+
+  it.each([true, false])("refuses unsupported deployments before any signature (legacy=%s)", async (legacy) => {
+    const h = harness(fixture(legacy));
+    await expect(h.close()).rejects.toThrow("cannot be permanently closed");
+    expect(h.calls).toEqual([]);
+  });
+
+  it("closes an empty pool even with no agents or funds", async () => {
+    const s = closable();
+    s.agents = [];
+    Object.assign(s.pool, { locked: "0", sum_limits: "0", balance: "0", agent_count: 0 });
+    const h = harness(s);
+    await h.close();
+    expect(h.calls.map((s) => s.fn)).toEqual(["close_pool"]);
+    expect(h.state.pool.closed).toBe(true);
+  });
+
+  it("does not claim closure when the final signature is rejected; retries only closure", async () => {
+    const h = harness(closable());
+    await expect(runPoolRecovery({ mode: "close", pool: "pool", owner: "owner", read: h.read,
+      run: async (s) => { if (s.fn === "close_pool") throw new Error("Signing cancelled"); await h.run(s); },
+    })).rejects.toThrow("Signing cancelled");
+    expect(h.state.pool.closed).toBe(false);
+    expect(h.state.pool.balance).toBe("99900000");
+    await h.close();
+    expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "close", "close_pool"]);
+  });
+
+  it("requires a confirmed closed state and never repeats the shutdown on stale reads", async () => {
+    const s = closable();
+    s.agents = [];
+    Object.assign(s.pool, { locked: "0", sum_limits: "0", balance: "0" });
+    const h = harness(s);
+    await expect(runPoolRecovery({ mode: "close", pool: "pool", owner: "owner", read: h.read,
+      run: async (s) => { h.calls.push(s); },
+    })).rejects.toThrow("not advanced");
+    expect(h.calls).toHaveLength(1);
+  });
+
+  it("refuses shutdown with inconsistent outstanding accounting", async () => {
+    const s = closable();
+    s.agents = [];
+    s.pool.sum_limits = "0";
+    const h = harness(s);
+    await expect(h.close()).rejects.toThrow("outstanding advances");
+    expect(h.calls).toEqual([]);
+  });
+
+  it("recovers late refunds without reopening a closed pool", async () => {
+    const h = harness(closable());
+    await h.close();
+    h.state.agents[0].balance = "5000";
+    await h.recover();
+    await h.withdraw();
+    expect(h.state.pool.closed).toBe(true);
+    expect(h.state.pool.balance).toBe("0");
+    expect(h.calls.slice(-2).map((s) => s.fn)).toEqual(["return_funds", "withdraw"]);
+  });
+});
 
 describe("pool recovery", () => {
   it("recovers V2 spending, closes the allocation, then withdraws exactly 9.99 USDC", async () => {
     const h = harness();
-    await h.free();
+    await h.recover();
     expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "close"]);
     expect(h.state.pool.sum_limits).toBe("0");
     expect(withdrawable(h.state)).toBe(99900000n);
@@ -86,21 +171,21 @@ describe("pool recovery", () => {
 
   it("frees the deployed legacy scenario without claiming the spent agent is closed", async () => {
     const h = harness(fixture(true));
-    await h.free();
+    await h.recover();
     expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "return_funds", "amend"]);
     expect(h.state.agents[0]).toMatchObject({ drawn: "100000", draw_limit: "100000", status: ["Revoked"], balance: "0" });
     expect(withdrawable(h.state)).toBe(99900000n);
     await h.withdraw();
     expect(h.state.pool.balance).toBe("0");
     expect(h.state.pool.sum_limits).toBe("100000");
-    expect((await h.free()).transactions).toBe(0);
+    expect((await h.recover()).transactions).toBe(0);
   });
 
   it("closes legacy agents which have returned all their principal", async () => {
     const s = fixture(true);
     s.agents[0].balance = "5000000";
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "return_funds", "close"]);
     expect(withdrawable(h.state)).toBe(100000000n);
   });
@@ -109,7 +194,7 @@ describe("pool recovery", () => {
     const s = fixture();
     s.agents = [agent("parent", { draw_limit: "0", drawn: "0", balance: "0", children: ["child"] }), agent("child", { parent: "parent" })];
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.calls.filter((s) => s.fn === "close").map((s) => s.args.agent)).toEqual(["child", "parent"]);
     expect(h.state.pool.sum_limits).toBe("0");
     expect(withdrawable(h.state)).toBe(99900000n);
@@ -120,7 +205,7 @@ describe("pool recovery", () => {
     s.agents.push(agent("second", { drawn: "0", balance: "0" }));
     s.pool.sum_limits = "10000000";
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.calls.slice(0, 2).map((s) => s.fn)).toEqual(["revoke", "revoke"]);
   });
 
@@ -130,7 +215,7 @@ describe("pool recovery", () => {
     s.pool.sum_limits = "0";
     s.pool.locked = s.pool.balance!;
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.calls.map((s) => s.fn)).toEqual(["return_funds"]);
     expect(h.state.pool.locked).toBe("95005000");
   });
@@ -140,7 +225,7 @@ describe("pool recovery", () => {
     s.pool.sum_limits = "10000000";
     s.agents = [agent("parent", { drawn: "0", balance: "0", children: ["child"] }), agent("child", { parent: "parent" })];
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.state.agents[0].draw_limit).toBe("1");
     expect(h.state.pool.sum_limits).toBe("100001");
     expect(h.state.agents.every((a) => statusOf(a.status) === "Revoked")).toBe(true);
@@ -150,7 +235,7 @@ describe("pool recovery", () => {
     const s = fixture(true);
     s.agents[0].covenant.expiry = 50;
     const h = harness(s);
-    await h.free();
+    await h.recover();
     expect(h.state.agents[0].covenant.expiry).toBeGreaterThan(s.latestLedger);
     expect(h.state.agents[0].state?.revoked).toBe(true);
     expect(h.state.agents[0].covenant.provider_total_cap).toBe("5000000");
@@ -166,11 +251,11 @@ describe("pool recovery", () => {
 
   it("stops on rejected signatures and can resume confirmed steps", async () => {
     const h = harness(fixture(true));
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read: h.read,
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read: h.read,
       run: async (step) => { if (step.fn === "return_funds") throw new Error("Signing cancelled"); await h.run(step); },
     })).rejects.toThrow("Signing cancelled");
     expect(h.calls.map((s) => s.fn)).toEqual(["revoke"]);
-    await h.free();
+    await h.recover();
     expect(h.calls.map((s) => s.fn)).toEqual(["revoke", "return_funds", "amend"]);
   });
 
@@ -178,13 +263,13 @@ describe("pool recovery", () => {
     const h = harness();
     if (field === "owner") h.state.pool.owner = "stranger";
     else h.state.ids.pool = "another pool";
-    await expect(h.free()).rejects.toThrow("Pool or owner changed");
+    await expect(h.recover()).rejects.toThrow("Pool or owner changed");
     expect(h.calls).toEqual([]);
   });
 
   it("rechecks the pool identity between steps", async () => {
     const h = harness();
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read: h.read,
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read: h.read,
       run: async (step) => { await h.run(step); h.state.pool.owner = "stranger"; },
     })).rejects.toThrow("Pool or owner changed");
     expect(h.calls).toHaveLength(1);
@@ -192,7 +277,7 @@ describe("pool recovery", () => {
 
   it("does not silently act on newly created agents", async () => {
     const h = harness();
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read: h.read,
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read: h.read,
       run: async (step) => { await h.run(step); h.state.agents.push(agent("new")); },
     })).rejects.toThrow("An agent was added");
     expect(h.calls).toHaveLength(1);
@@ -200,13 +285,13 @@ describe("pool recovery", () => {
 
   it("does not resend the same transaction when state reads are stale", async () => {
     const h = harness();
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read: h.read, run: async (step) => { h.calls.push(step); } })).rejects.toThrow("not advanced");
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read: h.read, run: async (step) => { h.calls.push(step); } })).rejects.toThrow("not advanced");
     expect(h.calls).toHaveLength(1);
   });
 
   it("stops after an unknown state-read failure instead of using cached balances", async () => {
     const h = harness();
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", run: h.run,
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", run: h.run,
       read: async () => { if (h.calls.length) throw new Error("RPC unavailable"); return h.read(); },
     })).rejects.toThrow("RPC unavailable");
     expect(h.calls).toHaveLength(1);
@@ -217,7 +302,7 @@ describe("pool recovery", () => {
     s.agents[0] = agent("agent", { status: ["Revoked"], balance: "0", drawn: "100000" });
     s.agents[0].covenant.expiry = 50;
     const h = harness(s);
-    await expect(runPoolRecovery({ mode: "free", pool: "pool", owner: "owner", read: h.read,
+    await expect(runPoolRecovery({ mode: "recover", pool: "pool", owner: "owner", read: h.read,
       run: async (step) => { h.calls.push(step); h.state.latestLedger++; },
     })).rejects.toThrow("not advanced");
     expect(h.calls).toHaveLength(1);
@@ -237,7 +322,7 @@ describe("pool recovery", () => {
     s.pool.balance = "0";
     s.pool.sum_limits = "0";
     const h = harness(s);
-    expect((await h.free()).transactions).toBe(0);
+    expect((await h.recover()).transactions).toBe(0);
     await expect(h.withdraw()).rejects.toThrow("No USDC");
     expect(h.calls).toEqual([]);
   });
@@ -246,7 +331,7 @@ describe("pool recovery", () => {
     const h = harness();
     delete h.state.pool.balance;
     expect(withdrawable(h.state)).toBe(0n);
-    await expect(h.free()).rejects.toThrow("balance unavailable");
+    await expect(h.recover()).rejects.toThrow("balance unavailable");
     await expect(h.withdraw()).rejects.toThrow("balance unavailable");
     expect(h.calls).toEqual([]);
   });

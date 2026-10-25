@@ -19,6 +19,8 @@ export const POOL_ERRORS: Record<number, string> = {
   14: "UnknownAgent",
   15: "TooManyChildren",
   16: "Expired",
+  17: "PoolClosed",
+  18: "PoolNotEmpty",
 };
 
 export const COVENANT_ERRORS: Record<number, string> = {

@@ -22,6 +22,8 @@ function initial(legacy = true) {
   };
 }
 let state = initial();
+let rejectClosure = false;
+let refundedAtClosure = "0";
 const requests = [];
 const submitted = [];
 const failures = [];
@@ -61,7 +63,15 @@ try {
       let body;
       if (path === "/api/state") body = state;
       else if (path === "/api/events") body = { events: [], latestLedger: 100, oldestLedger: 1, truncated: false };
-      else if (path === "/api/tx/build") { requests.push(JSON.parse(request.postData)); body = { xdr: "mock-unsigned" }; }
+      else if (path === "/api/tx/build") {
+        const action = JSON.parse(request.postData);
+        requests.push(action);
+        if (action.fn === "close_pool" && rejectClosure) {
+          await call("Runtime.evaluate", { expression: "window.__rejectSign=true" });
+          rejectClosure = false;
+        }
+        body = { xdr: "mock-unsigned" };
+      }
       else if (path === "/api/tx/submit") {
         const action = requests.at(-1);
         submitted.push(action);
@@ -76,6 +86,12 @@ try {
         if (action.fn === "close") {
           a.status = ["Closed"]; a.drawn = "0"; a.balance = "0";
           Object.assign(state.pool, { sum_limits: "0", locked: "99900000", balance: "99900000" });
+        }
+        if (action.fn === "close_pool") {
+          assert.equal(state.pool.closed, false);
+          assert.ok(state.agents.every(a => a.status[0] === "Closed"));
+          refundedAtClosure = state.pool.balance;
+          Object.assign(state.pool, { closed: true, locked: "0", balance: "0" });
         }
         if (action.fn === "withdraw") {
           state.pool.balance = String(BigInt(state.pool.balance) - BigInt(action.args.amount));
@@ -115,18 +131,20 @@ try {
   const text = () => evaluate("document.body.innerText");
   async function load() {
     await call("Page.navigate", { url: "http://127.0.0.1:3103" });
-    await until(async () => (await text()).includes("Free pool & return funds"), "state rendered");
+    await until(async () => (await text()).includes("Close pool & return funds"), "state rendered");
   }
   await load();
-  assert.equal(await enabled("Free pool"), false);
+  assert.equal(await enabled("Recover funds"), false);
   assert.equal(await enabled("Return to wallet"), false);
   await evaluate(`window.__walletAddress='GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'`);
   await click("Connect Freighter");
   await until(async () => (await text()).includes("not the pool owner"), "non-owner");
-  assert.equal(await enabled("Free pool"), false);
+  assert.equal(await enabled("Recover funds"), false);
   await evaluate(`window.__walletAddress=${JSON.stringify(owner)}`);
   await click("Switch");
-  await until(() => enabled("Free pool"), "owner connected");
+  await until(() => enabled("Recover funds"), "owner connected");
+  assert.equal(await enabled("Close pool"), false, "old contracts cannot be shut down");
+  assert.match(await text(), /no permanent shutdown function/);
   // Guided covenant fields must not overwrite input or submit a transaction.
   await evaluate(`document.querySelectorAll('details').forEach(d=>d.open=true)`);
   const value = suffix => evaluate(`document.querySelector('[id$="-${suffix}"]').value`);
@@ -170,15 +188,15 @@ try {
   await click("Remove rule");
   assert.match(await text(), /No additional calls allowed/);
   assert.equal(requests.length, 0, "examples and call rules must not sign or submit");
-  await click("Free pool");
+  await click("Recover funds");
   assert.match(await text(), /Legacy pool/);
   assert.match(await text(), /Payments already made cannot be recovered/);
   assert.equal(requests.length, 0, "opening confirmation does not sign");
   await click("Cancel");
-  assert.equal(await evaluate(`document.activeElement===${button("Free pool")}`), true);
-  await click("Free pool");
+  assert.equal(await evaluate(`document.activeElement===${button("Recover funds")}`), true);
+  await click("Recover funds");
   await evaluate("window.__rejectSign=true; window.__signDelay=800");
-  await click("Confirm free pool");
+  await click("Confirm recovery");
   await until(async () => requests.length > 0, "first transaction built");
   assert.equal(await enabled("Switch"), false);
   assert.equal(await enabled("Pay endpoint"), false);
@@ -187,9 +205,9 @@ try {
   await until(async () => (await text()).includes("Test signature rejected"), "rejection visible");
   assert.equal(submitted.length, 0);
   assert.equal(requests.length, 1);
-  await until(() => enabled("Confirm free pool"), "retry enabled");
+  await until(() => enabled("Confirm recovery"), "retry enabled");
   await evaluate("window.__signDelay=50");
-  await click("Confirm free pool");
+  await click("Confirm recovery");
   await until(async () => (await text()).includes("legacy allocation(s) remain revoked"), "legacy recovery complete");
   assert.deepEqual(submitted.map(a => a.fn), ["revoke", "return_funds", "amend"]);
   assert.equal(submitted[1].args.amount, "4900000");
@@ -210,12 +228,12 @@ try {
   submitted.length = 0;
   await load();
   await click("Connect Freighter");
-  await until(() => enabled("Free pool"), "V2 owner");
-  await click("Free pool");
-  await click("Confirm free pool");
+  await until(() => enabled("Recover funds"), "V2 owner");
+  await click("Recover funds");
+  await click("Confirm recovery");
   await until(async () => (await text()).includes("Agents closed and unspent funds recovered"), "V2 recovery complete");
   assert.deepEqual(submitted.map(a => a.fn), ["revoke", "close"]);
-  assert.equal(await enabled("Free pool"), false);
+  assert.equal(await enabled("Recover funds"), false);
   await click("Return to wallet");
   for (const width of [375, 768, 1280]) {
     await call("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -226,8 +244,71 @@ try {
   await call("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
   assert.equal(await evaluate(`document.activeElement===${button("Return to wallet")}`), true);
   assert.equal(await enabled("Confirm return to wallet"), false);
+
+  // New lifecycle: close agents, then atomically shut down and refund the pool.
+  state = initial(false);
+  state.pool.closed = false;
+  submitted.length = 0;
+  rejectClosure = true;
+  await load();
+  await click("Connect Freighter");
+  await until(() => enabled("Close pool"), "shutdown-capable owner");
+  await click("Close pool");
+  assert.match(await text(), /The pool cannot be reopened/);
+  assert.match(await text(), /final transaction returns all remaining pool USDC/);
+  await click("Confirm permanent closure");
+  await until(async () => (await text()).includes("Test signature rejected"), "final signature rejected");
+  assert.deepEqual(submitted.map(a => a.fn), ["revoke", "close"]);
+  assert.equal(state.pool.closed, false, "cancellation must not claim shutdown");
+  assert.equal(state.pool.balance, "99900000");
+  await until(() => enabled("Confirm permanent closure"), "closure retry");
+  await click("Confirm permanent closure");
+  await until(async () => (await text()).includes("Pool permanently closed."), "pool shutdown complete");
+  assert.deepEqual(submitted.map(a => a.fn), ["revoke", "close", "close_pool"]);
+  assert.equal(refundedAtClosure, "99900000");
+  assert.equal(submitted.at(-1).source, owner);
+  assert.equal(submitted.at(-1).pool, pool);
+  assert.deepEqual(submitted.at(-1).args, {});
+  assert.equal(state.pool.closed, true);
+  assert.equal(state.pool.balance, "0");
+  assert.equal(await enabled("Close pool"), false);
+  assert.equal(await enabled("Fund"), false);
+  assert.equal(await enabled("Create agent"), false);
+  assert.equal(await enabled("Return to wallet"), false);
+  assert.equal(await enabled("New pool"), true);
+  await load();
+  await click("Connect Freighter");
+  await until(() => enabled("New pool"), "closed pool reloaded");
+  assert.match(await text(), /Permanently closed/);
+  assert.equal(await enabled("Fund"), false);
+  assert.equal(await enabled("Create agent"), false);
+  // Late deposits must remain recoverable without reopening the pool.
+  state.pool.balance = "10000";
+  state.pool.locked = "10000";
+  await click("Refresh");
+  await until(() => enabled("Return to wallet"), "late refund");
+  await click("Return to wallet");
+  await click("Confirm return to wallet");
+  await until(async () => state.pool.balance === "0", "late refund withdrawn");
+  assert.equal(state.pool.closed, true);
+  assert.equal(submitted.at(-1).fn, "withdraw");
+
+  state = initial(false);
+  state.pool.closed = false;
+  state.agents = [];
+  Object.assign(state.pool, { balance: "0", locked: "0", sum_limits: "0", agent_count: 0 });
+  await load();
+  await click("Connect Freighter");
+  await until(() => enabled("Close pool"), "empty pool can still be closed");
+  await click("Close pool");
+  for (const width of [375, 768, 1280]) {
+    await call("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, `closure overflow at ${width}`);
+  }
+  await click("Confirm permanent closure");
+  await until(async () => state.pool.closed, "empty pool closed");
   assert.deepEqual(failures, []);
-  console.log("PASS: guided covenant examples, input preservation, labeled call rules, owner gating, confirmation/cancel/Escape, rejected signature/retry, legacy and V2 recovery, exact owner withdrawal, busy-state guards, and 375/768/1280px layouts. All APIs and wallet signatures mocked; no transactions sent.");
+  console.log("PASS: covenant guidance, owner gating, confirmation/cancel/Escape, legacy/V2 recovery, permanent pool closure, final-signature rejection/retry, disabled reuse after reload, empty-pool shutdown, late refunds, exact owner withdrawal, busy-state guards, and 375/768/1280px layouts. All APIs and wallet signatures mocked; no transactions sent.");
 } finally {
   ws?.close();
   browser?.kill("SIGTERM");

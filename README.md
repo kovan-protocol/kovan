@@ -27,6 +27,7 @@ A developer running an agent that pays data or RPC providers per call over x402.
 4. Every outgoing call from the account goes through the covenant: USDC transfers only to allowlisted **providers** (x402 or direct) and **recipients**, within per-transfer and total caps, before **expiry**; allowlisted **contract calls**; the pool's lifecycle functions. Anything else, including calls on the account itself, is rejected.
 5. An agent may **delegate** a narrower covenant to a child, carved out of its own remaining allowance.
 6. The owner (or a parent) can **revoke** and **close**. The owner can **amend** numeric limits and record dispute outcomes. `return_funds` remains available after covenant expiry or revocation, subject to the token allowance. Closing recovers the remaining wallet balance and settles consumed funding before releasing unused allocation.
+7. Once all agents are closed, the owner can permanently **close the pool** (`close_pool`). The remaining pool USDC returns to the original owner in the same transaction. The pool cannot be funded or reused again; its history and late-refund recovery remain available.
 
 *Humans configure, agents only execute inside limits.*
 
@@ -42,7 +43,13 @@ The current source implements the complete draw → spend → recover → close 
 
 For example: draw 10 USDC, spend 3, then close. The pool recovers 7, settles 3, and releases 7 of allocation. The 3 already consumed can never be allocated or withdrawn again.
 
-**Deployment:** the IDs and transaction evidence below are the earlier testnet deployment. They are not upgraded by changing this source. Accounting v2 needs a fresh pool deployment and new agent accounts; there is no in-place migration. Preserve the old deployment record and recover available old funds before switching the dashboard configuration. `make deploy` deploys fresh contracts and writes the pool WASM hash required by the dashboard's Create pool flow. The console identifies older pools and disables closure when their outstanding advance would fail the old rules.
+### Permanent pool shutdown
+
+The console's **Close pool** replaces **Free pool**: revoke agents, recover and close them child-first, then invoke owner-only `close_pool()`. The final transaction requires zero open agents, allocations, and outstanding advances, returns all pool cash to the original owner, and sets `closed: true`. If the refund fails, shutdown rolls back. A maintained open-agent counter includes zero-limit delegated parents and avoids scanning every historical agent in the final transaction.
+
+This is irreversible deactivation, not deletion of the contract or its history. There is no reopen/upgrade function. The pool rejects new funding, agents, draws, delegation, amendments, and other operational changes. `return_funds`, owner-only `withdraw`, and reads remain available so late USDC deposits can be recovered without reopening it. Closing agents and closing their pool are distinct operations; draining cash alone does not close a pool.
+
+**Deployment:** the IDs and transaction evidence below are the earlier testnet deployment. They are not upgraded by changing this source. Accounting v2 and permanent pool shutdown need a fresh pool deployment and new agent accounts; there is no in-place migration. Preserve the old deployment record and recover available old funds before switching the dashboard configuration. `make deploy` deploys fresh contracts and writes the pool WASM hash required by the dashboard's Create pool flow. Earlier v2 pools also lack shutdown; the console requires the explicit boolean `closed` field before offering permanent closure. Old pools retain **Recover funds** and **Return to wallet**, with no claim that the pool was destroyed.
 
 ### Agent signer choice
 
@@ -87,6 +94,8 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 | return funds | Agent returns 0.29 USDC to the pool | [`c455d6…`](https://stellar.expert/explorer/testnet/tx/c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3) |
 
 ## Setup
+
+Verification snapshot (2026-10-25): **221 tests** pass in the current source — 107 contract tests and 114 dashboard tests. This verifies the repository, not a deployment of its latest contracts.
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
