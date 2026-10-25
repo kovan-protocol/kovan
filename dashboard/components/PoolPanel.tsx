@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { usdc, shortId } from "@/lib/format";
 import type { State } from "@/lib/client";
+import { withdrawable } from "@/lib/pool-recovery";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 
@@ -34,7 +35,6 @@ export function PoolPanel({ state, children }: { state: State | null; children?:
       </Card>
     );
   }
-  const locked = BigInt(state.pool.locked);
   const sum = BigInt(state.pool.sum_limits);
   return (
     <Card>
@@ -54,11 +54,14 @@ export function PoolPanel({ state, children }: { state: State | null; children?:
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Locked" value={usdc(locked)} />
-          <Stat label="Backing covenants" value={usdc(sum)} hint="sum of draw limits" />
-          <Stat label="Free to withdraw" value={usdc(locked - sum)} />
-          <Stat label="Agents" value={String(state.pool.agent_count)} />
+          <Stat label="In the pool" value={state.pool.balance === undefined ? "—" : usdc(state.pool.balance)} hint="USDC held by the pool" />
+          <Stat label="Allocated limits" value={usdc(sum)} hint="includes advances until closed" />
+          <Stat label="Free to withdraw" value={state.pool.balance === undefined ? "—" : usdc(withdrawable(state))} />
+          <Stat label="Settled spending" value={state.pool.settled_spent === undefined ? "—" : usdc(state.pool.settled_spent)} hint="net funding consumed by closed agents" />
         </div>
+        {(state.pool.accounting_version ?? 1) < 2 ? (
+          <p className="text-sm text-muted-foreground">This pool uses earlier accounting. Free pool can recover unspent funds and reduce unused allocations, but allocations with spent advances remain revoked rather than closed.</p>
+        ) : null}
         {children}
       </CardContent>
     </Card>

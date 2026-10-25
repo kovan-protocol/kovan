@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { connectFreighter } from "@/lib/wallet";
 import { shortId } from "@/lib/format";
 
-type Props = { address: string | null; owner: string | null; onConnect: (address: string) => void };
+type Props = { address: string | null; owner: string | null; onConnect: (address: string) => void; disabled?: boolean };
 
-export function WalletButton({ address, owner, onConnect }: Props) {
+export function WalletButton({ address, owner, onConnect, disabled }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +31,7 @@ export function WalletButton({ address, owner, onConnect }: Props) {
         <Badge variant={isOwner ? "default" : "secondary"} title={address}>
           {isOwner ? "owner" : "not the pool owner"} · {shortId(address, 4)}
         </Badge>
-        <Button variant="ghost" size="sm" onClick={connect} disabled={busy}>
+        <Button variant="ghost" size="sm" onClick={connect} disabled={busy || disabled}>
           Switch
         </Button>
       </div>
@@ -39,7 +39,7 @@ export function WalletButton({ address, owner, onConnect }: Props) {
   }
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button size="sm" onClick={connect} disabled={busy}>
+      <Button size="sm" onClick={connect} disabled={busy || disabled}>
         {busy ? "Connecting…" : "Connect Freighter"}
       </Button>
       {error ? (

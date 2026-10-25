@@ -57,8 +57,9 @@ export function AgentCard({ agent, latestLedger, actions }: { agent: StateAgent;
       <CardContent className="flex flex-col gap-3">
         <div>
           <Row k="Draw limit" v={usdc(agent.draw_limit)} />
-          <Row k="Drawn" v={usdc(agent.drawn)} />
-          <Row k="Balance" v={usdc(agent.balance)} />
+          <Row k="Funding outstanding" v={usdc(agent.drawn)} />
+          <Row k="Wallet balance" v={usdc(agent.balance)} />
+          {status === "Closed" && agent.settled_spent !== undefined ? <Row k="Settled spending" v={usdc(agent.settled_spent)} /> : null}
           <Row k="Providers" v={<Addresses list={c.providers} />} />
           <Row k="Provider caps" v={`${usdc(c.provider_per_transfer_cap)} / ${usdc(c.provider_total_cap)}`} />
           {agent.state ? <Row k="Spent on providers" v={usdc(agent.state.provider_spent)} /> : null}

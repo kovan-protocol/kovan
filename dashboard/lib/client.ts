@@ -1,9 +1,11 @@
 // Browser-side types and fetchers for the console. Amounts arrive as strings.
 export type StateAgent = {
+  signing?: import("./key-access").AgentSigning;
   id: string;
   balance: string;
   draw_limit: string;
   drawn: string;
+  settled_spent?: string;
   status: string | string[];
   parent?: string | null;
   children: string[];
@@ -23,7 +25,7 @@ export type StateAgent = {
 export type State = {
   ids: { pool: string; policy: string; verifier: string; usdc: string; owner: string };
   latestLedger: number;
-  pool: { owner: string; usdc: string; locked: string; sum_limits: string; agent_count: number };
+  pool: { owner: string; usdc: string; locked: string; sum_limits: string; agent_count: number; accounting_version?: number; settled_spent?: string; balance?: string };
   agents: StateAgent[];
 };
 

@@ -23,9 +23,9 @@ export function savePool(id: string) {
   if (!cur.includes(id)) window.localStorage.setItem(POOLS_KEY, JSON.stringify([...cur, id]));
 }
 
-type Props = { pools: string[]; current: string | null; onSelect: (id: string) => void; onCreate: () => void; canCreate: boolean; creating: boolean };
+type Props = { pools: string[]; current: string | null; onSelect: (id: string) => void; onCreate: () => void; canCreate: boolean; creating: boolean; disabled?: boolean };
 
-export function PoolSelector({ pools, current, onSelect, onCreate, canCreate, creating }: Props) {
+export function PoolSelector({ pools, current, onSelect, onCreate, canCreate, creating, disabled }: Props) {
   return (
     <div className="flex items-center gap-2">
       <label htmlFor="pool-select" className="text-xs text-muted-foreground">
@@ -35,6 +35,7 @@ export function PoolSelector({ pools, current, onSelect, onCreate, canCreate, cr
         id="pool-select"
         className="h-8 rounded-md border bg-background px-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         value={current ?? ""}
+        disabled={disabled || creating}
         onChange={(e) => onSelect(e.target.value)}
       >
         {pools.map((p, i) => (

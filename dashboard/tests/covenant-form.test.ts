@@ -56,4 +56,22 @@ describe("buildCovenantArgs", () => {
       { contract: "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ", fn_name: "ping", amount_arg: 1, amount_cap: 10_000n },
     ]);
   });
+  it("accepts G and C payees while keeping provider and recipient caps separate", () => {
+    const contract = "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ";
+    const r = buildCovenantArgs({ ...base, providers: `${OWNER}\n${contract}`, recipients: KEEPER_G, recipientPerTransfer: "0.1", recipientTotal: "0.3" }, 1000);
+    expect(r.covenant.providers).toEqual([OWNER, contract]);
+    expect(r.covenant.provider_total_cap).toBe(5_000_000n);
+    expect(r.covenant.recipient_per_transfer_cap).toBe(1_000_000n);
+    expect(r.covenant.recipient_total_cap).toBe(3_000_000n);
+  });
+  it("encodes blank payment caps as zero, not unlimited", () => {
+    const r = buildCovenantArgs({ ...base, providerPerTransfer: "", providerTotal: "" }, 1000);
+    expect(r.covenant.provider_per_transfer_cap).toBe(0n);
+    expect(r.covenant.provider_total_cap).toBe(0n);
+  });
+  it("does not enable an amount check from a cap alone", () => {
+    const r = buildCovenantArgs({ ...base, calls: [{ contract: "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ", fnName: "deposit", amountArg: "", amountCap: "0.10" }] }, 1000);
+    expect(r.covenant.calls[0].amount_arg).toBeUndefined();
+    expect(r.covenant.calls[0].amount_cap).toBe(1_000_000n);
+  });
 });

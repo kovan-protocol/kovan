@@ -32,6 +32,10 @@ function describe(ev: ChainEvent): string {
       return `child ${shortId(d.child ?? "", 4)} · ${amt("draw_limit")}`;
     case "amended":
       return `draw limit ${amt("draw_limit")}`;
+    case "closed":
+      return d.consumed === undefined ? "allocation closed" : `recovered ${amt("recovered")} · consumed ${amt("consumed")} · released ${amt("released")}`;
+    case "settlement_requested":
+      return "spending stopped; awaiting closure";
     default:
       return typeof ev.data === "object" && ev.data ? Object.keys(ev.data as object).join(", ") : "";
   }
@@ -54,9 +58,9 @@ export function LogPanel({ session, pool }: { session: LogEntry[]; pool?: string
   }, [pool]);
 
   useEffect(() => {
-    load();
+    const initial = setTimeout(load, 0);
     const t = setInterval(load, 20_000);
-    return () => clearInterval(t);
+    return () => { clearTimeout(initial); clearInterval(t); };
   }, [load, session.length]);
 
   return (

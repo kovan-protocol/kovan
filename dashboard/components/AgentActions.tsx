@@ -6,15 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { StateAgent } from "@/lib/client";
 import { unitsFromUsdc, usdc } from "@/lib/format";
+import { X402_TESTNET_EXAMPLE } from "@/lib/covenant-examples";
 
 export type AgentRun = (action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) => Promise<void>;
 export type X402Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number };
 export type X402Pay = (agent: string, url: string, label: string) => Promise<{ ok: boolean; body?: string; txHash?: string; error?: string; terms?: X402Terms }>;
 
 /** Agent-side buttons: these are signed by the server with AGENT_SECRET, never by Freighter. */
-export function AgentActions({ agent, run, payX402 }: { agent: StateAgent; run: AgentRun; payX402: X402Pay }) {
+export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { agent: StateAgent; run: AgentRun; payX402: X402Pay; latestLedger: number; disabled?: boolean }) {
   const [amount, setAmount] = useState("0.1");
-  const [url, setUrl] = useState("https://stellar.org/x402-demo/api/protected/testnet");
+  const [url, setUrl] = useState<string>(X402_TESTNET_EXAMPLE.url);
   const [terms, setTerms] = useState<X402Terms | null>(null);
   const [response, setResponse] = useState<string | null>(null);
   const [to, setTo] = useState(agent.covenant.providers[0] ?? "");
@@ -75,7 +76,7 @@ export function AgentActions({ agent, run, payX402 }: { agent: StateAgent; run: 
   }
 
   const payeeAllowed = terms ? agent.covenant.providers.includes(terms.payTo) || agent.covenant.recipients.includes(terms.payTo) : null;
-  const active = (Array.isArray(agent.status) ? agent.status[0] : agent.status) === "Active";
+  const active = (Array.isArray(agent.status) ? agent.status[0] : agent.status) === "Active" && latestLedger < agent.covenant.expiry && !agent.state?.revoked;
   return (
     <div className="flex flex-col gap-3 border-t pt-3">
       <p className="text-xs text-muted-foreground">Agent actions · signed by the agent key on the server</p>
@@ -90,13 +91,13 @@ export function AgentActions({ agent, run, payX402 }: { agent: StateAgent; run: 
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={!!busy || !active} onClick={() => go("draw", "draw")}>
+        <Button size="sm" disabled={disabled || !!busy || !active} onClick={() => go("draw", "draw")}>
           {busy === "draw" ? "Drawing…" : "Draw from pool"}
         </Button>
-        <Button size="sm" variant="secondary" disabled={!!busy || !active || !to} onClick={() => go("pay", "pay", to)}>
+        <Button size="sm" variant="secondary" disabled={disabled || !!busy || !active || !to} onClick={() => go("pay", "pay", to)}>
           {busy === "pay" ? "Paying…" : "Pay"}
         </Button>
-        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => go("return", "return_funds")}>
+        <Button size="sm" variant="outline" disabled={disabled || !!busy} onClick={() => go("return", "return_funds")}>
           {busy === "return_funds" ? "Returning…" : "Return to pool"}
         </Button>
       </div>
@@ -107,7 +108,7 @@ export function AgentActions({ agent, run, payX402 }: { agent: StateAgent; run: 
           <Button size="sm" variant="outline" disabled={!!busy || !url} onClick={checkTerms}>
             {busy === "terms" ? "Reading…" : "Read terms"}
           </Button>
-          <Button size="sm" disabled={!!busy || !active || !url} onClick={payUrl}>
+          <Button size="sm" disabled={disabled || !!busy || !active || !url} onClick={payUrl}>
             {busy === "x402" ? "Paying…" : "Pay endpoint"}
           </Button>
         </div>

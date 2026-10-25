@@ -40,13 +40,14 @@ export type AgentRecord = {
   covenant: CovenantParams;
   draw_limit: bigint;
   drawn: bigint;
+  settled_spent?: bigint;
   status: string;
   parent: string | undefined;
   children: string[];
   dispute: { by: string; evidence: Buffer; outcome: number | undefined }[];
 };
 
-export type PoolInfo = { owner: string; usdc: string; locked: bigint; sum_limits: bigint; agent_count: number };
+export type PoolInfo = { owner: string; usdc: string; locked: bigint; sum_limits: bigint; agent_count: number; accounting_version?: number; settled_spent?: bigint; balance?: bigint };
 
 /** Simulates `contract.fn(args)` and returns the decoded return value. */
 export async function simulateRead<T>(contractId: string, fn: string, args: xdr.ScVal[] = []): Promise<T> {
