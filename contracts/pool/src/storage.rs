@@ -39,6 +39,8 @@ pub struct AgentRecord {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PoolInfo {
     pub accounting_version: u32,
+    /// Permanent shutdown, not deletion of the contract or its history.
+    pub closed: bool,
     pub owner: Address,
     pub usdc: Address,
     pub locked: i128,
@@ -61,6 +63,8 @@ pub enum PoolKey {
     Salt,
     Agent(Address),
     Agents,
+    Closed,
+    OpenAgents,
 }
 
 #[contracterror]
@@ -83,6 +87,8 @@ pub enum PoolError {
     UnknownAgent = 14,
     TooManyChildren = 15,
     Expired = 16,
+    PoolClosed = 17,
+    PoolNotEmpty = 18,
 }
 
 /// Children per parent, so `revoke` and `close` stay within one transaction's budget.
@@ -100,6 +106,10 @@ pub fn get_address(e: &Env, key: PoolKey) -> Address {
 
 pub fn get_i128(e: &Env, key: PoolKey) -> i128 {
     e.storage().instance().get(&key).unwrap_or(0)
+}
+
+pub fn is_closed(e: &Env) -> bool {
+    e.storage().instance().get(&PoolKey::Closed).unwrap_or(false)
 }
 
 pub fn set_i128(e: &Env, key: PoolKey, v: i128) {
@@ -137,4 +147,5 @@ pub fn push_agent(e: &Env, agent: &Address) {
     let mut v = list_agents(e);
     v.push_back(agent.clone());
     e.storage().instance().set(&PoolKey::Agents, &v);
+    set_i128(e, PoolKey::OpenAgents, get_i128(e, PoolKey::OpenAgents) + 1);
 }

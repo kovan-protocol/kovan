@@ -12,7 +12,7 @@ use soroban_sdk::{
     IntoVal, Val, Vec,
 };
 
-use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, Returned, Revoked, SettlementRequested, Withdrawn};
+use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, PoolClosed, Returned, Revoked, SettlementRequested, Withdrawn};
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
 
 /// The two pool-only calls on the covenant policy contract.
@@ -41,13 +41,15 @@ impl KovanPool {
     pub fn fund(e: &Env, amount: i128) {
         let owner = Self::owner(e);
         owner.require_auth();
+        Self::require_open(e);
         positive(e, amount);
         usdc(e).transfer(&owner, &e.current_contract_address(), &amount);
         let locked = Self::accounted_funds(e);
         Funded { amount, locked }.publish(e);
     }
 
-    /// Takes back USDC that no covenant is backing.
+    /// Takes back USDC that no covenant is backing. Remains available after
+    /// shutdown so unsolicited deposits can never re-open the pool or be trapped.
     pub fn withdraw(e: &Env, amount: i128) {
         let owner = Self::owner(e);
         owner.require_auth();
@@ -61,9 +63,33 @@ impl KovanPool {
         Withdrawn { amount, locked: locked - amount }.publish(e);
     }
 
+    /// Permanently shuts down an empty-of-agents pool and returns all pool cash
+    /// to its original owner, atomically. Agent recovery is done child-first in
+    /// separate transactions; an open-agent counter keeps this final step bounded.
+    /// No re-open or upgrade entrypoint exists. Read history and late-fund recovery
+    /// remain available; deleting state would lose both ownership and finality.
+    pub fn close_pool(e: &Env) {
+        let owner = Self::owner(e);
+        owner.require_auth();
+        Self::require_open(e);
+        if st::get_i128(e, PoolKey::OpenAgents) != 0
+            || st::get_i128(e, PoolKey::SumLimits) != 0
+            || st::get_i128(e, PoolKey::Outstanding) != 0
+        {
+            panic_with_error!(e, PoolError::PoolNotEmpty);
+        }
+        e.storage().instance().set(&PoolKey::Closed, &true);
+        let returned = usdc(e).balance(&e.current_contract_address());
+        if returned > 0 {
+            usdc(e).transfer(&e.current_contract_address(), &owner, &returned);
+        }
+        PoolClosed { owner, returned }.publish(e);
+    }
+
     /// Creates an agent: deploys its frozen smart account and records its covenant.
     pub fn create_agent(e: &Env, agent_pubkey: BytesN<32>, draw_limit: i128, covenant: CovenantParams) -> Address {
         Self::owner(e).require_auth();
+        Self::require_open(e);
         positive(e, draw_limit);
         require_future_expiry(e, covenant.expiry);
         let sum = st::get_i128(e, PoolKey::SumLimits);
@@ -95,6 +121,7 @@ impl KovanPool {
 
     /// Moves `amount` from the pool into the agent's own account, within its draw limit.
     pub fn draw(e: &Env, agent: Address, amount: i128) {
+        Self::require_open(e);
         agent.require_auth();
         positive(e, amount);
         let mut rec = st::get_agent(e, &agent);
@@ -132,6 +159,7 @@ impl KovanPool {
     /// Kill switch. Owner or the agent's parent. Freezes spend and calls on
     /// the covenant; `return_funds` keeps working. Recursive to children.
     pub fn revoke(e: &Env, agent: Address, by: Address) {
+        Self::require_open(e);
         let mut rec = st::get_agent(e, &agent);
         Self::require_owner_or_parent(e, &rec, &by);
         Self::revoke_inner(e, &agent, &mut rec);
@@ -141,6 +169,7 @@ impl KovanPool {
     /// Owner-only. Changes the draw limit and the covenant's numeric caps.
     pub fn amend(e: &Env, agent: Address, draw_limit: i128, amendment: Amendment) {
         Self::owner(e).require_auth();
+        Self::require_open(e);
         positive(e, draw_limit);
         require_future_expiry(e, amendment.expiry);
         let mut rec = st::get_agent(e, &agent);
@@ -169,6 +198,7 @@ impl KovanPool {
 
     /// Agent asks to close.
     pub fn settle(e: &Env, agent: Address) {
+        Self::require_open(e);
         agent.require_auth();
         let mut rec = st::get_agent(e, &agent);
         if rec.status != Status::Active {
@@ -185,6 +215,7 @@ impl KovanPool {
     /// freezes spending, recovers the wallet balance, and realizes any funding
     /// consumed. Only the unused allocation becomes available again.
     pub fn close(e: &Env, agent: Address, by: Address) {
+        Self::require_open(e);
         let mut rec = st::get_agent(e, &agent);
         Self::require_owner_or_parent(e, &rec, &by);
         if rec.status == Status::Closed {
@@ -222,11 +253,13 @@ impl KovanPool {
         rec.settled_spent = consumed;
         rec.status = Status::Closed;
         st::set_agent(e, &agent, &rec);
+        st::set_i128(e, PoolKey::OpenAgents, st::get_i128(e, PoolKey::OpenAgents) - 1);
         Closed { agent, recovered, consumed, released }.publish(e);
     }
 
     /// Records an objection. Owner or agent. Nothing moves.
     pub fn dispute(e: &Env, agent: Address, by: Address, evidence: BytesN<32>) {
+        Self::require_open(e);
         if by != agent && by != Self::owner(e) {
             panic_with_error!(e, PoolError::NotOwnerOrParent);
         }
@@ -241,6 +274,7 @@ impl KovanPool {
     /// Owner rules on the recorded dispute.
     pub fn resolve_dispute(e: &Env, agent: Address, outcome: u32) {
         Self::owner(e).require_auth();
+        Self::require_open(e);
         let mut rec = st::get_agent(e, &agent);
         let Some(mut d) = rec.dispute.get(0) else { panic_with_error!(e, PoolError::NotActiveOrSettle) };
         d.outcome = Some(outcome);
@@ -255,6 +289,7 @@ impl KovanPool {
     /// on every dimension. The pool's sum of limits does not change.
     pub fn delegate(e: &Env, parent: Address, child_pubkey: BytesN<32>, child_draw_limit: i128, child_covenant: CovenantParams) -> Address {
         parent.require_auth();
+        Self::require_open(e);
         positive(e, child_draw_limit);
         let mut prec = st::get_agent(e, &parent);
         if prec.status != Status::Active {
@@ -303,6 +338,7 @@ impl KovanPool {
         let balance = usdc(e).balance(&e.current_contract_address());
         PoolInfo {
             accounting_version: 2,
+            closed: st::is_closed(e),
             owner: Self::owner(e),
             usdc: st::get_address(e, PoolKey::Usdc),
             locked: balance + st::get_i128(e, PoolKey::Outstanding),
@@ -319,6 +355,12 @@ impl KovanPool {
 }
 
 impl KovanPool {
+    fn require_open(e: &Env) {
+        if st::is_closed(e) {
+            panic_with_error!(e, PoolError::PoolClosed);
+        }
+    }
+
     fn accounted_funds(e: &Env) -> i128 {
         usdc(e).balance(&e.current_contract_address()) + st::get_i128(e, PoolKey::Outstanding)
     }

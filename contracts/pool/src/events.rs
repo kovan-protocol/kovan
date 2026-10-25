@@ -70,6 +70,14 @@ pub struct SettlementRequested {
 
 #[contractevent]
 #[derive(Clone, Debug)]
+pub struct PoolClosed {
+    #[topic]
+    pub owner: Address,
+    pub returned: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct Delegated {
     #[topic]
     pub parent: Address,

@@ -11,6 +11,8 @@ use soroban_sdk::{
 use crate::contract::{KovanPool, KovanPoolClient};
 use crate::storage::Status;
 
+mod lifecycle;
+
 mod account_wasm {
     soroban_sdk::contractimport!(file = "../target/wasm32v1-none/release/kovan_agent_account.wasm");
 }
@@ -786,6 +788,28 @@ mod e2e {
         assert_eq!(s.fx.pool.get_agent(&s.agent).settled_spent, 1_000_000);
         assert_eq!(s.fx.pool.get_pool().locked, LOCK - 1_000_000);
         assert_accounting(&s.fx);
+    }
+
+    #[test]
+    fn closed_pool_agents_cannot_spend_late_deposits_with_a_valid_signature() {
+        let s = signed_setup();
+        let e = &s.fx.e;
+        s.fx.pool.close(&s.agent, &s.fx.owner);
+        e.mock_auths(&[MockAuth {
+            address: &s.fx.owner,
+            invoke: &MockAuthInvoke {
+                contract: &s.fx.pool_addr, fn_name: "close_pool", args: ().into_val(e), sub_invokes: &[],
+            },
+        }]);
+        s.fx.pool.close_pool();
+        e.mock_all_auths();
+        token::StellarAssetClient::new(e, &s.fx.usdc).mint(&s.agent, &1_000_000);
+        // Fresh nonce and valid signer; rejection cannot be explained by replay
+        // or lack of balance. The closed agent's covenant remains revoked.
+        assert!(transfer_with_signature(&s, &s.fx.prov, 1_000_000).is_err());
+        assert_eq!(bal(&s.fx, &s.agent), 1_000_000);
+        assert_eq!(bal(&s.fx, &s.fx.prov), 0);
+        assert!(s.fx.pool.get_pool().closed);
     }
 
     #[test]
