@@ -1,7 +1,7 @@
 // Contract events → log rows. Server-side fetch via RPC getEvents plus a pure
 // normalizer (tested) that the client never needs to reimplement.
 import { Address, scValToNative, xdr } from "@stellar/stellar-sdk";
-import { rpcServer } from "./stellar";
+import { rpcServer, withRetry } from "./stellar";
 
 export type RawEvent = { ledger: number; txHash: string; contractId: string; topic: string[]; value: string };
 
@@ -62,16 +62,16 @@ export function cursorLedger(cursor: string): number {
  */
 export async function fetchEvents(idsIn: { pool: string; policy: string }, span = 17_280, maxPages = 12): Promise<EventsPage> {
   const server = rpcServer();
-  const latest = (await server.getLatestLedger()).sequence;
+  const latest = (await withRetry(() => server.getLatestLedger())).sequence;
   const start = Math.max(1, latest - span);
   const filters = [{ type: "contract" as const, contractIds: [idsIn.pool, idsIn.policy] }];
   const raw: RawEvent[] = [];
   let oldest = start;
   let cursor: string | undefined;
   for (let i = 0; i < maxPages; i++) {
-    const page = cursor
-      ? await server.getEvents({ cursor, filters, limit: 200 })
-      : await server.getEvents({ startLedger: start, filters, limit: 200 });
+    const page = await withRetry(() =>
+      cursor ? server.getEvents({ cursor, filters, limit: 200 }) : server.getEvents({ startLedger: start, filters, limit: 200 }),
+    );
     oldest = (page as unknown as { oldestLedger?: number }).oldestLedger ?? oldest;
     for (const ev of page.events) {
       raw.push({

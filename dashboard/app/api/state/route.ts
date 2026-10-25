@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { jsonSafe, listAgents, readAgent, readPool, usdcBalance } from "@/lib/contracts";
-import { ids, rpcServer } from "@/lib/stellar";
+import { ids, rpcServer, withRetry } from "@/lib/stellar";
 
 export async function GET() {
   try {
-    const [pool, agentIds, latest] = await Promise.all([readPool(), listAgents(), rpcServer().getLatestLedger()]);
+    const [pool, agentIds, latest] = await Promise.all([readPool(), listAgents(), withRetry(() => rpcServer().getLatestLedger())]);
     const agents = await Promise.all(
       agentIds.map(async (id) => {
         const [rec, balance] = await Promise.all([readAgent(id), usdcBalance(id).catch(() => 0n)]);

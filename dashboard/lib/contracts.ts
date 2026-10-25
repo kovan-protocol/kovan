@@ -10,7 +10,7 @@ import {
   xdr,
 } from "@stellar/stellar-sdk";
 import { rpc } from "@stellar/stellar-sdk";
-import { ids, NETWORK_PASSPHRASE, rpcServer } from "./stellar";
+import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
 
 /** Any funded-looking account works for simulation of read-only calls. */
 const NULL_ACCOUNT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
@@ -55,7 +55,7 @@ export async function simulateRead<T>(contractId: string, fn: string, args: xdr.
     .addOperation(new Contract(contractId).call(fn, ...args))
     .setTimeout(30)
     .build();
-  const sim = await server.simulateTransaction(tx);
+  const sim = await withRetry(() => server.simulateTransaction(tx));
   if (rpc.Api.isSimulationError(sim)) throw new Error(sim.error);
   const retval = (sim as rpc.Api.SimulateTransactionSuccessResponse).result?.retval;
   if (!retval) throw new Error(`no return value from ${fn}`);
