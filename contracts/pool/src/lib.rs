@@ -1,2 +1,9 @@
+//! Kovan pool: the owner's locked USDC, the agents drawn from it, and their
+//! covenants' lifecycle.
 #![no_std]
-use soroban_sdk as _;
+
+pub mod contract;
+pub mod storage;
+
+#[cfg(test)]
+mod test;

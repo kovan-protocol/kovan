@@ -1106,6 +1106,9 @@ dependencies = [
 name = "kovan-pool"
 version = "0.1.0"
 dependencies = [
+ "ed25519-dalek",
+ "kovan-covenant-policy",
+ "kovan-ed25519-verifier",
  "soroban-sdk",
 ]
 

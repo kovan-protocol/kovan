@@ -466,7 +466,7 @@
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                         },
                         {
-                          "bytes": "a17c86291d80d067bc1e1e21d1d8e660c7e9b95e076817c49aa2e856468558d3"
+                          "bytes": "22cc87f288441730e9a90c19b4ab70734d2cb5f70150dc12cebd41472d4a08d7"
                         }
                       ]
                     }
@@ -492,7 +492,7 @@
                     "symbol": "SignerLookup"
                   },
                   {
-                    "bytes": "70f78fdf7ba9db3c92c7cdf74467fb470ecfd686f50817d55dc48b9528072192"
+                    "bytes": "040733f9b0c4cccaf9ff33a4decdf5f380ccb1f0b539dd7e4c5664e694ad14ac"
                   }
                 ]
               },
