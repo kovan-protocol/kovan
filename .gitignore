@@ -8,3 +8,4 @@ node_modules/
 contracts/**/test_snapshots/
 dashboard/.env*.local
 dashboard/.next/
+.keys/

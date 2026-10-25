@@ -13,8 +13,10 @@ import {
   txUrl,
   verifiedTransactions,
 } from "@/lib/testnet";
+import { CountUp } from "@/components/motion/count-up";
 import { ClosingNote, Reveal, TextLink } from "./primitives";
 import { useCopy, usePreferences } from "./preferences";
+import { RiseText } from "./rise-text";
 
 export function SecurityContent() {
   const t = useCopy();
@@ -47,7 +49,7 @@ export function SecurityContent() {
       <div className="container">
         <header className="page-intro">
           <p className="eyebrow">{t("SECURITY BY DESIGN", "SEGURIDAD DESDE EL DISEÑO")}</p>
-          <h1>{t("Autonomy has", "La autonomía tiene")}<br /><span>{t("a boundary.", "un límite.")}</span></h1>
+          <h1><RiseText text={t("Autonomy has", "La autonomía tiene")} /><br /><RiseText className="line-muted" text={t("a boundary.", "un límite.")} /></h1>
           <p className="page-lede">{t("Every payment passes through the account’s on-chain rules. Anything outside them is refused.", "Cada pago pasa por las reglas de la cuenta en la red. Si no las cumple, se rechaza.")}</p>
         </header>
 
@@ -108,6 +110,11 @@ export function DevelopersContent() {
       "deploy-pool": t("Deploy shared pool", "Desplegar fondo común"),
       fund: t(`Fund pool · ${fundUsdc} testnet USDC`, `Fondear el fondo · ${fundUsdc} USDC de testnet`),
       "create-agent": t(`Create agent · ${drawLimit} USDC limit`, `Crear agente · límite de ${drawLimit} USDC`),
+      draw: t("Draw · 0.50 USDC", "Retiro · 0.50 USDC"),
+      "x402-payment": t("x402 payment · 0.01 USDC", "Pago x402 · 0.01 USDC"),
+      "direct-payment": t("Direct payment · 0.20 USDC", "Pago directo · 0.20 USDC"),
+      "return-funds": t("Return funds · 0.29 USDC", "Devolver fondos · 0.29 USDC"),
+      "create-agent-console": t("Create agent · console key", "Crear agente · clave de consola"),
       "blocked-payment": t("Blocked payment", "Pago rechazado"),
     };
     return labels[id] ?? fallback;
@@ -116,7 +123,7 @@ export function DevelopersContent() {
     [t("Is Kovan ready for real funds?", "¿Kovan está listo para fondos reales?"), t("No. This is an unaudited prototype on Stellar testnet. Testnet USDC has no monetary value.", "No. Es un prototipo sin auditar en la testnet de Stellar. El USDC de testnet no tiene valor monetario.")],
     [t("Can an agent change its own rules?", "¿Un agente puede cambiar sus propias reglas?"), t("No. Its smart account is bound to the covenant policy and has no admin rule. Only the owner can amend numeric limits through the pool.", "No. Su cuenta está vinculada a la política de gasto y no tiene permisos de administración. Solo el propietario puede ajustar los límites numéricos desde el fondo.")],
     [t("Where do the funds live?", "¿Dónde están los fondos?"), t("In the pool contract and the agents’ smart accounts. The owner can revoke an agent and recover its unspent funds through the pool, without the agent’s key.", "En el contrato del fondo y en las cuentas inteligentes de los agentes. El propietario puede revocar un agente y recuperar el saldo no utilizado a través del fondo, sin la clave del agente.")],
-    [t("How does x402 fit in?", "¿Cómo se integra x402?"), t("x402 lets providers charge per request. A payment from the agent’s smart account must satisfy its covenant. End-to-end contract-account settlement is still being validated on testnet.", "x402 permite cobrar por solicitud. Los pagos desde la cuenta del agente deben cumplir sus reglas. La liquidación completa desde cuentas de contrato sigue en validación en testnet.")],
+    [t("How does x402 fit in?", "¿Cómo se integra x402?"), t("x402 lets providers charge per request. A payment from the agent’s smart account must satisfy its covenant. One recorded testnet payment is linked above. This remains an unaudited prototype, not mainnet settlement.", "x402 permite cobrar por solicitud. Los pagos desde la cuenta del agente deben cumplir sus reglas. Arriba hay un pago de testnet registrado. Sigue siendo un prototipo sin auditar, no una liquidación en mainnet.")],
     [t("Are the visual demos live transactions?", "¿Las demos muestran transacciones reales?"), t("No. Animations and the playground are simulations. The explorer links above point to recorded testnet transactions; simulated results do not produce transaction hashes.", "No. Las animaciones y la demo interactiva son simulaciones. Los enlaces al explorador muestran transacciones registradas en testnet; las simulaciones no generan hashes de transacción.")],
   ];
 
@@ -125,7 +132,7 @@ export function DevelopersContent() {
       <div className="container">
         <header className="page-intro">
           <p className="eyebrow">{t("FOR DEVELOPERS", "PARA DESARROLLADORES")}</p>
-          <h1>{t("Built in the open.", "Desarrollado en abierto.")}<br /><span>{t("Ready to inspect.", "Listo para revisar.")}</span></h1>
+          <h1><RiseText text={t("Built in the open.", "Desarrollado en abierto.")} /><br /><RiseText className="line-muted" text={t("Ready to inspect.", "Listo para revisar.")} /></h1>
           <p className="page-lede">{t("Rust contracts on Stellar. OpenZeppelin smart accounts. Every recorded deployment, one click away.", "Contratos Rust en Stellar. Cuentas inteligentes de OpenZeppelin. Cada despliegue registrado, a un clic.")}</p>
           <div className="page-actions">
             <a className="button button-primary" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{t("Explore the source", "Explorar el código")}<ArrowUpRight size={17} aria-hidden="true" /></a>
@@ -136,7 +143,7 @@ export function DevelopersContent() {
         <section>
           <Reveal className="section-heading">
             <div><p className="eyebrow">STELLAR TESTNET</p><h2>{t("Inspect the contracts.", "Revisa los contratos.")}</h2></div>
-            <p>{t(`${testCount} tests in the repository.`, `${testCount} pruebas en el repositorio.`)}</p>
+            <p><CountUp value={testCount} /> {t("tests in the repository.", "pruebas en el repositorio.")}</p>
           </Reveal>
           <Reveal className="evidence-list">
             {sorobanContracts.map((contract, index) => (

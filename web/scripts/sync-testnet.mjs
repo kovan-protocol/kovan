@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,6 +32,28 @@ if (deployment.network !== "testnet") {
 
 const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
 
+function countContractTests(dir) {
+  let total = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) total += countContractTests(path);
+    else if (entry.name.endsWith(".rs")) {
+      const source = readFileSync(path, "utf8");
+      total += source.match(/#\[test\]/g)?.length ?? 0;
+    }
+  }
+  return total;
+}
+
+const contractsDir = join(repoRoot, "contracts");
+if (existsSync(contractsDir)) {
+  const counted = countContractTests(contractsDir);
+  if (evidence.testCount !== counted) {
+    console.error(`evidence.json testCount is ${evidence.testCount}; contracts/ has ${counted} #[test] functions`);
+    process.exit(1);
+  }
+}
+
 if (existsSync(readmePath)) {
   const readme = readFileSync(readmePath, "utf8");
   const needles = [
@@ -40,7 +62,6 @@ if (existsSync(readmePath)) {
     deployment.verifier,
     deployment.usdc,
     evidence.firstAgent,
-    `${evidence.testCount} tests`,
     ...evidence.transactions.map((tx) => tx.hash),
   ];
   for (const needle of needles) {

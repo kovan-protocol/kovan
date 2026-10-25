@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
+import { Magnetic } from "@/components/motion/magnetic";
 import { primaryCta } from "@/config/site";
 import { useCopy } from "./preferences";
 
@@ -16,9 +17,10 @@ export function PrimaryAction({ className = "", small = false, label: customLabe
   const label = customLabel ?? (cta.label === "Launch app" ? t("Launch app", "Abrir app") : t("Explore the demo", "Explorar la demo"));
   const content = <>{label}<ArrowUpRight size={17} aria-hidden="true" /></>;
   const classes = `button button-primary ${small ? "button-small" : ""} ${className}`;
-  return cta.external
+  const control = cta.external
     ? <a href={cta.href} className={classes} target="_blank" rel="noopener noreferrer">{content}</a>
     : <Link href={cta.href} className={classes}>{content}</Link>;
+  return <Magnetic>{control}</Magnetic>;
 }
 
 export function TextLink({ href, children }: { href: string; children: ReactNode }) {

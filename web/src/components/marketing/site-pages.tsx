@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, CircleDollarSign, GitBranch, LockKeyhole, ShieldCheck, SlidersHorizontal, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, GitBranch, LockKeyhole, ShieldCheck, SlidersHorizontal, Wallet } from "lucide-react";
+import { CountUp } from "@/components/motion/count-up";
+import { contractUrl, deployment, drawLimit, fundUsdc } from "@/lib/testnet";
 import { useCopy, usePreferences } from "./preferences";
 import { ClosingNote, PrimaryAction, Reveal, TextLink } from "./primitives";
 import { ProductFlow } from "./product-flow";
 import { Playground } from "./playground";
 import { PrincipleMotion } from "./principle-motion";
+import { RiseText } from "./rise-text";
 
 export function HomeContent() {
   const t = useCopy();
@@ -16,15 +19,15 @@ export function HomeContent() {
     <section className="hero-section container">
       <div className="hero-copy">
         <Link href="/developers" className="network-label"><span className="status-dot" />{t("Built on Stellar", "Sobre Stellar")}<span className="label-divider" />Testnet<ArrowUpRight size={13} /></Link>
-        <h1>{t("Your agents move.", "Tus agentes avanzan.")}<span>{t("Your limits stay.", "Tus límites se respetan.")}</span></h1>
-        <p className="hero-description">{t("One shared USDC pool. Clear spending rules for every AI agent. You're always in control.", "Un fondo común de USDC. Reglas claras para cada agente de IA. El control sigue en tus manos.")}</p>
+        <h1><RiseText text={t("Shared USDC budgets your AI agents can't overspend.", "Presupuestos compartidos en USDC que tus agentes de IA no pueden sobrepasar.")} /></h1>
+        <p className="hero-subtitle">{t("Your agents move. Your limits stay.", "Tus agentes avanzan. Tus límites se respetan.")}</p>
+        <p className="hero-description">{t("Humans configure. Agents only execute inside limits.", "Las personas configuran. Los agentes solo ejecutan dentro de los límites.")}</p>
         <div className="hero-actions"><PrimaryAction label={t("Try with your agent", "Prueba con tu agente")} /></div>
-        <p className="hero-note"><ShieldCheck size={14} />{t("Human-defined. Enforced on-chain.", "Tú defines las reglas. La red las aplica.")}</p>
       </div>
       <div className="hero-visual"><ProductFlow locale={locale} /></div>
     </section>
 
-    <div className="infrastructure container"><span>{t("BUILT WITH", "CONSTRUIDO CON")}</span><div><span className="stack-word stellar-word">Stellar<span className="stack-slash" aria-hidden="true">/</span></span><span className="stack-word"><CircleDollarSign size={23} />USDC</span><span className="stack-word">OpenZeppelin</span><span className="stack-word stack-mono">Soroban</span></div></div>
+    <div className="infrastructure container"><span>{t("BUILT WITH", "CONSTRUIDO CON")}</span><div><span className="stack-word">Stellar</span><span className="stack-word">USDC</span><span className="stack-word">OpenZeppelin</span><span className="stack-word">Soroban</span></div></div>
 
     <section className="home-principles container section-space">
       <Reveal className="section-heading"><p className="eyebrow">{t("LESS OVERSIGHT. MORE CERTAINTY.", "MENOS SUPERVISIÓN. MÁS CERTEZA.")}</p><h2>{t("Room to do more.", "Espacio para hacer más.")}<br /><span>{t("Boundaries that hold.", "Límites que se respetan.")}</span></h2></Reveal>
@@ -48,7 +51,7 @@ export function HowContent() {
     { title: t("Let the agent work.", "Deja actuar al agente."), description: t("The agent draws within its allowance. Its smart account checks each outgoing payment against your rules.", "El agente retira fondos dentro de su asignación. Su cuenta inteligente verifica cada pago según tus reglas."), icon: ShieldCheck },
   ];
   return <main id="main" tabIndex={-1} className="page-main">
-    <div className="container page-intro"><p className="eyebrow">{t("HOW IT WORKS", "CÓMO FUNCIONA")}</p><h1>{t("From your budget", "De tu presupuesto")}<br /><span>{t("to their next move.", "a su próxima acción.")}</span></h1><p className="page-lede">{t("Three steps. A clear path for every payment.", "Tres pasos. Un camino claro para cada pago.")}</p></div>
+    <div className="container page-intro"><p className="eyebrow">{t("HOW IT WORKS", "CÓMO FUNCIONA")}</p><h1><RiseText text={t("From your budget", "De tu presupuesto")} /><br /><RiseText className="line-muted" text={t("to their next move.", "a su próxima acción.")} /></h1><p className="page-lede">{t("Three steps. A clear path for every payment.", "Tres pasos. Un camino claro para cada pago.")}</p></div>
     <section className="container how-layout" aria-label={t("Explore the payment flow", "Explora el flujo del pago")}>
       <div className="how-step-list">{steps.map((item, index) => <button key={index} type="button" className={`how-step ${step === index ? "is-active" : ""}`} onClick={() => setStep(index)} aria-pressed={step === index} aria-controls="flow-detail"><span className="step-number">0{index + 1}</span><span><span className="step-title">{item.title}</span><span className="step-description">{item.description}</span></span><ArrowRight size={18} aria-hidden="true" /></button>)}</div>
       <div id="flow-detail"><ProductFlow locale={locale} activeStep={step} /></div>
@@ -61,9 +64,9 @@ export function HowContent() {
 export function WhyContent() {
   const t = useCopy();
   return <main id="main" tabIndex={-1} className="page-main">
-    <div className="container page-intro"><p className="eyebrow">{t("WHY KOVAN", "POR QUÉ KOVAN")}</p><h1>{t("Give them autonomy.", "Dales autonomía.")}<br /><span>{t("Keep your peace of mind.", "Conserva la tranquilidad.")}</span></h1><p className="page-lede">{t("An agent needs a budget. It doesn't need unlimited access to yours.", "Un agente necesita presupuesto. No necesita acceso ilimitado al tuyo.")}</p></div>
+    <div className="container page-intro"><p className="eyebrow">{t("WHY KOVAN", "POR QUÉ KOVAN")}</p><h1><RiseText text={t("Give them autonomy.", "Dales autonomía.")} /><br /><RiseText className="line-muted" text={t("Keep your peace of mind.", "Conserva la tranquilidad.")} /></h1><p className="page-lede">{t("An agent needs a budget. It doesn't need unlimited access to yours.", "Un agente necesita presupuesto. No necesita acceso ilimitado al tuyo.")}</p></div>
     <section className="container why-feature">
-      <Reveal className="allocation-visual"><div className="allocation-header"><Wallet size={19} /><span>{t("Shared pool", "Fondo común")}</span><span className="subtle-tag">{t("Example", "Ejemplo")}</span></div><div className="allocation-total">5.00 <small>USDC</small></div><div className="allocation-bar" aria-label={t("10% allocated, 90% unallocated", "10% asignado, 90% sin asignar")}><span /></div><div className="allocation-legend"><span><i />{t("Agent budget", "Presupuesto del agente")}<b>0.50</b></span><span><i />{t("Unallocated", "Sin asignar")}<b>4.50</b></span></div><div className="allocation-agent"><span className="agent-monogram">M</span><div><strong>Monitor</strong><small>{t("A wallet with boundaries", "Una cuenta con límites")}</small></div><LockKeyhole size={17} /></div></Reveal>
+      <Reveal className="allocation-visual"><div className="allocation-header"><Wallet size={19} /><span>{t("Shared pool", "Fondo común")}</span><a className="subtle-tag" href={contractUrl(deployment.pool)} target="_blank" rel="noopener noreferrer">{t("Testnet", "Testnet")}</a></div><div className="allocation-total"><CountUp value={Number(fundUsdc)} decimals={2} /> <small>USDC</small></div><div className="allocation-bar" aria-label={t("10% allocated, 90% unallocated", "10% asignado, 90% sin asignar")}><span /></div><div className="allocation-legend"><span><i />{t("Agent budget", "Presupuesto del agente")}<b><CountUp value={Number(drawLimit)} decimals={2} /></b></span><span><i />{t("Unallocated", "Sin asignar")}<b>{(Number(fundUsdc) - Number(drawLimit)).toFixed(2)}</b></span></div><div className="allocation-agent"><span className="agent-monogram">M</span><div><strong>Monitor</strong><small>{t("A wallet with boundaries", "Una cuenta con límites")}</small></div><LockKeyhole size={17} /></div></Reveal>
       <Reveal className="why-copy"><p className="eyebrow">01 / {t("SHARED CAPITAL", "CAPITAL COMPARTIDO")}</p><h2>{t("One pool.", "Un fondo.")}<br />{t("A clearer picture.", "Una visión más clara.")}</h2><p>{t("Stop scattering funds across agent wallets. Define individual allowances from a shared pool, with total allocations bounded by its balance.", "Deja de repartir fondos entre cuentas aisladas. Define asignaciones individuales desde un fondo común, limitadas por su saldo.")}</p><TextLink href="/how-it-works">{t("See how it works", "Descubre cómo funciona")}</TextLink></Reveal>
     </section>
     <section className="container feature-grid section-space">
@@ -79,7 +82,7 @@ export function PlaygroundContent() {
   const t = useCopy();
   const { locale } = usePreferences();
   return <main id="main" tabIndex={-1} className="page-main">
-    <div className="container page-intro compact-intro"><p className="eyebrow">{t("INTERACTIVE DEMO", "DEMO INTERACTIVA")}</p><h1>{t("Try the freedom.", "Prueba la autonomía.")}<br /><span>{t("Test the limits.", "Comprueba los límites.")}</span></h1><p className="page-lede">{t("Change a payment. See what the covenant allows.", "Modifica un pago. Descubre qué permite el acuerdo de gasto.")}</p></div>
+    <div className="container page-intro compact-intro"><p className="eyebrow">{t("INTERACTIVE DEMO", "DEMO INTERACTIVA")}</p><h1><RiseText text={t("Try the freedom.", "Prueba la autonomía.")} /><br /><RiseText className="line-muted" text={t("Test the limits.", "Comprueba los límites.")} /></h1><p className="page-lede">{t("Change a payment. See what the covenant allows.", "Modifica un pago. Descubre qué permite el acuerdo de gasto.")}</p></div>
     <div className="container playground-container"><Playground locale={locale} /></div>
     <div className="container playground-next"><TextLink href="/security">{t("Understand the safeguards", "Conoce las medidas de protección")}</TextLink></div>
   </main>;

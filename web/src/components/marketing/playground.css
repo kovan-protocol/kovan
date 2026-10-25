@@ -8,7 +8,7 @@
 .pg-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 .pg-form legend, .pg-field > label { display: block; font-weight: 500; font-size: 13px; color: var(--text); margin-bottom: 12px; }
 .pg-scenario-list { display: grid; gap: 7px; }
-.pg-scenario-list button { display: flex; align-items: center; gap: 10px; min-height: 43px; width: 100%; text-align: left; background: transparent; border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; color: var(--muted); font-size: 12px; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
+.pg-scenario-list button { display: flex; align-items: center; gap: 10px; min-height: 44px; width: 100%; text-align: left; background: transparent; border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; color: var(--muted); font-size: 12px; cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
 .pg-scenario-list button > svg { margin-left: auto; flex-shrink: 0; transition: transform .3s cubic-bezier(.22,1,.36,1); }
 .pg-scenario-list button:hover { border-color: var(--blue-text); background: var(--blue-soft); color: var(--blue-text); }
 .pg-scenario-list button:hover > svg { transform: translateX(2px); }
@@ -19,7 +19,7 @@
 .pg-amount input { border: 0; outline: none; min-width: 0; width: 100%; background: transparent; color: var(--text); font-family: var(--f-display); font-size: 42px; font-weight: 500; letter-spacing: -.045em; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .pg-amount input:focus-visible { outline: none; }
 .pg-amount > span { font-family: var(--f-mono); color: var(--muted); font-size: 12px; }
-.pg-range { display: block; width: 100%; margin: 14px 0 0; height: 20px; accent-color: var(--blue); cursor: pointer; }
+.pg-range { display: block; width: 100%; margin: 4px 0 0; height: 44px; accent-color: var(--blue); cursor: pointer; }
 .pg-error { margin: 0; font-size: 12px; line-height: 1.5; color: #8a590e; }
 .pg-error:not(:empty) { margin-top: 9px; }
 .pg-amount.pg-invalid { border-color: #a97429; }
@@ -29,7 +29,7 @@
 .pg-form .pg-conditions { display: flex; flex-wrap: wrap; column-gap: 20px; row-gap: 3px; margin-top: 27px; }
 .pg-conditions legend { margin-bottom: 5px; }
 .pg-toggle { display: flex; align-items: center; gap: 9px; position: relative; min-height: 44px; color: var(--muted); font-size: 12px; cursor: pointer; }
-.pg-toggle input { position: absolute; opacity: 0; width: 34px; height: 24px; margin: 0; }
+.pg-toggle input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
 .pg-toggle-track { display: block; width: 31px; height: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface-alt); padding: 3px; transition: background .2s, border-color .2s; }
 .pg-toggle-track > span { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: transform .25s cubic-bezier(.22,1,.36,1), background .2s; }
 .pg-toggle input:checked + .pg-toggle-track { background: var(--blue); border-color: var(--blue); }

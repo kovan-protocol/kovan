@@ -1,6 +1,6 @@
 {
-  "firstAgent": "CDLMJ2SD5FA3AOE3CPAGMGEK5KQM65YVYUM3IDTDJNKF7MNHOY5XEOPA",
-  "testCount": 83,
+  "firstAgent": "CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ",
+  "testCount": 100,
   "fundUsdc": "5",
   "drawLimit": "0.50",
   "transactions": [
@@ -24,15 +24,45 @@
     },
     {
       "id": "fund",
-      "hash": "79bd95da131065c6e6116a707b298a12d2cd540eb1ccf15b6e4d8df740086afa",
+      "hash": "647e1a6bcdd1c85dc7bb31a708ba04f745aa14ed35ba71e63308e399fcc9f8ff",
       "group": "fund",
       "label": "fund"
     },
     {
       "id": "create-agent",
-      "hash": "5135da2f492ad924c0f3a15decd0cf508d0e4e38ad3fe47545f05878c5dd27ec",
+      "hash": "6ff00f25f92b27da9034383d606e9e56428d480ad30c10019ace6323649f1033",
       "group": "create_agent",
       "label": "create_agent"
+    },
+    {
+      "id": "draw",
+      "hash": "ec4c127758282c38e493fa79c726264c564541d36a1ad1fc0545423de7411479",
+      "group": "draw",
+      "label": "draw"
+    },
+    {
+      "id": "x402-payment",
+      "hash": "781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d",
+      "group": "x402",
+      "label": "x402 payment"
+    },
+    {
+      "id": "direct-payment",
+      "hash": "263d05036ee5bcc7520cef1dc39fb36a85ab4c90d5eda2caa5a62e7d2b0f4fb0",
+      "group": "direct_payment",
+      "label": "direct payment"
+    },
+    {
+      "id": "create-agent-console",
+      "hash": "0980a449e94c152f5f841130dc6fd36cbdad85cff5694beeacbeac81bf017166",
+      "group": "create_agent",
+      "label": "create agent (console key)"
+    },
+    {
+      "id": "return-funds",
+      "hash": "c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3",
+      "group": "return_funds",
+      "label": "return funds"
     }
   ]
 }

@@ -106,8 +106,7 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
       const core = select(".kf-core");
       const sheen = select(".kf-node-sheen");
       const acts = [0, 1, 2, 3].map((index) => select(`.kf-act-${index}`)[0]);
-      const artboard = element.querySelector<HTMLElement>(".kf-artboard");
-      const coreFinalX = () => (artboard?.clientWidth ?? element.clientWidth) <= 440 ? -96 : -130;
+      const coreFinalX = () => -60;
 
       gsap.set(camera, { scale: 1, opacity: 1, transformOrigin: "50% 50%", force3D: true });
       gsap.set(core, { transformPerspective: 1200, transformOrigin: "50% 50%", transformStyle: "preserve-3d", force3D: true, x: 0, y: 0, rotationX: 10, rotationY: -16, rotationZ: -8, scale: 1, autoAlpha: 1 });
@@ -129,7 +128,17 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
         lastPublish = now;
         setFrame({ phase, progress: Math.min(1, time / FILM_DURATION) });
       };
-      film.eventCallback("onUpdate", () => publish.current?.());
+      film.eventCallback("onUpdate", () => {
+        if (film.iteration() > 1) {
+          element.querySelectorAll<HTMLElement>(".kf-counter[data-value]").forEach((counter) => {
+            if (counter.dataset.value) counter.textContent = counter.dataset.value;
+          });
+          element.querySelectorAll<HTMLElement>(".kf-meter-fill").forEach((meter) => {
+            gsap.set(meter, meter.closest(".kf-dashboard-chart") ? { scaleY: 1 } : { scaleX: 1 });
+          });
+        }
+        publish.current?.();
+      });
 
       // Camera breathing is deliberately slower than the UI choreography.
       film.to(camera, { scale: 1.025, duration: 5.3, ease: "sine.inOut" }, 0);
@@ -194,8 +203,13 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
             start + (cues.get(panel) ?? .12),
           );
         });
-        if (panels.length) {
-          film.to(panels, { autoAlpha: 0, y: -24, scale: .96, rotationX: -3, duration: .48, stagger: { amount: .1 }, ease: "power2.in" }, start + 5.35);
+        const leaving = panels.filter((panel) => !panel.classList.contains("kf-blocked"));
+        const blocked = panels.filter((panel) => panel.classList.contains("kf-blocked"));
+        if (leaving.length) {
+          film.to(leaving, { autoAlpha: 0, y: -24, scale: .96, rotationX: -3, duration: .48, stagger: { amount: .1 }, ease: "power2.in" }, start + 5.35);
+        }
+        if (blocked.length) {
+          film.to(blocked, { autoAlpha: 0, y: -24, scale: .96, rotationX: -3, duration: .48, ease: "power2.in" }, start + 5.85);
         }
 
         find(".kf-meter-fill").forEach((meter) => {
@@ -242,13 +256,16 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
           const decimals = Math.min(6, raw.split(".")[1]?.length ?? 0);
           const count = { value: 0 };
           counterOriginals.push({ element: counter, text: counter.textContent });
-          film.set(count, { value: 0, onUpdate: () => { counter.textContent = count.value.toFixed(decimals); } }, start);
+          const paintCounter = () => {
+            counter.textContent = film.iteration() > 1 ? raw : count.value.toFixed(decimals);
+          };
+          film.set(count, { value: 0, onUpdate: paintCounter }, start);
           film.fromTo(count, { value: 0 }, {
             value,
             duration: 1.1,
             ease: "power2.out",
             immediateRender: false,
-            onUpdate: () => { counter.textContent = count.value.toFixed(decimals); },
+            onUpdate: paintCounter,
           }, start + cueFor(counter) + .65);
         });
 
@@ -396,7 +413,12 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
     const camera = cameraElement.current;
     if (camera) gsap.set(camera, { opacity: 1 });
     const state = playback.current;
-    film.pause(state.reduced ? 2 * ACT_DURATION + SETTLED_OFFSET : state.userPaused ? SETTLED_OFFSET : 0);
+    const at = state.reduced ? 2 * ACT_DURATION + SETTLED_OFFSET : state.userPaused ? SETTLED_OFFSET : 0;
+    if (!state.reduced && !state.userPaused) film.restart();
+    else {
+      film.totalTime(at);
+      film.pause();
+    }
     publish.current?.(true);
     syncPlayback();
   }, [seek, syncPlayback]);

@@ -1,7 +1,11 @@
 "use client";
 
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ReactLenis, useLenis } from "lenis/react";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 function subscribeReduced(onChange: () => void) {
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -23,19 +27,30 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   return (
     <ReactLenis
       root
-      autoRaf={!smooth}
       options={{
-        autoRaf: !smooth,
-        duration: 1.15,
-        easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        lerp: smooth ? 0.1 : 1,
         smoothWheel: smooth,
         anchors: false,
       }}
     >
+      <LenisBridge />
       <HashLinks />
       {children}
     </ReactLenis>
   );
+}
+
+function LenisBridge() {
+  const lenis = useLenis(() => {
+    ScrollTrigger.update();
+  });
+
+  useEffect(() => {
+    if (!lenis) return;
+    ScrollTrigger.refresh();
+  }, [lenis]);
+
+  return null;
 }
 
 function HashLinks() {

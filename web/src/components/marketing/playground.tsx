@@ -102,7 +102,7 @@ export function Playground({ locale }: { locale: Locale }) {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [invalid, setInvalid] = useState(false);
-  const fmt = (value: number) => value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (value: number) => value.toFixed(2);
 
   function clearResult() {
     setResult(null);
