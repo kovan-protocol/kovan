@@ -9,7 +9,7 @@ Design: [docs/superpowers/specs/2026-10-25-kovan-covenant-design.md](docs/superp
 
 ## One-liner
 
-**Kovan gives AI agents their own on-chain spending covenant.** An owner locks USDC in a pool; each agent gets a smart account whose rules (how much it may draw, whom it may pay, what it may call, until when) are frozen at creation and enforced by the account itself. The covenant does not trust the payment rail; it trusts the allowlist.
+**Kovan gives AI agents their own on-chain spending covenant.** An owner locks USDC in a pool; each agent gets a smart account that enforces its approved recipients, contract calls, spending caps, and expiry. Signers and allowlists are fixed at creation; the owner can amend numeric limits and expiry. The covenant enforces the same rules for direct and x402 payments.
 
 ## Problem
 
@@ -22,13 +22,31 @@ A developer running an agent that pays data or RPC providers per call over x402.
 ## Solution
 
 1. The **owner** locks USDC in a **pool** (`fund`).
-2. The pool **creates an agent**: it deploys an OpenZeppelin smart account with exactly one context rule (the agent's human-made ed25519 key + the **covenant policy**) and no management rule, so the covenant can never be changed. The account grants the pool a USDC allowance so funds can always be pulled back.
+2. The pool **creates an agent**: it deploys an OpenZeppelin smart account with exactly one context rule (the agent's ed25519 key + the **covenant policy**) and no management rule. The signer, allowlists, and policy binding are fixed; the owner can amend numeric limits and expiry. The account grants the pool a USDC recovery allowance, valid for 3,000,000 ledgers from creation.
 3. The agent **draws** up to its draw limit from the pool into its own account.
 4. Every outgoing call from the account goes through the covenant: USDC transfers only to allowlisted **providers** (x402 or direct) and **recipients**, within per-transfer and total caps, before **expiry**; allowlisted **contract calls**; the pool's lifecycle functions. Anything else, including calls on the account itself, is rejected.
 5. An agent may **delegate** a narrower covenant to a child, carved out of its own remaining allowance.
-6. The owner (or a parent) can **revoke**, **amend** numeric limits, **close**, and rule on **disputes**. `return_funds` always works.
+6. The owner (or a parent) can **revoke** and **close**. The owner can **amend** numeric limits and record dispute outcomes. `return_funds` remains available after covenant expiry or revocation, subject to the token allowance. Closing recovers the remaining wallet balance and settles consumed funding before releasing unused allocation.
 
 *Humans configure, agents only execute inside limits.*
+
+### Pool accounting v2
+
+The current source implements the complete draw → spend → recover → close → withdraw lifecycle. AP2 mandates, intent records, and escrow are deferred; this keeps the existing pool, policy, and agent accounts.
+
+- `locked` = the pool's actual USDC balance + outstanding agent advances. It is an accounting total, **not** the pool's cash balance. An advance includes money already spent until it is settled at closure.
+- `sum_limits` = draw limits of all non-closed agents. Available funds are `locked - sum_limits`, always backed by cash in the pool.
+- `close` atomically freezes spending, pulls back the agent's entire USDC balance, records unrecovered advances as `settled_spent`, and releases only the unused allocation. A child returns only that unused allocation to its parent. Children must close before their parent.
+- `settle` freezes the requesting agent's spending while awaiting owner/parent closure. Expired agents cannot draw or delegate, but the owner can still recover and close.
+- Use `return_funds` to reconcile an agent's advance. A raw transfer to the pool counts as an unattributed deposit instead; it is still available, but it does not update that agent's return history. `settled_spent` is net funding consumed at closure, not gross provider payment volume.
+
+For example: draw 10 USDC, spend 3, then close. The pool recovers 7, settles 3, and releases 7 of allocation. The 3 already consumed can never be allocated or withdrawn again.
+
+**Deployment:** the IDs and transaction evidence below are the earlier testnet deployment. They are not upgraded by changing this source. Accounting v2 needs a fresh pool deployment and new agent accounts; there is no in-place migration. Preserve the old deployment record and recover available old funds before switching the dashboard configuration. `make deploy` deploys fresh contracts and writes the pool WASM hash required by the dashboard's Create pool flow. The console identifies older pools and disables closure when their outstanding advance would fail the old rules.
+
+### Agent signer choice
+
+The console supports **app-managed signers** and **your own runtime's public key**. App-managed keys are bound to the requesting pool owner's wallet, with an optional private-key download authorized through Freighter. Exporting gives the owner a copy; the app retains its signing copy. External runtimes keep their own private keys. The contracts accept the same public-key argument in either mode. See [console setup and key management](dashboard/README.md).
 
 ## Live URL + video *(to fill during the event)*
 
@@ -72,7 +90,7 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
-make test                            # builds wasm, runs 87 tests
+make test                            # builds WASM and runs the contract tests
 OWNER=<identity> make deploy         # testnet only
 ```
 
@@ -90,7 +108,7 @@ Everything in this repo was written after Sun Oct 25 11:30 Lisbon. Before the ev
 
 ## AI usage
 
-AI tools were used with attribution: commits containing AI-written code start with `[ai]`. Keys and wallets were generated by humans with the Stellar CLI; no key was ever created by or shown to an AI. Design decisions were made in conversation and recorded in the design doc.
+AI tools were used with attribution: commits containing AI-written code start with `[ai]`. Users supply their own signer public keys or authorize the app to generate signer keys. Private keys are kept by the runtime/backend and returned only for an explicit owner-authorized export; they are not included in AI chat or committed. Design decisions were made in conversation and recorded in the design doc.
 
 ## Compliance by design
 
