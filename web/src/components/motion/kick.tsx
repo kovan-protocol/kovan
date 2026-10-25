@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useLenis } from "lenis/react";
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -19,6 +19,7 @@ function reduced() {
  */
 export function Kick() {
   const lenis = useLenis();
+  const started = useRef(false);
 
   useEffect(() => {
     const spot = (event: PointerEvent) => {
@@ -47,18 +48,28 @@ export function Kick() {
   }, [lenis]);
 
   useGSAP(() => {
-    if (reduced()) return;
+    // Lenis mounts in an effect and re-renders the tree once. Run after that,
+    // or React reconciles away the inline styles GSAP just wrote.
+    if (!lenis || reduced() || started.current) return;
+    started.current = true;
 
     const h1 = document.querySelector(".hero h1");
     if (h1) {
-      gsap.from(h1.querySelectorAll(".splitw>span"), {
-        yPercent: 115,
-        rotate: 3,
-        duration: 1.15,
-        ease: "expo.out",
-        stagger: 0.055,
-        delay: 0.15,
-      });
+      // fromTo, not from: a later ScrollTrigger.refresh was recording the
+      // masked yPercent as the destination, so the words never rose.
+      gsap.fromTo(
+        h1.querySelectorAll(".splitw>span"),
+        { yPercent: 115, rotate: 3 },
+        {
+          yPercent: 0,
+          rotate: 0,
+          duration: 1.15,
+          ease: "expo.out",
+          stagger: 0.055,
+          delay: 0.15,
+          overwrite: "auto",
+        },
+      );
     }
 
     document.querySelectorAll("h2").forEach((heading) => {
@@ -66,14 +77,19 @@ export function Kick() {
       heading.removeAttribute("data-reveal");
       const words = heading.querySelectorAll(".splitw>span");
       if (words.length === 0) return;
-      gsap.from(words, {
-        yPercent: 115,
-        rotate: 3,
-        duration: 1.05,
-        ease: "expo.out",
-        stagger: 0.035,
-        scrollTrigger: { trigger: heading, start: "top 88%", once: true },
-      });
+      gsap.fromTo(
+        words,
+        { yPercent: 115, rotate: 3 },
+        {
+          yPercent: 0,
+          rotate: 0,
+          duration: 1.05,
+          ease: "expo.out",
+          stagger: 0.035,
+          overwrite: "auto",
+          scrollTrigger: { trigger: heading, start: "top 88%", once: true },
+        },
+      );
     });
 
     ScrollTrigger.batch("[data-reveal]", {
@@ -90,15 +106,16 @@ export function Kick() {
         }),
     });
 
-    gsap.from(".hero-copy > *:not(h1)", {
-      opacity: 0,
-      y: 30,
-      duration: 1.1,
-      ease: "power3.out",
-      stagger: 0.1,
-      delay: 0.1,
-    });
-    gsap.from(".proof", { opacity: 0, y: 30, duration: 1.1, ease: "power3.out", delay: 0.55 });
+    gsap.fromTo(
+      ".hero-copy > *:not(h1)",
+      { opacity: 0, y: 30 },
+      { opacity: 1, y: 0, duration: 1.1, ease: "power3.out", stagger: 0.1, delay: 0.1, overwrite: "auto" },
+    );
+    gsap.fromTo(
+      ".proof",
+      { opacity: 0, y: 30 },
+      { opacity: 1, y: 0, duration: 1.1, ease: "power3.out", delay: 0.55, overwrite: "auto" },
+    );
 
     if (document.getElementById("rtext")) {
       gsap.to("#rtext .w", {
@@ -179,8 +196,8 @@ export function Kick() {
         defaults: { ease: "power3.out" },
         scrollTrigger: { trigger: stage, start: "top 80%", once: true },
       });
-      tl.from(".hs-app", { y: 48, opacity: 0, duration: 0.9 })
-        .from(".hs-kpi", { y: 14, opacity: 0, duration: 0.5, stagger: 0.07 }, "-=0.45")
+      tl.fromTo(".hs-app", { y: 48, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9 })
+        .fromTo(".hs-kpi", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.07 }, "-=0.45")
         .add(() => {
           stage.querySelectorAll<HTMLElement>("[data-n]").forEach((el) => {
             const state = { v: 0 };
@@ -195,8 +212,8 @@ export function Kick() {
             });
           });
         }, "<")
-        .from("[data-grow]", { scaleX: 0, duration: 0.8, stagger: 0.08, ease: "power2.out" }, "-=0.2")
-        .from(".hs-in", { x: 14, opacity: 0, duration: 0.45, stagger: 0.09 }, "<")
+        .fromTo("[data-grow]", { scaleX: 0 }, { scaleX: 1, duration: 0.8, stagger: 0.08, ease: "power2.out" }, "-=0.2")
+        .fromTo(".hs-in", { x: 14, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, stagger: 0.09 }, "<")
         .fromTo(
           "#hs-blocked",
           { backgroundColor: "rgba(255,92,92,.28)" },
@@ -208,8 +225,13 @@ export function Kick() {
           },
           "-=0.05",
         )
-        .from("#hs-toast", { y: 18, scale: 0.96, opacity: 0, duration: 0.6, ease: "back.out(1.5)" }, "<+=0.1")
-        .from("#hs-cov", { y: 18, opacity: 0, duration: 0.6 }, "<+=0.15");
+        .fromTo(
+          "#hs-toast",
+          { y: 18, scale: 0.96, opacity: 0 },
+          { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.5)" },
+          "<+=0.1",
+        )
+        .fromTo("#hs-cov", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6 }, "<+=0.15");
 
       desktop = gsap.matchMedia();
       desktop.add("(min-width: 861px)", () => {
@@ -242,7 +264,7 @@ export function Kick() {
       window.removeEventListener("load", refresh);
       desktop?.revert();
     };
-  }, []);
+  }, [lenis]);
 
   return null;
 }

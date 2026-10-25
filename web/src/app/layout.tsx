@@ -46,14 +46,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${manrope.variable} ${inter.variable} ${jetbrains.variable} js-anim`}>
       <body>
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js-anim')}catch(e){}",
-          }}
-        />
         <a className="skip" href="#main">
           Skip to content
         </a>

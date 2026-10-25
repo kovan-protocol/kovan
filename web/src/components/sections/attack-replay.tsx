@@ -35,6 +35,7 @@ export function AttackReplay() {
   const [beat, setBeat] = useState(0);
 
   useLayoutEffect(() => {
+    if (!lenis) return;
     const bar = document.getElementById("atkbar");
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     reduce.current = prefersReduced;
@@ -61,7 +62,7 @@ export function AttackReplay() {
       st.kill();
       trigger.current = null;
     };
-  }, []);
+  }, [lenis]);
 
   useEffect(() => {
     paint(beat);

@@ -2,6 +2,7 @@
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLenis } from "lenis/react";
 import { useLayoutEffect, useRef } from "react";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -9,10 +10,11 @@ gsap.registerPlugin(ScrollTrigger);
 /** Real figures only. Tween matches the prototype: 1.8s, power3.out, once at top 92%. */
 export function CountUp({ value }: { value: number }) {
   const ref = useRef<HTMLElement>(null);
+  const lenis = useLenis();
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !lenis) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const state = { v: 0 };
@@ -30,7 +32,7 @@ export function CountUp({ value }: { value: number }) {
       tween.scrollTrigger?.kill();
       tween.kill();
     };
-  }, [value]);
+  }, [lenis, value]);
 
   return (
     <b ref={ref} data-count={value}>
