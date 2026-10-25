@@ -1,2 +1,7 @@
+//! Kovan agent account: an OpenZeppelin smart account frozen at creation.
 #![no_std]
-use soroban_sdk as _;
+
+pub mod contract;
+
+#[cfg(test)]
+mod test;

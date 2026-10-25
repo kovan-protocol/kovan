@@ -1080,7 +1080,10 @@ dependencies = [
 name = "kovan-agent-account"
 version = "0.1.0"
 dependencies = [
+ "kovan-covenant-policy",
+ "kovan-ed25519-verifier",
  "soroban-sdk",
+ "stellar-accounts",
 ]
 
 [[package]]
