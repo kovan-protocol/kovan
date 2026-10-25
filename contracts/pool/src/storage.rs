@@ -75,7 +75,11 @@ pub enum PoolError {
     ChildExceedsParent = 12,
     AmountNotPositive = 13,
     UnknownAgent = 14,
+    TooManyChildren = 15,
 }
+
+/// Children per parent, so `revoke` and `close` stay within one transaction's budget.
+pub const MAX_CHILDREN: u32 = 16;
 
 const DAY_IN_LEDGERS: u32 = 17280;
 pub const EXTEND_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;

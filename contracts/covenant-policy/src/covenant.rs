@@ -108,9 +108,6 @@ pub fn enforce(
         panic_with_error!(e, CovenantError::NoSigner);
     }
     let mut state = get_state(e, smart_account);
-    if state.revoked {
-        panic_with_error!(e, CovenantError::Revoked);
-    }
     let Context::Contract(ContractContext { contract, fn_name, args }) = context else {
         panic_with_error!(e, CovenantError::NotAllowed)
     };
@@ -118,8 +115,10 @@ pub fn enforce(
     if contract == smart_account {
         panic_with_error!(e, CovenantError::SelfCallForbidden);
     }
+    // The way back to the pool stays open after expiry and after revocation:
+    // `return_funds` / `dispute` on the pool, and a USDC transfer to the pool.
     if *contract == state.params.pool {
-        enforce_pool_call(e, fn_name);
+        enforce_pool_call(e, fn_name, state.revoked);
         return;
     }
     if *contract == state.params.usdc {
@@ -127,18 +126,27 @@ pub fn enforce(
         set_state(e, smart_account, &state);
         return;
     }
+    if state.revoked {
+        panic_with_error!(e, CovenantError::Revoked);
+    }
     enforce_listed_call(e, &state, contract, fn_name, args);
 }
 
-const POOL_FNS: [&str; 5] = ["draw", "return_funds", "settle", "dispute", "delegate"];
+/// Pool functions an agent may always call, even when revoked.
+const POOL_FNS_ALWAYS: [&str; 2] = ["return_funds", "dispute"];
+/// Pool functions an agent may call while its covenant is live.
+const POOL_FNS_ACTIVE: [&str; 5] = ["draw", "settle", "delegate", "revoke", "close"];
 
-fn enforce_pool_call(e: &Env, fn_name: &Symbol) {
-    for name in POOL_FNS.iter() {
-        if *fn_name == Symbol::new(e, name) {
-            return;
-        }
+fn enforce_pool_call(e: &Env, fn_name: &Symbol, revoked: bool) {
+    if POOL_FNS_ALWAYS.iter().any(|n| *fn_name == Symbol::new(e, n)) {
+        return;
     }
-    panic_with_error!(e, CovenantError::CallNotAllowed)
+    if !POOL_FNS_ACTIVE.iter().any(|n| *fn_name == Symbol::new(e, n)) {
+        panic_with_error!(e, CovenantError::CallNotAllowed)
+    }
+    if revoked {
+        panic_with_error!(e, CovenantError::Revoked)
+    }
 }
 
 fn enforce_transfer(e: &Env, state: &mut CovenantState, fn_name: &Symbol, args: &Vec<Val>) {
@@ -156,9 +164,12 @@ fn enforce_transfer(e: &Env, state: &mut CovenantState, fn_name: &Symbol, args: 
     if amount <= 0 {
         panic_with_error!(e, CovenantError::AmountNotPositive);
     }
-    // Returning funds to the pool is always allowed, even after expiry.
+    // Returning funds to the pool is always allowed, even after expiry or revocation.
     if to == state.params.pool {
         return;
+    }
+    if state.revoked {
+        panic_with_error!(e, CovenantError::Revoked);
     }
     check_expiry(e, state.params.expiry);
     let p = &state.params;

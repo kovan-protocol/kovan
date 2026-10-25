@@ -378,3 +378,60 @@ fn uninstall_panics() {
 fn error_enum_is_exhaustively_numbered() {
     assert_eq!(CovenantError::NotPool as u32, 3914);
 }
+
+// ---------------------------------------------------------------- review fix pass
+
+#[test]
+fn enforce_allows_return_to_pool_when_revoked() {
+    let fx = install_default();
+    let e = &fx.e;
+    e.as_contract(&fx.host, || covenant::set_revoked(e, &fx.account, true));
+    enforce(&fx, transfer_ctx(&fx, fx.pool.clone().into_val(e), 1i128.into_val(e)));
+}
+
+#[test]
+fn enforce_allows_pool_return_funds_and_dispute_when_revoked() {
+    let fx = install_default();
+    let e = &fx.e;
+    e.as_contract(&fx.host, || covenant::set_revoked(e, &fx.account, true));
+    enforce(&fx, ctx(e, &fx.pool, Symbol::new(e, "return_funds"), Vec::new(e)));
+    enforce(&fx, ctx(e, &fx.pool, symbol_short!("dispute"), Vec::new(e)));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3909)")]
+fn enforce_rejects_pool_draw_when_revoked() {
+    let fx = install_default();
+    let e = &fx.e;
+    e.as_contract(&fx.host, || covenant::set_revoked(e, &fx.account, true));
+    enforce(&fx, ctx(e, &fx.pool, symbol_short!("draw"), Vec::new(e)));
+}
+
+#[test]
+fn enforce_allows_pool_revoke_and_close() {
+    let fx = install_default();
+    let e = &fx.e;
+    enforce(&fx, ctx(e, &fx.pool, symbol_short!("revoke"), Vec::new(e)));
+    enforce(&fx, ctx(e, &fx.pool, symbol_short!("close"), Vec::new(e)));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3904)")]
+fn enforce_rejects_muxed_wrapping_listed_provider() {
+    let e = Env::default();
+    e.mock_all_auths();
+    e.ledger().set_sequence_number(100);
+    let host = e.register(Host, ());
+    let account = Address::generate(&e);
+    let muxed = soroban_sdk::MuxedAddress::generate(&e);
+    let prov_account: Address = muxed.address();
+    let pool = Address::generate(&e);
+    let usdc = Address::generate(&e);
+    let rule = rule(&e, &account);
+    let p = params(&e, &pool, &usdc, &prov_account, &Address::generate(&e), &Address::generate(&e), 200);
+    e.as_contract(&host, || covenant::install(&e, &p, &rule, &account));
+    let payee = soroban_sdk::MuxedAddress::new(muxed, 7u64);
+    let c = ctx(&e, &usdc, symbol_short!("transfer"), vec![&e, account.clone().into_val(&e), payee.into_val(&e), 1i128.into_val(&e)]);
+    let s = vec![&e, Signer::Delegated(account.clone())];
+    e.as_contract(&host, || covenant::enforce(&e, &c, &s, &rule, &account));
+}

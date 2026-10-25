@@ -9,7 +9,7 @@ use soroban_sdk::{
     IntoVal, Val, Vec,
 };
 
-use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status};
+use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
 
 /// The two pool-only calls on the covenant policy contract.
 #[contractclient(name = "CovenantPolicyClient")]
@@ -132,6 +132,9 @@ impl KovanPool {
         Self::owner(e).require_auth();
         positive(e, draw_limit);
         let mut rec = st::get_agent(e, &agent);
+        if rec.status == Status::Closed {
+            panic_with_error!(e, PoolError::NotActive);
+        }
         if draw_limit < rec.drawn {
             panic_with_error!(e, PoolError::BelowDrawn);
         }
@@ -168,6 +171,9 @@ impl KovanPool {
     pub fn close(e: &Env, agent: Address, by: Address) {
         let mut rec = st::get_agent(e, &agent);
         Self::require_owner_or_parent(e, &rec, &by);
+        if rec.status == Status::Closed {
+            panic_with_error!(e, PoolError::NotActive);
+        }
         if rec.drawn != 0 {
             panic_with_error!(e, PoolError::DrawnNotZero);
         }
@@ -189,6 +195,8 @@ impl KovanPool {
         }
         rec.status = Status::Closed;
         st::set_agent(e, &agent, &rec);
+        // A closed account must not spend whatever it still holds.
+        policy(e).set_revoked(&agent, &true);
     }
 
     /// Records an objection. Owner or agent. Nothing moves.
@@ -228,6 +236,9 @@ impl KovanPool {
         }
         if child_draw_limit > prec.draw_limit - prec.drawn {
             panic_with_error!(e, PoolError::ChildExceedsParent);
+        }
+        if prec.children.len() >= MAX_CHILDREN {
+            panic_with_error!(e, PoolError::TooManyChildren);
         }
         Self::require_subset(e, &prec.covenant, &child_covenant);
 
@@ -284,7 +295,13 @@ impl KovanPool {
             if !p.recipients.contains(&a) { fail(); }
         }
         for r in c.calls.iter() {
-            let ok = p.calls.iter().any(|pr| pr.contract == r.contract && pr.fn_name == r.fn_name && r.amount_cap <= pr.amount_cap);
+            // Same contract and function; if the parent caps an argument, the
+            // child must cap the same argument at most as high.
+            let ok = p.calls.iter().any(|pr| {
+                pr.contract == r.contract
+                    && pr.fn_name == r.fn_name
+                    && (pr.amount_arg.is_none() || (r.amount_arg == pr.amount_arg && r.amount_cap <= pr.amount_cap))
+            });
             if !ok { fail(); }
         }
         if c.provider_per_transfer_cap > p.provider_per_transfer_cap
@@ -306,7 +323,7 @@ impl KovanPool {
     }
 
     fn revoke_inner(e: &Env, agent: &Address, rec: &mut AgentRecord) {
-        if rec.status == Status::Closed {
+        if rec.status == Status::Closed || rec.status == Status::Revoked {
             return;
         }
         rec.status = Status::Revoked;

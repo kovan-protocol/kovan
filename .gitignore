@@ -5,3 +5,4 @@ contracts/target/
 node_modules/
 *.secret
 .superpowers/
+contracts/**/test_snapshots/

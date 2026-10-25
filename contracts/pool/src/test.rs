@@ -479,10 +479,10 @@ mod e2e {
         }
     }
 
-    fn signature_payload(e: &Env, invocation: &SorobanAuthorizedInvocation) -> BytesN<32> {
+    fn signature_payload(e: &Env, nonce: i64, invocation: &SorobanAuthorizedInvocation) -> BytesN<32> {
         let preimage = HashIdPreimage::SorobanAuthorization(HashIdPreimageSorobanAuthorization {
             network_id: XdrHash(e.ledger().get().network_id),
-            nonce: NONCE,
+            nonce,
             signature_expiration_ledger: EXPIRATION_LEDGER,
             invocation: invocation.clone(),
         });
@@ -492,9 +492,13 @@ mod e2e {
 
     /// Builds the agent account's auth entry for `root_invocation`, signed by `key`.
     fn signed_entry(e: &Env, account: &Address, signer: &Signer, key: &SigningKey, root_invocation: SorobanAuthorizedInvocation) -> SorobanAuthorizationEntry {
+        signed_entry_nonce(e, account, signer, key, NONCE, root_invocation)
+    }
+
+    fn signed_entry_nonce(e: &Env, account: &Address, signer: &Signer, key: &SigningKey, nonce: i64, root_invocation: SorobanAuthorizedInvocation) -> SorobanAuthorizationEntry {
         let preimage = AuthDigestPreimage {
             account: account.clone(),
-            signature_payload: signature_payload(e, &root_invocation),
+            signature_payload: signature_payload(e, nonce, &root_invocation),
             context_rule_ids: vec![e, RULE_ID],
         };
         let digest = preimage.digest(e);
@@ -503,7 +507,7 @@ mod e2e {
         SorobanAuthorizationEntry {
             credentials: SorobanCredentials::Address(SorobanAddressCredentials {
                 address: account.into(),
-                nonce: NONCE,
+                nonce,
                 signature_expiration_ledger: EXPIRATION_LEDGER,
                 signature: to_scval(e, payload),
             }),
@@ -572,4 +576,127 @@ mod e2e {
         assert!(transfer_with_signature(&s, &s.fx.prov, 2_000_001).is_err());
         assert_eq!(bal(&s.fx, &s.fx.prov), 0);
     }
+
+    /// Signs a call on the pool from the agent account.
+    fn pool_call_with_signature(s: &Signed, nonce: i64, fn_name: &str, args: std::vec::Vec<ScVal>) -> SorobanAuthorizationEntry {
+        let inv = contract_fn(&s.fx.pool_addr, fn_name, args);
+        signed_entry_nonce(&s.fx.e, &s.agent, &s.signer, &s.key, nonce, inv)
+    }
+
+    #[test]
+    fn signed_parent_revokes_and_closes_child() {
+        let s = signed_setup();
+        let e = &s.fx.e;
+        // parent returns its draw (mocked), delegates (mocked), then SIGNS revoke + close of the child
+        s.fx.pool.return_funds(&s.agent, &s.agent, &LIMIT);
+        let child = s.fx.pool.delegate(&s.agent, &BytesN::<32>::random(e), &1_000_000, &{
+            let mut c = covenant(&s.fx); c.provider_per_transfer_cap = 1_000_000; c.provider_total_cap = 1_000_000; c.expiry = 5_000; c
+        });
+        e.set_auths(&[pool_call_with_signature(&s, 1, "revoke", std::vec![to_scval(e, child.clone()), to_scval(e, s.agent.clone())])]);
+        s.fx.pool.revoke(&child, &s.agent);
+        assert_eq!(s.fx.pool.get_agent(&child).status, Status::Revoked);
+        e.set_auths(&[pool_call_with_signature(&s, 2, "close", std::vec![to_scval(e, child.clone()), to_scval(e, s.agent.clone())])]);
+        s.fx.pool.close(&child, &s.agent);
+        assert_eq!(s.fx.pool.get_agent(&child).status, Status::Closed);
+    }
+
+    #[test]
+    fn signed_return_funds_after_revoke() {
+        let s = signed_setup();
+        let e = &s.fx.e;
+        s.fx.pool.revoke(&s.agent, &s.fx.owner);
+        e.set_auths(&[pool_call_with_signature(&s, 1, "return_funds", std::vec![to_scval(e, s.agent.clone()), to_scval(e, s.agent.clone()), to_scval(e, LIMIT)])]);
+        s.fx.pool.return_funds(&s.agent, &s.agent, &LIMIT);
+        assert_eq!(s.fx.pool.get_agent(&s.agent).drawn, 0);
+        assert_eq!(bal(&s.fx, &s.fx.pool_addr), LOCK);
+    }
+
+    #[test]
+    fn signed_add_context_rule_fails() {
+        use soroban_sdk::{Map, String};
+        let s = signed_setup();
+        let e = &s.fx.e;
+        let name = String::from_str(e, "escape");
+        let ctype = account_wasm::ContextRuleType::Default;
+        let signers = vec![e, account_wasm::Signer::Delegated(s.fx.owner.clone())];
+        let policies: Map<Address, Val> = Map::new(e);
+        let valid: Option<u32> = None;
+        let args = std::vec![
+            to_scval(e, ctype.clone()),
+            to_scval(e, name.clone()),
+            to_scval(e, valid),
+            to_scval(e, signers.clone()),
+            to_scval(e, policies.clone()),
+        ];
+        let inv = contract_fn(&s.agent, "add_context_rule", args);
+        e.set_auths(&[signed_entry(e, &s.agent, &s.signer, &s.key, inv)]);
+        let acct = account_wasm::Client::new(e, &s.agent);
+        assert!(acct.try_add_context_rule(&ctype, &name, &valid, &signers, &policies).is_err());
+        assert_eq!(acct.get_context_rules_count(), 1);
+    }
+}
+
+// ---------------------------------------------------------------- review fix pass
+
+#[test]
+#[should_panic(expected = "Error(Contract, #6)")]
+fn close_twice_rejected() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.close(&agent, &fx.owner);
+    fx.pool.close(&agent, &fx.owner);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #6)")]
+fn amend_closed_rejected() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.close(&agent, &fx.owner);
+    fx.pool.amend(&agent, &1, &amendment(10_000));
+}
+
+#[test]
+fn close_revokes_covenant() {
+    let fx = setup();
+    let agent = funded_agent(&fx);
+    fx.pool.close(&agent, &fx.owner);
+    assert!(CovenantPolicyContractClient::new(&fx.e, &fx.policy).get_covenant(&agent).revoked);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #12)")]
+fn delegate_rejects_dropping_amount_arg() {
+    use kovan_covenant_policy::CallRule;
+    use soroban_sdk::symbol_short;
+    let fx = setup();
+    fx.pool.fund(&LOCK);
+    let pinger = Address::generate(&fx.e);
+    let mut pc = covenant(&fx);
+    pc.calls = vec![&fx.e, CallRule { contract: pinger.clone(), fn_name: symbol_short!("ping"), amount_arg: Some(1), amount_cap: 10 }];
+    let parent = fx.pool.create_agent(&BytesN::<32>::random(&fx.e), &10_000_000, &pc);
+    let mut cc = child_covenant(&fx);
+    cc.calls = vec![&fx.e, CallRule { contract: pinger, fn_name: symbol_short!("ping"), amount_arg: None, amount_cap: 10 }];
+    fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1_000_000, &cc);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #15)")]
+fn delegate_rejects_more_than_max_children() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    for _ in 0..17 {
+        fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &1, &child_covenant(&fx));
+    }
+}
+
+#[test]
+fn revoke_parent_after_child_already_revoked() {
+    let fx = setup();
+    let parent = parent_with_limit(&fx, 10_000_000);
+    let child = fx.pool.delegate(&parent, &BytesN::<32>::random(&fx.e), &4_000_000, &child_covenant(&fx));
+    fx.pool.revoke(&child, &parent);
+    fx.pool.revoke(&parent, &fx.owner);
+    assert_eq!(fx.pool.get_agent(&child).status, Status::Revoked);
+    assert_eq!(fx.pool.get_agent(&parent).status, Status::Revoked);
 }
