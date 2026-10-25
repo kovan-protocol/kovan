@@ -4,15 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import { AgentCard } from "@/components/AgentCard";
 import { CreateAgentForm } from "@/components/CreateAgentForm";
 import { PoolPanel } from "@/components/PoolPanel";
+import { WalletButton } from "@/components/WalletButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { fetchState, type LogEntry, type State } from "@/lib/client";
 import type { CovenantArgs } from "@/lib/covenant-form";
+import { unitsFromUsdc, usdc } from "@/lib/format";
+import type { OwnerArgs, OwnerFn } from "@/lib/owner";
+import { runOwnerAction } from "@/lib/wallet";
+
+const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 export default function Page() {
   const [state, setState] = useState<State | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [address, setAddress] = useState<string | null>(null);
+  const [fundAmount, setFundAmount] = useState("1");
 
   const refresh = useCallback(async () => {
     try {
@@ -29,11 +39,42 @@ export default function Page() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // Owner signing (Freighter) arrives in the next task; until then the form validates only.
-  async function createAgent(args: CovenantArgs) {
-    setLog((l) => [{ at: Date.now(), kind: "owner", label: `create_agent (${args.agent_pubkey.slice(0, 8)}…)`, ok: null, detail: "wallet signing not wired yet" }, ...l]);
-    throw new Error("Owner signing is not wired yet (next task).");
+  const isOwner = !!state && !!address && address === state.ids.owner;
+
+  async function owner<F extends OwnerFn>(fn: F, args: OwnerArgs[F], label: string) {
+    if (!address) throw new Error("Connect Freighter first");
+    const at = Date.now();
+    setLog((l) => [{ at, kind: "owner", label, ok: null }, ...l]);
+    const r = await runOwnerAction(fn, args, address);
+    const ok = r.status === "SUCCESS";
+    setLog((l) => l.map((e) => (e.at === at ? { ...e, ok, hash: r.hash, detail: ok ? undefined : r.error } : e)));
+    if (ok) await refresh();
+    else throw new Error(r.error ?? r.status);
   }
+
+  async function createAgent(a: CovenantArgs) {
+    const covenant = {
+      ...a.covenant,
+      provider_per_transfer_cap: a.covenant.provider_per_transfer_cap.toString(),
+      provider_total_cap: a.covenant.provider_total_cap.toString(),
+      recipient_per_transfer_cap: a.covenant.recipient_per_transfer_cap.toString(),
+      recipient_total_cap: a.covenant.recipient_total_cap.toString(),
+      calls: a.covenant.calls.map((c) => ({ ...c, amount_cap: c.amount_cap.toString() })),
+    };
+    await owner("create_agent", { agent_pubkey: a.agent_pubkey, draw_limit: a.draw_limit.toString(), covenant }, `create_agent · limit ${usdc(a.draw_limit)}`);
+  }
+
+  async function fund(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const amount = unitsFromUsdc(fundAmount);
+      await owner("fund", { amount: amount.toString() }, `fund · ${usdc(amount)}`);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const ownerDisabledReason = !address ? "Connect Freighter to sign as the owner." : !isOwner ? "Connected key is not the pool owner." : undefined;
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6">
@@ -42,21 +83,35 @@ export default function Page() {
           <h1 className="text-2xl font-semibold tracking-tight">Kovan console</h1>
           <p className="text-sm text-muted-foreground">Humans configure, agents only execute inside limits. Stellar testnet.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh}>
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <WalletButton address={address} owner={state?.ids.owner ?? null} onConnect={setAddress} />
+          <Button variant="outline" size="sm" onClick={refresh}>
+            Refresh
+          </Button>
+        </div>
       </header>
 
       {error ? (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-          <span>Could not read the pool: {error}</span>
-          <Button size="sm" variant="outline" onClick={refresh}>
-            Retry
+          <span>{error}</span>
+          <Button size="sm" variant="outline" onClick={() => { setError(null); refresh(); }}>
+            Dismiss
           </Button>
         </div>
       ) : null}
 
-      <PoolPanel state={state} />
+      <PoolPanel state={state}>
+        <form onSubmit={fund} className="flex flex-wrap items-end gap-3 border-t pt-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fund-amount">Lock USDC in the pool</Label>
+            <Input id="fund-amount" inputMode="decimal" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="w-40 font-mono" />
+          </div>
+          <Button type="submit" disabled={!isOwner}>
+            Fund
+          </Button>
+          {ownerDisabledReason ? <span className="text-xs text-muted-foreground">{ownerDisabledReason}</span> : null}
+        </form>
+      </PoolPanel>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section className="flex flex-col gap-4">
@@ -68,7 +123,33 @@ export default function Page() {
               <CardContent className="py-10 text-center text-sm text-muted-foreground">No agents yet. Create one with the form.</CardContent>
             </Card>
           ) : (
-            state.agents.map((a) => <AgentCard key={a.id} agent={a} latestLedger={state.latestLedger} />)
+            state.agents.map((a) => (
+              <AgentCard
+                key={a.id}
+                agent={a}
+                latestLedger={state.latestLedger}
+                actions={
+                  <div className="flex flex-wrap gap-2 border-t pt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!isOwner || BigInt(a.balance) === 0n}
+                      onClick={() => owner("return_funds", { agent: a.id, by: address!, amount: a.balance }, `return_funds · ${usdc(a.balance)} from ${a.id.slice(0, 6)}`).catch(() => {})}
+                    >
+                      Return all funds
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={!isOwner || a.status[0] === "Revoked" || a.status[0] === "Closed"}
+                      onClick={() => owner("revoke", { agent: a.id, by: address! }, `revoke · ${a.id.slice(0, 6)}`).catch(() => {})}
+                    >
+                      Revoke
+                    </Button>
+                  </div>
+                }
+              />
+            ))
           )}
         </section>
 
@@ -78,7 +159,7 @@ export default function Page() {
               <CardTitle>Create agent</CardTitle>
             </CardHeader>
             <CardContent>
-              <CreateAgentForm latestLedger={state?.latestLedger ?? 0} disabled={!state} disabledReason="Loading pool…" onSubmit={createAgent} />
+              <CreateAgentForm latestLedger={state?.latestLedger ?? 0} disabled={!isOwner} disabledReason={ownerDisabledReason} onSubmit={createAgent} />
             </CardContent>
           </Card>
 
@@ -93,10 +174,15 @@ export default function Page() {
                 <ul className="flex flex-col gap-2 text-sm">
                   {log.map((e) => (
                     <li key={e.at} className="flex flex-col font-mono text-xs">
-                      <span>
+                      <span className={e.ok === false ? "text-destructive" : undefined}>
                         {e.ok === null ? "…" : e.ok ? "✓" : "✗"} {e.label}
                       </span>
                       {e.detail ? <span className="text-muted-foreground">{e.detail}</span> : null}
+                      {e.hash ? (
+                        <a className="text-muted-foreground underline-offset-4 hover:underline" href={`${EXPLORER}/tx/${e.hash}`} target="_blank" rel="noreferrer">
+                          {e.hash.slice(0, 10)}… on explorer
+                        </a>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
