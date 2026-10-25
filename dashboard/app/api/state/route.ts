@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { jsonSafe, listAgents, readAgent, readPool, usdcBalance } from "@/lib/contracts";
-import { ids, rpcServer, withRetry } from "@/lib/stellar";
+import { assertKovanPool, ids, rpcServer, withRetry } from "@/lib/stellar";
 
 export async function GET(req: Request) {
   try {
     const poolId = new URL(req.url).searchParams.get("pool");
+    if (poolId) await assertKovanPool(ids(poolId).pool);
     const [pool, agentIds, latest] = await Promise.all([readPool(poolId), listAgents(poolId), withRetry(() => rpcServer().getLatestLedger())]);
     const agents = await Promise.all(
       agentIds.map(async (id) => {

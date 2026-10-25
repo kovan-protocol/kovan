@@ -56,14 +56,21 @@ export function cursorLedger(cursor: string): number {
   return Number(BigInt(cursor.split("-")[0]) >> 32n);
 }
 
+/** Start of the window, clamped to what the RPC still retains. */
+export function clampWindow(a: { latest: number; span: number; oldestAvailable: number }): { start: number; truncated: boolean } {
+  const wanted = Math.max(1, a.latest - a.span);
+  return wanted < a.oldestAvailable ? { start: a.oldestAvailable, truncated: true } : { start: wanted, truncated: false };
+}
+
 /**
  * Last `span` ledgers of pool + policy events. RPC scans a bounded window per
  * call and hands back a cursor, so we page until the cursor passes `latest`.
  */
 export async function fetchEvents(idsIn: { pool: string; policy: string }, span = 17_280, maxPages = 12): Promise<EventsPage> {
   const server = rpcServer();
-  const latest = (await withRetry(() => server.getLatestLedger())).sequence;
-  const start = Math.max(1, latest - span);
+  const health = await withRetry(() => server.getHealth());
+  const latest = health.latestLedger ?? (await withRetry(() => server.getLatestLedger())).sequence;
+  const { start, truncated } = clampWindow({ latest, span, oldestAvailable: health.oldestLedger ?? 1 });
   const filters = [{ type: "contract" as const, contractIds: [idsIn.pool, idsIn.policy] }];
   const raw: RawEvent[] = [];
   let oldest = start;
@@ -87,5 +94,5 @@ export async function fetchEvents(idsIn: { pool: string; policy: string }, span 
     cursor = next;
   }
   const events = raw.map((e) => normalizeEvent(e, idsIn));
-  return { events: events.reverse(), latestLedger: latest, oldestLedger: oldest, truncated: oldest > start };
+  return { events: events.reverse(), latestLedger: latest, oldestLedger: oldest, truncated: truncated || oldest > start };
 }

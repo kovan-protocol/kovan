@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { rejectCrossSite } from "@/lib/stellar";
 import { runAgentAction, type AgentAction, type AgentRequest } from "@/lib/agent";
 import { jsonSafe } from "@/lib/contracts";
 
 const ACTIONS: AgentAction[] = ["draw", "pay", "return"];
 
 export async function POST(req: Request, ctx: { params: Promise<{ action: string }> }) {
+  const refused = rejectCrossSite(req);
+  if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   const { action } = await ctx.params;
   if (!ACTIONS.includes(action as AgentAction)) return NextResponse.json({ error: `unknown action ${action}` }, { status: 404 });
   try {

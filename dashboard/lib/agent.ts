@@ -7,7 +7,7 @@ import { agentPubkeyHex, signAgentEntry } from "./authpayload";
 import { simulateRead } from "./contracts";
 import { explainError } from "./errors";
 import { addrVal, i128Val } from "./scval";
-import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
+import { assertKovanPool, ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
 import { submitSigned, type SubmitResult } from "./submit";
 
 export type AgentAction = "draw" | "pay" | "return";
@@ -16,20 +16,43 @@ export type AgentRequest = { agent: string; amount: string; to?: string; pool?: 
 /** Auth entries expire this many ledgers after the latest one (~5 min). */
 const EXPIRY_LEDGERS = 60;
 
-function env(name: string): string {
-  const v = process.env[name];
+export function env(name: string): string {
+  const v = process.env[name]?.trim();
   if (!v) throw new Error(`${name} is not set in dashboard/.env.local`);
+  if (!/^S[A-Z2-7]{55}$/.test(v)) throw new Error(`${name} is not a Stellar secret key (S…)`);
   return v;
 }
 
-/** The on-chain rule-0 signer must be External(verifier, pubkey) for the configured secret. */
-export async function assertAgentKeyMatches(agent: string, secret: string): Promise<void> {
+/**
+ * The only auth entries we sign are the agent account's own (legacy Address
+ * credentials). Anything else would be satisfied by the fee payer's envelope
+ * signature, so it is refused outright.
+ */
+export function onlyAgentEntry(
+  e: xdr.SorobanAuthorizationEntry,
+  agent: string,
+  sign: (entry: xdr.SorobanAuthorizationEntry) => xdr.SorobanAuthorizationEntry,
+): xdr.SorobanAuthorizationEntry {
+  const kind = e.credentials().switch();
+  if (kind !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) {
+    throw new Error(`refusing to sign: simulation requires ${kind.name} credentials, which the fee payer would satisfy`);
+  }
+  const who = Address.fromScAddress(e.credentials().address().address()).toString();
+  if (who !== agent) throw new Error(`refusing to sign: simulation requires authorization from ${who.slice(0, 8)}…, not the agent`);
+  return sign(e);
+}
+
+/** The on-chain rule-0 signer must be External(verifier, pubkey) for the configured secret and verifier. */
+export async function assertAgentKeyMatches(agent: string, secret: string, verifier?: string): Promise<void> {
   const rule = await simulateRead<{ signers: unknown[] }>(agent, "get_context_rule", [xdr.ScVal.scvU32(0)]);
   const signer = rule.signers?.[0] as [string, string, Buffer] | undefined;
   const onchain = signer && Buffer.isBuffer(signer[2]) ? signer[2].toString("hex") : "";
   const mine = agentPubkeyHex(secret);
   if (onchain !== mine) {
     throw new Error(`agent key does not match account: on-chain signer ${onchain.slice(0, 8)}…, AGENT_SECRET derives ${mine.slice(0, 8)}…`);
+  }
+  if (verifier && signer && signer[1] !== verifier) {
+    throw new Error(`agent account uses verifier ${String(signer[1]).slice(0, 8)}…, console is configured with ${verifier.slice(0, 8)}…`);
   }
 }
 
@@ -54,9 +77,10 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
   const secret = env("AGENT_SECRET");
   const feePayer = Keypair.fromSecret(env("FEE_PAYER_SECRET"));
   const server = rpcServer();
-  const { verifier } = ids(r.pool);
+  const { verifier, pool } = ids(r.pool);
+  if (r.pool) await assertKovanPool(pool);
 
-  await assertAgentKeyMatches(r.agent, secret);
+  await assertAgentKeyMatches(r.agent, secret, verifier);
 
   const latest = (await withRetry(() => server.getLatestLedger())).sequence;
   const source = await withRetry(() => server.getAccount(feePayer.publicKey()));
@@ -67,11 +91,7 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
 
   // Sign every entry that belongs to the agent account; leave any other as is.
   const entries = (sim1 as rpc.Api.SimulateTransactionSuccessResponse).result?.auth ?? [];
-  const signed = entries.map((e) => {
-    if (e.credentials().switch() !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) return e;
-    const who = Address.fromScAddress(e.credentials().address().address()).toString();
-    return who === r.agent ? signAgentEntry(e, { verifier, secret, networkPassphrase: NETWORK_PASSPHRASE, expirationLedger: latest + EXPIRY_LEDGERS }) : e;
-  });
+  const signed = entries.map((e) => onlyAgentEntry(e, r.agent, (entry) => signAgentEntry(entry, { verifier, secret, networkPassphrase: NETWORK_PASSPHRASE, expirationLedger: latest + EXPIRY_LEDGERS })));
 
   const hf = op.body().invokeHostFunctionOp().hostFunction();
   const source2 = await withRetry(() => server.getAccount(feePayer.publicKey()));

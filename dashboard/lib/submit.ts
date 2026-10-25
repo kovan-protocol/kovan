@@ -1,7 +1,7 @@
 // Server-side: send a signed transaction and wait for its result.
-import { rpc, TransactionBuilder, xdr, scValToNative } from "@stellar/stellar-sdk";
-import { NETWORK_PASSPHRASE, rpcServer } from "./stellar";
-import { explainError } from "./errors";
+import { StrKey, TransactionBuilder, xdr, scValToNative } from "@stellar/stellar-sdk";
+import { NETWORK_PASSPHRASE, rpcServer, withRetry, ids } from "./stellar";
+import { explainError, scErrorToText, type ErrorContext } from "./errors";
 
 export type SubmitResult = {
   hash: string;
@@ -17,14 +17,23 @@ export async function submitSigned(signedXdr: string): Promise<SubmitResult> {
   const server = rpcServer();
   const tx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
   const sent = await server.sendTransaction(tx);
-  if (sent.status === "ERROR") {
-    const raw = sent.errorResult ? sent.errorResult.toXDR("base64") : "sendTransaction error";
-    const diag = (sent.diagnosticEvents ?? []).map((d: xdr.DiagnosticEvent) => diagToString(d)).join(" | ");
-    return { hash: sent.hash, status: "ERROR", error: explainError(diag || raw), raw: diag || raw };
+  const ctx: ErrorContext = (() => {
+    try {
+      const i = ids();
+      return { usdc: i.usdc, pool: i.pool };
+    } catch {
+      return {};
+    }
+  })();
+  if (sent.status === "ERROR" || sent.status === "TRY_AGAIN_LATER") {
+    const code = sent.errorResult ? txResultCode(sent.errorResult) : sent.status;
+    const diag = (sent.diagnosticEvents ?? []).map((d: xdr.DiagnosticEvent) => diagToString(d)).filter(Boolean).join(" | ");
+    const raw = [code, diag].filter(Boolean).join(" ");
+    return { hash: sent.hash, status: "ERROR", error: explainError(raw, ctx), raw };
   }
   for (let i = 0; i < 30; i++) {
     await sleep(1500);
-    const r = await server.getTransaction(sent.hash);
+    const r = await withRetry(() => server.getTransaction(sent.hash));
     if (r.status === "SUCCESS") {
       let returnValue: unknown;
       try {
@@ -35,19 +44,43 @@ export async function submitSigned(signedXdr: string): Promise<SubmitResult> {
       return { hash: sent.hash, status: "SUCCESS", returnValue };
     }
     if (r.status === "FAILED") {
-      const raw = r.resultXdr?.toXDR("base64") ?? "failed";
-      const diag = (r.diagnosticEventsXdr ?? []).map((d) => diagToString(d)).join(" | ");
-      return { hash: sent.hash, status: "FAILED", error: explainError(diag || raw), raw: diag || raw };
+      const code = r.resultXdr ? txResultCode(r.resultXdr) : "failed";
+      const diag = (r.diagnosticEventsXdr ?? []).map((d) => diagToString(d)).filter(Boolean).join(" | ");
+      const raw = [code, diag].filter(Boolean).join(" ");
+      return { hash: sent.hash, status: "FAILED", error: explainError(raw, ctx), raw };
     }
   }
   return { hash: sent.hash, status: "NOT_FOUND", error: "timed out waiting for confirmation" };
 }
 
+/** `txBadAuth`, `txFailed`, … from a TransactionResult. */
+function txResultCode(res: xdr.TransactionResult): string {
+  try {
+    return res.result().switch().name;
+  } catch {
+    return "";
+  }
+}
+
+/** Renders a diagnostic event; error events become `Error(Contract, #N)` text so explainError can read them. */
 function diagToString(d: xdr.DiagnosticEvent): string {
   try {
-    const body = d.event().body().v0();
+    const ev = d.event();
+    const body = ev.body().v0();
     const topics = body.topics().map((t) => safeNative(t));
-    return `${JSON.stringify(topics)}=${JSON.stringify(safeNative(body.data()))}`;
+    const data = safeNative(body.data());
+    const errTopic = topics.find((t) => t && typeof t === "object" && "code" in (t as object));
+    const err = scErrorToText((errTopic ?? (data && typeof data === "object" && "code" in (data as object) ? data : null)) as never);
+    const who = ev.contractId() ? ` contract:${contractIdToStrkey(ev.contractId()!)}` : "";
+    return `${err || JSON.stringify(topics)}${who}=${JSON.stringify(data)}`;
+  } catch {
+    return "";
+  }
+}
+
+function contractIdToStrkey(id: xdr.ContractId): string {
+  try {
+    return StrKey.encodeContract(Buffer.from(id as unknown as Uint8Array));
   } catch {
     return "";
   }

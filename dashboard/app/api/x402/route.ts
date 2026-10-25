@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossSite } from "@/lib/stellar";
 import { discoverTerms, payEndpoint } from "@/lib/agent-x402";
 
 /** GET ?url= → the endpoint's 402 terms. POST {agent, url} → pay it as the agent. */
@@ -14,8 +15,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const refused = rejectCrossSite(req);
+  if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   try {
-    const { agent, url } = (await req.json()) as { agent: string; url: string };
+    const { agent, url } = (await req.json()) as { agent: string; url: string; pool?: string };
     if (!agent || !url) return NextResponse.json({ error: "agent and url are required" }, { status: 400 });
     const r = await payEndpoint(agent, url);
     return NextResponse.json(r, { status: r.ok ? 200 : 422 });
