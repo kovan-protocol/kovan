@@ -2,12 +2,17 @@
 
 Next.js app for the Kovan marketing page. On Vercel, set **Root Directory** to `web`.
 
+## Run locally
+
+From the repository root:
+
 ```bash
+cd web
 npm install
 npm run dev
-npm run build
-npm run lint
 ```
+
+Open http://localhost:3000. `npm run build` and `npm run lint` are the production and lint checks.
 
 `predev` and `prebuild` run `scripts/sync-testnet.mjs`. When `../deployments/testnet.json` and `../README.md` exist, the script refreshes `src/data/testnet.json` and checks the contract IDs, transaction hashes, and the test count. A Vercel build that only contains `web/` keeps the committed snapshot.
 
