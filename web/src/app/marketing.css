@@ -102,7 +102,7 @@ html[data-theme="dark"] .button-primary:hover { background: #2c62f0; box-shadow:
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 23px; margin-top: 30px; }
 .hero-note { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin-top: 25px; }
 .hero-visual { min-width: 0; animation: visual-enter 1.1s var(--ease) both; }
-.infrastructure { position: relative; isolation: isolate; overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 70px; padding-block: 28px; }
+.infrastructure { position: relative; isolation: isolate; overflow: hidden; min-height: 140px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 70px; padding-block: 28px; }
 .infrastructure > span { position: relative; z-index: 1; font-family: var(--f-mono); color: var(--muted); letter-spacing: .11em; font-size: 11px; white-space: nowrap; }
 .infrastructure > .infrastructure-brands { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 25px; }
 .stack-word { display: inline-flex; align-items: center; gap: 8px; font-family: var(--f-display); font-size: 20px; font-weight: 600; letter-spacing: -.045em; color: var(--muted); }

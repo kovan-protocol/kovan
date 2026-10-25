@@ -67,11 +67,7 @@ export function AmbientCarousel({ variant }: { variant: Variant }) {
   }
 
   return <div ref={root} className="ambient-carousel ambient-carousel-closing" data-visible="false" aria-hidden="true">
-    <div className="ambient-flow-track ambient-flow-track-top">
-      <div className="ambient-flow-set"><FlowCards /></div>
-      <div className="ambient-flow-set"><FlowCards /></div>
-    </div>
-    <div className="ambient-flow-track ambient-flow-track-bottom">
+    <div className="ambient-flow-track">
       <div className="ambient-flow-set"><FlowCards /></div>
       <div className="ambient-flow-set"><FlowCards /></div>
     </div>
