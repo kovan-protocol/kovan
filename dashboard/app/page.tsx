@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AgentActions } from "@/components/AgentActions";
 import { AgentCard } from "@/components/AgentCard";
 import { CreateAgentForm } from "@/components/CreateAgentForm";
 import { PoolPanel } from "@/components/PoolPanel";
@@ -62,6 +63,17 @@ export default function Page() {
       calls: a.covenant.calls.map((c) => ({ ...c, amount_cap: c.amount_cap.toString() })),
     };
     await owner("create_agent", { agent_pubkey: a.agent_pubkey, draw_limit: a.draw_limit.toString(), covenant }, `create_agent · limit ${usdc(a.draw_limit)}`);
+  }
+
+  async function agentRun(action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) {
+    const at = Date.now();
+    setLog((l) => [{ at, kind: "agent", label: `${label} (${body.agent.slice(0, 6)})`, ok: null }, ...l]);
+    const r = await fetch(`/api/agent/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = (await r.json()) as { hash?: string; status?: string; error?: string; stage?: string };
+    const ok = r.ok && j.status === "SUCCESS";
+    setLog((l) => l.map((e) => (e.at === at ? { ...e, ok, hash: j.hash || undefined, detail: ok ? undefined : `${j.stage ? j.stage + ": " : ""}${j.error ?? j.status}` } : e)));
+    if (ok) await refresh();
+    else throw new Error(j.error ?? j.status ?? "failed");
   }
 
   async function fund(e: React.FormEvent) {
@@ -129,6 +141,8 @@ export default function Page() {
                 agent={a}
                 latestLedger={state.latestLedger}
                 actions={
+                  <>
+                  <AgentActions agent={a} run={agentRun} />
                   <div className="flex flex-wrap gap-2 border-t pt-3">
                     <Button
                       size="sm"
@@ -147,6 +161,7 @@ export default function Page() {
                       Revoke
                     </Button>
                   </div>
+                  </>
                 }
               />
             ))

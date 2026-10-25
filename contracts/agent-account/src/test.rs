@@ -122,3 +122,21 @@ fn constructor_needs_no_signatures() {
     );
     assert_eq!(token::TokenClient::new(&e, &usdc).allowance(&account, &pool), i128::MAX);
 }
+
+/// Prints a fixed vector for the TypeScript AuthPayload builder to reproduce.
+/// Run: cargo test -p kovan-agent-account digest_vector -- --nocapture
+#[test]
+fn digest_vector() {
+    use stellar_accounts::smart_account::AuthDigestPreimage;
+    let e = Env::default();
+    let account = Address::from_str(&e, "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ");
+    let preimage = AuthDigestPreimage {
+        account,
+        signature_payload: BytesN::from_array(&e, &[7u8; 32]),
+        context_rule_ids: vec![&e, 0u32],
+    };
+    let d = preimage.digest(&e).to_array();
+    let hex: std::string::String = d.iter().map(|b| std::format!("{:02x}", b)).collect();
+    std::println!("DIGEST_VECTOR {}", hex);
+    assert_eq!(d.len(), 32);
+}
