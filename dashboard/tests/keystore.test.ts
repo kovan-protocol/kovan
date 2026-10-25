@@ -42,3 +42,15 @@ describe("Keystore", () => {
     expect(ks.secretForPubkeyHex(kp.rawPublicKey().toString("hex"))).toBe(kp.secret());
   });
 });
+
+describe("Keystore.getOrCreate", () => {
+  it("creates a labelled key once and returns the same one afterwards", () => {
+    const f = tmp(); files.push(f);
+    const ks = new Keystore(f);
+    const a = ks.getOrCreate("fee-payer");
+    const b = ks.getOrCreate("fee-payer");
+    expect(b.publicKey).toBe(a.publicKey);
+    expect(ks.list().filter((k) => k.label === "fee-payer")).toHaveLength(1);
+    expect(ks.secretForLabel("fee-payer")).toMatch(/^S/);
+  });
+});

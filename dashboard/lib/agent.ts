@@ -17,6 +17,25 @@ export type AgentRequest = { agent: string; amount: string; to?: string; pool?: 
 /** Auth entries expire this many ledgers after the latest one (~5 min). */
 const EXPIRY_LEDGERS = 60;
 
+const FEE_PAYER_LABEL = "fee-payer";
+
+/**
+ * The account that pays XLM fees for agent transactions: FEE_PAYER_SECRET if
+ * set, otherwise a key generated into the local keystore and funded once by
+ * Friendbot (testnet only).
+ */
+export async function feePayerKeypair(): Promise<Keypair> {
+  const fromEnv = process.env.FEE_PAYER_SECRET?.trim();
+  if (fromEnv) return Keypair.fromSecret(env("FEE_PAYER_SECRET"));
+  const ks = defaultKeystore();
+  const existing = ks.secretForLabel(FEE_PAYER_LABEL);
+  if (existing) return Keypair.fromSecret(existing);
+  const info = ks.getOrCreate(FEE_PAYER_LABEL);
+  const r = await fetch(`https://friendbot.stellar.org/?addr=${info.publicKey}`);
+  if (!r.ok) throw new Error(`Friendbot could not fund the fee payer ${info.publicKey.slice(0, 8)}…: ${r.status}`);
+  return Keypair.fromSecret(ks.secretForLabel(FEE_PAYER_LABEL)!);
+}
+
 export function env(name: string): string {
   const v = process.env[name]?.trim();
   if (!v) throw new Error(`${name} is not set in dashboard/.env.local`);
@@ -98,7 +117,7 @@ function buildOp(action: AgentAction, r: AgentRequest): xdr.Operation {
 export type AgentRunResult = SubmitResult & { stage: "guard" | "simulate" | "submit" };
 
 export async function runAgentAction(action: AgentAction, r: AgentRequest): Promise<AgentRunResult> {
-  const feePayer = Keypair.fromSecret(env("FEE_PAYER_SECRET"));
+  const feePayer = await feePayerKeypair();
   const server = rpcServer();
   const { verifier, pool } = ids(r.pool);
   if (r.pool) await assertKovanPool(pool);

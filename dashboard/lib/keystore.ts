@@ -38,6 +38,20 @@ export class Keystore {
     return this.add(label, Keypair.fromSecret(secret));
   }
 
+  /** Returns the key with this label, generating it on first use. */
+  getOrCreate(label: string): AgentKeyInfo {
+    const found = this.read().find((e) => e.label === label);
+    if (found) {
+      const { label: l, publicKey, pubkeyHex, createdAt } = found;
+      return { label: l, publicKey, pubkeyHex, createdAt };
+    }
+    return this.generate(label);
+  }
+
+  secretForLabel(label: string): string | null {
+    return this.read().find((e) => e.label === label)?.secret ?? null;
+  }
+
   secretForPubkeyHex(hex: string): string | null {
     return this.read().find((e) => e.pubkeyHex === hex.toLowerCase())?.secret ?? null;
   }

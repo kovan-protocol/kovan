@@ -35,10 +35,8 @@ export function CreateAgentForm({ latestLedger, disabled, disabledReason, onSubm
     setError(null);
     setGenBusy(true);
     try {
-      const r = await fetch("/api/agent/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: `agent-${Date.now()}` }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? "could not generate a key");
-      setF((p) => ({ ...p, agentKey: j.publicKey }));
+      const publicKey = await newKey();
+      setF((p) => ({ ...p, agentKey: publicKey }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -49,12 +47,26 @@ export function CreateAgentForm({ latestLedger, disabled, disabledReason, onSubm
   const set = (k: keyof CovenantForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
 
+  async function newKey(): Promise<string> {
+    const r = await fetch("/api/agent/keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ label: `agent-${Date.now()}` }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error ?? "could not generate a key");
+    return j.publicKey as string;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     let args: CovenantArgs;
     try {
-      args = buildCovenantArgs(f, latestLedger);
+      let form = f;
+      if (!form.agentKey.trim()) {
+        // No key given: make one now, in this machine's keystore, as part of creating the agent.
+        const publicKey = await newKey();
+        form = { ...form, agentKey: publicKey };
+        setF(form);
+      }
+      args = buildCovenantArgs(form, latestLedger);
     } catch (err) {
       setError((err as Error).message);
       return;
@@ -77,9 +89,9 @@ export function CreateAgentForm({ latestLedger, disabled, disabledReason, onSubm
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-      <Field id={id("key")} label="Agent public key" hint="Generate one here (kept in this machine's git-ignored keystore, so the console can sign for the agent), or paste a G… address / 64-hex key you made with `stellar keys generate`.">
+      <Field id={id("key")} label="Agent public key" hint="Leave empty and a key is generated for the agent when you create it (kept in this machine's git-ignored keystore). Or paste a G… address / 64-hex key of your own.">
         <div className="flex gap-2">
-          <Input id={id("key")} value={f.agentKey} onChange={set("agentKey")} spellCheck={false} autoComplete="off" className="font-mono" required />
+          <Input id={id("key")} value={f.agentKey} onChange={set("agentKey")} spellCheck={false} autoComplete="off" className="font-mono" placeholder="auto-generate" />
           <Button type="button" variant="outline" disabled={genBusy} onClick={generateKey}>
             {genBusy ? "Generating…" : "Generate"}
           </Button>
