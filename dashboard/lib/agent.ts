@@ -7,11 +7,11 @@ import { agentPubkeyHex, signAgentEntry } from "./authpayload";
 import { simulateRead } from "./contracts";
 import { explainError } from "./errors";
 import { addrVal, i128Val } from "./scval";
-import { ids, NETWORK_PASSPHRASE, rpcServer } from "./stellar";
+import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
 import { submitSigned, type SubmitResult } from "./submit";
 
 export type AgentAction = "draw" | "pay" | "return";
-export type AgentRequest = { agent: string; amount: string; to?: string };
+export type AgentRequest = { agent: string; amount: string; to?: string; pool?: string };
 
 /** Auth entries expire this many ledgers after the latest one (~5 min). */
 const EXPIRY_LEDGERS = 60;
@@ -34,7 +34,7 @@ export async function assertAgentKeyMatches(agent: string, secret: string): Prom
 }
 
 function buildOp(action: AgentAction, r: AgentRequest): xdr.Operation {
-  const { pool, usdc } = ids();
+  const { pool, usdc } = ids(r.pool);
   switch (action) {
     case "draw":
       return new Contract(pool).call("draw", addrVal(r.agent), i128Val(r.amount));
@@ -54,15 +54,15 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
   const secret = env("AGENT_SECRET");
   const feePayer = Keypair.fromSecret(env("FEE_PAYER_SECRET"));
   const server = rpcServer();
-  const { verifier } = ids();
+  const { verifier } = ids(r.pool);
 
   await assertAgentKeyMatches(r.agent, secret);
 
-  const latest = (await server.getLatestLedger()).sequence;
-  const source = await server.getAccount(feePayer.publicKey());
+  const latest = (await withRetry(() => server.getLatestLedger())).sequence;
+  const source = await withRetry(() => server.getAccount(feePayer.publicKey()));
   const op = buildOp(action, r);
   const tx1 = new TransactionBuilder(source, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE }).addOperation(op).setTimeout(120).build();
-  const sim1 = await server.simulateTransaction(tx1);
+  const sim1 = await withRetry(() => server.simulateTransaction(tx1));
   if (rpc.Api.isSimulationError(sim1)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim1.error), raw: sim1.error };
 
   // Sign every entry that belongs to the agent account; leave any other as is.
@@ -74,12 +74,12 @@ export async function runAgentAction(action: AgentAction, r: AgentRequest): Prom
   });
 
   const hf = op.body().invokeHostFunctionOp().hostFunction();
-  const source2 = await server.getAccount(feePayer.publicKey());
+  const source2 = await withRetry(() => server.getAccount(feePayer.publicKey()));
   const tx2 = new TransactionBuilder(source2, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
     .addOperation(Operation.invokeHostFunction({ func: hf, auth: signed }))
     .setTimeout(120)
     .build();
-  const sim2 = await server.simulateTransaction(tx2);
+  const sim2 = await withRetry(() => server.simulateTransaction(tx2));
   if (rpc.Api.isSimulationError(sim2)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim2.error), raw: sim2.error };
 
   const prepared = rpc.assembleTransaction(tx2, sim2).build();

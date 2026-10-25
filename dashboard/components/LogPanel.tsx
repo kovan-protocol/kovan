@@ -37,13 +37,13 @@ function describe(ev: ChainEvent): string {
   }
 }
 
-export function LogPanel({ session }: { session: LogEntry[] }) {
+export function LogPanel({ session, pool }: { session: LogEntry[]; pool?: string | null }) {
   const [page, setPage] = useState<EventsPage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/events", { cache: "no-store" });
+      const r = await fetch(`/api/events${pool ? `?pool=${pool}` : ""}`, { cache: "no-store" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? r.statusText);
       setPage(j);
@@ -51,7 +51,7 @@ export function LogPanel({ session }: { session: LogEntry[] }) {
     } catch (e) {
       setError((e as Error).message);
     }
-  }, []);
+  }, [pool]);
 
   useEffect(() => {
     load();

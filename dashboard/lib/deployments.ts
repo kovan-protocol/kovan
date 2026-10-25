@@ -12,6 +12,7 @@ export type Deployments = {
   usdc: string;
   owner: string;
   first_agent?: string;
+  pool_wasm_hash?: string;
 };
 
 let cached: Deployments | undefined;

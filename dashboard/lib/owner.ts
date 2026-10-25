@@ -1,6 +1,6 @@
 // Owner-side operations on the pool. Pure op construction here; the API route
 // simulates/assembles and the browser signs with Freighter.
-import { Contract, xdr } from "@stellar/stellar-sdk";
+import { Address, Contract, Operation, xdr } from "@stellar/stellar-sdk";
 import { addrVal, amendmentToScVal, bytes32Val, covenantToScVal, i128Val, type CovenantInput } from "./scval";
 
 export const ownerFns = ["fund", "withdraw", "create_agent", "revoke", "amend", "close", "return_funds", "resolve_dispute"] as const;
@@ -51,4 +51,16 @@ export function buildOwnerOp<F extends OwnerFn>(pool: string, fn: F, args: Owner
     default:
       throw new Error(`unknown owner function: ${String(fn)}`);
   }
+}
+
+export type CreatePoolParams = { owner: string; usdc: string; poolWasmHash: string; accountWasmHash: string; policy: string; verifier: string; salt: Buffer };
+
+/** Deploys a new pool instance from the uploaded pool wasm; the owner's address seeds the contract id. */
+export function buildCreatePoolOp(p: CreatePoolParams): xdr.Operation {
+  return Operation.createCustomContract({
+    address: new Address(p.owner),
+    wasmHash: Buffer.from(p.poolWasmHash, "hex"),
+    salt: p.salt,
+    constructorArgs: [addrVal(p.owner), addrVal(p.usdc), bytes32Val(p.accountWasmHash), addrVal(p.policy), addrVal(p.verifier)],
+  });
 }

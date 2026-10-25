@@ -65,17 +65,17 @@ export async function simulateRead<T>(contractId: string, fn: string, args: xdr.
 export const addr = (a: string) => new Address(a).toScVal();
 export const i128 = (v: bigint) => nativeToScVal(v, { type: "i128" });
 
-export async function readPool(): Promise<PoolInfo> {
-  const p = await simulateRead<PoolInfo & { agent_count: number | bigint }>(ids().pool, "get_pool");
+export async function readPool(pool?: string | null): Promise<PoolInfo> {
+  const p = await simulateRead<PoolInfo & { agent_count: number | bigint }>(ids(pool).pool, "get_pool");
   return { ...p, agent_count: Number(p.agent_count) };
 }
 
-export async function listAgents(): Promise<string[]> {
-  return simulateRead<string[]>(ids().pool, "list_agents");
+export async function listAgents(pool?: string | null): Promise<string[]> {
+  return simulateRead<string[]>(ids(pool).pool, "list_agents");
 }
 
-export async function readAgent(agent: string): Promise<AgentRecord & { state: CovenantState | null }> {
-  const rec = await simulateRead<AgentRecord>(ids().pool, "get_agent", [addr(agent)]);
+export async function readAgent(agent: string, pool?: string | null): Promise<AgentRecord & { state: CovenantState | null }> {
+  const rec = await simulateRead<AgentRecord>(ids(pool).pool, "get_agent", [addr(agent)]);
   let state: CovenantState | null = null;
   try {
     state = await simulateRead<CovenantState>(ids().policy, "get_covenant", [addr(agent)]);

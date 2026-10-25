@@ -11,13 +11,16 @@ export const NETWORK_PASSPHRASE = Networks.TESTNET;
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://soroban-testnet.stellar.org";
 export const EXPLORER = "https://stellar.expert/explorer/testnet";
 
-export type Ids = { pool: string; policy: string; verifier: string; usdc: string; owner: string };
+export type Ids = { pool: string; policy: string; verifier: string; usdc: string; owner: string; poolWasmHash: string; accountWasmHash: string };
 
 /** Server-only. Env overrides win over the deployment record. */
-export function ids(): Ids {
+export function ids(poolOverride?: string | null): Ids {
   const d = deployments();
+  if (poolOverride && !/^C[A-Z2-7]{55}$/.test(poolOverride)) throw new Error("pool must be a C… contract id");
   return {
-    pool: process.env.POOL_ID ?? d.pool,
+    pool: poolOverride || process.env.POOL_ID || d.pool,
+    poolWasmHash: d.pool_wasm_hash ?? "",
+    accountWasmHash: d.account_wasm_hash,
     policy: process.env.POLICY_ID ?? d.policy,
     verifier: process.env.VERIFIER_ID ?? d.verifier,
     usdc: process.env.USDC_SAC_ID ?? d.usdc,
@@ -40,7 +43,7 @@ export async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> 
     } catch (e) {
       last = e;
       const msg = (e as Error)?.message ?? "";
-      if (!/fetch failed|ETIMEDOUT|ECONNRESET|network|socket|timeout/i.test(msg)) throw e;
+      if (!/fetch failed|ETIMEDOUT|ECONNRESET|network|socket|timeout|Account not found/i.test(msg)) throw e;
       await new Promise((r) => setTimeout(r, 400 * (i + 1)));
     }
   }

@@ -19,8 +19,8 @@ export async function connectFreighter(): Promise<string> {
 export type OwnerResult = { hash?: string; status: string; error?: string; raw?: string; returnValue?: unknown };
 
 /** build (server) → sign (Freighter) → submit (server). */
-export async function runOwnerAction<F extends OwnerFn>(fn: F, args: OwnerArgs[F], source: string): Promise<OwnerResult> {
-  const b = await fetch("/api/tx/build", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fn, args, source }) });
+export async function runOwnerAction<F extends OwnerFn>(fn: F | "create_pool", args: OwnerArgs[F] | Record<string, never>, source: string, pool?: string | null): Promise<OwnerResult> {
+  const b = await fetch("/api/tx/build", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fn, args, source, pool: pool ?? undefined }) });
   const bj = await b.json();
   if (!b.ok) return { status: "REJECTED", error: bj.error ?? "build failed", raw: bj.raw };
   const signed = await signTransaction(bj.xdr, { networkPassphrase: TESTNET_PASSPHRASE, address: source });

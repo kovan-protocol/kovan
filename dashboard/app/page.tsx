@@ -6,6 +6,7 @@ import { AgentCard } from "@/components/AgentCard";
 import { CreateAgentForm } from "@/components/CreateAgentForm";
 import { LogPanel } from "@/components/LogPanel";
 import { PoolPanel } from "@/components/PoolPanel";
+import { loadPools, PoolSelector, savePool } from "@/components/PoolSelector";
 import { WalletButton } from "@/components/WalletButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,15 +24,22 @@ export default function Page() {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [address, setAddress] = useState<string | null>(null);
   const [fundAmount, setFundAmount] = useState("1");
+  const [pools, setPools] = useState<string[]>([]);
+  const [pool, setPool] = useState<string | null>(null);
+  const [creatingPool, setCreatingPool] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      setState(await fetchState());
+      const st = await fetchState(pool);
+      setState(st);
       setError(null);
+      // first load: learn the default pool id from the server and merge saved pools
+      setPools((prev) => (prev.length ? prev : loadPools(st.ids.pool)));
+      setPool((prev) => prev ?? st.ids.pool);
     } catch (e) {
       setError((e as Error).message);
     }
-  }, []);
+  }, [pool]);
 
   useEffect(() => {
     refresh();
@@ -39,13 +47,40 @@ export default function Page() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  const isOwner = !!state && !!address && address === state.ids.owner;
+  const isOwner = !!state && !!address && address === state.pool.owner;
+
+  function selectPool(id: string) {
+    setState(null);
+    setPool(id);
+  }
+
+  async function createPool() {
+    if (!address) return;
+    setCreatingPool(true);
+    const at = Date.now();
+    setLog((l) => [{ at, kind: "owner", label: "create_pool", ok: null }, ...l]);
+    try {
+      const r = await runOwnerAction("create_pool", {}, address, pool);
+      const ok = r.status === "SUCCESS";
+      const newId = ok && typeof r.returnValue === "string" ? r.returnValue : undefined;
+      setLog((l) => l.map((e) => (e.at === at ? { ...e, ok, hash: r.hash, detail: ok ? `new pool ${newId ?? ""}` : r.error } : e)));
+      if (newId) {
+        savePool(newId);
+        setPools((p) => (p.includes(newId) ? p : [...p, newId]));
+        selectPool(newId);
+      } else if (!ok) {
+        setError(r.error ?? "create_pool failed");
+      }
+    } finally {
+      setCreatingPool(false);
+    }
+  }
 
   async function owner<F extends OwnerFn>(fn: F, args: OwnerArgs[F], label: string) {
     if (!address) throw new Error("Connect Freighter first");
     const at = Date.now();
     setLog((l) => [{ at, kind: "owner", label, ok: null }, ...l]);
-    const r = await runOwnerAction(fn, args, address);
+    const r = await runOwnerAction(fn, args, address, pool);
     const ok = r.status === "SUCCESS";
     setLog((l) => l.map((e) => (e.at === at ? { ...e, ok, hash: r.hash, detail: ok ? undefined : r.error } : e)));
     if (ok) await refresh();
@@ -67,7 +102,7 @@ export default function Page() {
   async function agentRun(action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) {
     const at = Date.now();
     setLog((l) => [{ at, kind: "agent", label: `${label} (${body.agent.slice(0, 6)})`, ok: null }, ...l]);
-    const r = await fetch(`/api/agent/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const r = await fetch(`/api/agent/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, pool }) });
     const j = (await r.json()) as { hash?: string; status?: string; error?: string; stage?: string };
     const ok = r.ok && j.status === "SUCCESS";
     setLog((l) => l.map((e) => (e.at === at ? { ...e, ok, hash: j.hash || undefined, detail: ok ? undefined : `${j.stage ? j.stage + ": " : ""}${j.error ?? j.status}` } : e)));
@@ -104,8 +139,9 @@ export default function Page() {
           <h1 className="text-2xl font-semibold tracking-tight">Kovan console</h1>
           <p className="text-sm text-muted-foreground">Humans configure, agents only execute inside limits. Stellar testnet.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <WalletButton address={address} owner={state?.ids.owner ?? null} onConnect={setAddress} />
+        <div className="flex flex-wrap items-center gap-3">
+          <PoolSelector pools={pools} current={pool} onSelect={selectPool} onCreate={createPool} canCreate={!!address} creating={creatingPool} />
+          <WalletButton address={address} owner={state?.pool.owner ?? null} onConnect={setAddress} />
           <Button variant="outline" size="sm" onClick={refresh}>
             Refresh
           </Button>
@@ -187,7 +223,7 @@ export default function Page() {
             </CardContent>
           </Card>
 
-          <LogPanel session={log} />
+          <LogPanel session={log} pool={pool} />
         </aside>
       </div>
     </main>

@@ -27,8 +27,8 @@ export type State = {
   agents: StateAgent[];
 };
 
-export async function fetchState(): Promise<State> {
-  const r = await fetch("/api/state", { cache: "no-store" });
+export async function fetchState(pool?: string | null): Promise<State> {
+  const r = await fetch(`/api/state${pool ? `?pool=${pool}` : ""}`, { cache: "no-store" });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error ?? r.statusText);
   return j as State;
