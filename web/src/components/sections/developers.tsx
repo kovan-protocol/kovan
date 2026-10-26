@@ -56,7 +56,7 @@ export function Developers() {
           </div>
           <div>
             <CountUp value={testCount} />
-            <span>tests in the repo</span>
+            <span>tests passed in the verified snapshot</span>
           </div>
           <div>
             <CountUp value={verifiedTransactions.length} />

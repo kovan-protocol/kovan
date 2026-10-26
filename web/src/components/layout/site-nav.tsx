@@ -25,6 +25,29 @@ export function SiteNav() {
   const t = useCopy();
 
   useEffect(() => {
+    const header = nav.current;
+    if (!header) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce || open) {
+        header.classList.remove("nav-hidden");
+        last = y;
+        return;
+      }
+      const delta = y - last;
+      if (Math.abs(delta) < 8) return;
+      if (delta > 0 && y > 64) header.classList.add("nav-hidden");
+      else header.classList.remove("nav-hidden");
+      last = y;
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     function dismiss(event: KeyboardEvent) {
       if (event.key === "Escape") { setOpenPath(null); toggle.current?.focus(); }

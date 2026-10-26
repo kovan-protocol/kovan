@@ -12,6 +12,7 @@ The visual system and flow illustration are custom code. No third-party marketin
 | Scoped GSAP film timeline | `src/components/marketing/use-product-film.ts` |
 | Allocation, policy and recovery animations | `src/components/marketing/principle-motion.tsx` and `.css` |
 | Interactive payment simulator | `src/components/marketing/playground.tsx` and `.css` |
+| Copyable agent example and local preview | `src/components/marketing/agent-example.tsx` and `.css` |
 | Language and appearance preferences | `src/components/marketing/preferences.tsx` |
 | Shared actions, brand and reveals | `src/components/marketing/primitives.tsx` |
 | Navigation and footer | `src/components/layout/site-nav.tsx`, `site-footer.tsx` |

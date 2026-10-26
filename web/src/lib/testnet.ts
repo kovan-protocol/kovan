@@ -18,7 +18,7 @@ export type Deployment = {
 export type TxRecord = {
   id: string;
   hash: string;
-  group: "deploy" | "fund" | "create_agent" | "blocked";
+  group: "deploy" | "fund" | "create_agent" | "draw" | "x402" | "direct_payment" | "return_funds" | "blocked";
   label: string;
   historical?: boolean;
 };

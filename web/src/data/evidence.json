@@ -1,7 +1,12 @@
 {
   "historicalPool": "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ",
   "firstAgent": "CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ",
-  "testCount": 231,
+  "testCount": 322,
+  "testSnapshot": {
+    "date": "2026-10-26",
+    "suites": { "contracts": 132, "dashboard": 149, "sdk": 41 },
+    "ignored": 1
+  },
   "fundUsdc": "5",
   "drawLimit": "0.50",
   "transactions": [
@@ -36,6 +41,41 @@
       "hash": "6ff00f25f92b27da9034383d606e9e56428d480ad30c10019ace6323649f1033",
       "group": "create_agent",
       "label": "create_agent (legacy pool)",
+      "historical": true
+    },
+    {
+      "id": "draw",
+      "hash": "ec4c127758282c38e493fa79c726264c564541d36a1ad1fc0545423de7411479",
+      "group": "draw",
+      "label": "draw (legacy pool)",
+      "historical": true
+    },
+    {
+      "id": "x402-payment",
+      "hash": "781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d",
+      "group": "x402",
+      "label": "x402 payment (legacy pool)",
+      "historical": true
+    },
+    {
+      "id": "direct-payment",
+      "hash": "263d05036ee5bcc7520cef1dc39fb36a85ab4c90d5eda2caa5a62e7d2b0f4fb0",
+      "group": "direct_payment",
+      "label": "direct payment (legacy pool)",
+      "historical": true
+    },
+    {
+      "id": "create-agent-console",
+      "hash": "0980a449e94c152f5f841130dc6fd36cbdad85cff5694beeacbeac81bf017166",
+      "group": "create_agent",
+      "label": "create agent (console key, legacy pool)",
+      "historical": true
+    },
+    {
+      "id": "return-funds",
+      "hash": "c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3",
+      "group": "return_funds",
+      "label": "return funds (legacy pool)",
       "historical": true
     }
   ]

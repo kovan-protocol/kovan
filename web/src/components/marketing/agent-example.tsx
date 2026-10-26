@@ -1,0 +1,126 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Check, Clipboard, Code2, Play, ShieldCheck } from "lucide-react";
+import { evaluatePayment, type Failure, type Payee } from "@/lib/simulator";
+import { useCopy } from "./preferences";
+import "./agent-example.css";
+
+/** Matches the console's POST /api/x402 request and response on main. */
+export const agentExampleCode = [
+  "export async function requestPaidResource(url) {",
+  "  const agent = process.env.KOVAN_AGENT_ACCOUNT;",
+  "  if (!agent) {",
+  "    throw Error(\"Set KOVAN_AGENT_ACCOUNT\");",
+  "  }",
+  "  if (!url?.startsWith(\"https://\")) {",
+  "    throw Error(\"Use an HTTPS x402 URL\");",
+  "  }",
+  "",
+  "  const base = process.env.KOVAN_CONSOLE_URL",
+  "    ?? \"http://127.0.0.1:3001\";",
+  "  const endpoint = new URL(\"/api/x402\", base);",
+  "  const response = await fetch(endpoint, {",
+  "    method: \"POST\",",
+  "    headers: { \"content-type\": \"application/json\" },",
+  "    body: JSON.stringify({ agent, url }),",
+  "  });",
+  "  const result = await response.json();",
+  "  if (!response.ok || !result.ok) {",
+  "    throw Error(result.error ?? \"Payment refused\");",
+  "  }",
+  "  return result.body;",
+  "}",
+].join("\n");
+
+const scenarios: Array<{ amount: number; payee: Payee }> = [
+  { amount: 0.05, payee: "provider" },
+  { amount: 0.05, payee: "unlisted" },
+  { amount: 0.15, payee: "provider" },
+];
+
+export function AgentExample() {
+  const t = useCopy();
+  const [scenario, setScenario] = useState(0);
+  const [phase, setPhase] = useState<"ready" | "checking" | "done">("ready");
+  const [failure, setFailure] = useState<Failure | null | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const timer = useRef<number | null>(null);
+  const code = useRef<HTMLElement>(null);
+
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+
+  function chooseScenario(index: number) {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    setScenario(index);
+    setPhase("ready");
+    setFailure(undefined);
+  }
+
+  function runPreview() {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    setFailure(undefined);
+    setPhase("checking");
+    timer.current = window.setTimeout(() => {
+      const input = scenarios[scenario];
+      setFailure(evaluatePayment({ ...input, drawn: 0, spent: 0, revoked: false, expired: false }));
+      setPhase("done");
+      timer.current = null;
+    }, 720);
+  }
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(agentExampleCode);
+      setCopied(true);
+      setCopyFailed(false);
+    } catch {
+      setCopied(false);
+      setCopyFailed(true);
+      if (code.current) {
+        const range = document.createRange();
+        range.selectNodeContents(code.current);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+      }
+    }
+  }
+
+  const selected = scenarios[scenario];
+  const output = phase === "done" ? JSON.stringify(failure
+    ? { ok: false, stage: "simulate", error: failure.title }
+    : { ok: true, status: 200, body: "Resource returned" }, null, 2) : null;
+
+  return <main id="main" tabIndex={-1} className="page-main">
+    <div className="container ae-page">
+      <header className="ae-intro">
+        <p className="eyebrow">{t("FOR YOUR AGENT", "PARA TU AGENTE")}</p>
+        <h1>{t("Give your agent access.", "Dale acceso a tu agente.")}<br /><span>{t("Keep the limits yours.", "Conserva tus límites.")}</span></h1>
+        <p>{t("Copy this Node.js example into your agent's runtime. It requests an x402 resource through Kovan; the smart account checks the provider and amount against your rules.", "Copia este ejemplo de Node.js en el entorno de tu agente. Solicita un recurso x402 mediante Kovan; la cuenta inteligente comprueba el proveedor y el importe según tus reglas.")}</p>
+      </header>
+
+      <div className="ae-workspace">
+        <section className="ae-code-panel" aria-label={t("Agent code example", "Ejemplo de código para el agente")}>
+          <div className="ae-code-top"><span><Code2 size={17} aria-hidden="true" />agent-x402.js</span><button type="button" onClick={copyCode} aria-label={t("Copy agent code", "Copiar código para el agente")}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copyFailed ? t("Select and copy", "Selecciona y copia") : copied ? t("Copied", "Copiado") : t("Copy code", "Copiar código")}</button></div>
+          <pre tabIndex={0}><code ref={code}>{agentExampleCode}</code></pre>
+          <div className="ae-code-foot">{t("Node.js 22+ · Calls your local Kovan console", "Node.js 22+ · Usa tu consola Kovan local")}</div>
+        </section>
+
+        <section className="ae-preview" aria-label={t("Payment preview", "Vista previa del pago")}>
+          <div className="ae-preview-heading"><p className="eyebrow">{t("PREVIEW THE DECISION", "SIMULA LA DECISIÓN")}</p><h2>{t("See the rule in action.", "Mira cómo actúa la regla.")}</h2><p>{t("Choose an example request. This preview runs locally; it does not call an API or move funds.", "Elige una solicitud de ejemplo. Esta vista funciona localmente; no llama a ninguna API ni mueve fondos.")}</p></div>
+          <div className="ae-scenarios" role="group" aria-label={t("Example requests", "Solicitudes de ejemplo")}>
+            {[t("Approved provider", "Proveedor autorizado"), t("Unknown provider", "Proveedor desconocido"), t("Above the limit", "Supera el límite")].map((label, index) => <button type="button" key={index} aria-pressed={scenario === index} onClick={() => chooseScenario(index)}>{label}</button>)}
+          </div>
+          <div className="ae-request"><span>{t("Proposed payment", "Pago solicitado")}</span><strong>{selected.amount.toFixed(2)} USDC</strong><small>{selected.payee === "provider" ? t("Approved provider", "Proveedor autorizado") : t("Unknown provider", "Proveedor desconocido")}</small></div>
+          <div className="ae-flow" data-phase={phase}><span>{t("x402 terms", "Condiciones x402")}</span><ArrowRight size={14} aria-hidden="true" /><span>{t("Covenant", "Reglas")}</span><ArrowRight size={14} aria-hidden="true" /><span>{t("Decision", "Decisión")}</span></div>
+          <button type="button" className="button button-primary ae-run" onClick={runPreview} disabled={phase === "checking"}><Play size={15} fill="currentColor" aria-hidden="true" />{phase === "checking" ? t("Checking rules…", "Verificando reglas…") : t("Run preview", "Ejecutar simulación")}</button>
+          <div className="ae-output" aria-live="polite" aria-atomic="true"><div className="ae-output-label"><ShieldCheck size={15} aria-hidden="true" />{t("Simulated response", "Respuesta simulada")}</div><pre>{output ?? t("Run the preview to see the account's decision.", "Ejecuta la simulación para ver la decisión de la cuenta.")}</pre></div>
+        </section>
+      </div>
+
+      <aside className="ae-setup"><span className="ae-setup-number">01</span><p>{t("Create an app-managed agent in the Kovan console and allowlist the provider.", "Crea un agente gestionado por la consola Kovan y autoriza al proveedor.")}</p><span className="ae-setup-number">02</span><p>{t("Run the console locally on port 3001 and set KOVAN_AGENT_ACCOUNT in your agent's environment.", "Ejecuta la consola localmente en el puerto 3001 y define KOVAN_AGENT_ACCOUNT en el entorno del agente.")}</p><span className="ae-setup-number">03</span><p>{t("Call requestPaidResource(url) from your agent with the provider's HTTPS x402 URL.", "Llama a requestPaidResource(url) desde tu agente con la URL HTTPS x402 del proveedor.")}</p></aside>
+      <p className="ae-note">{t("The preview is illustrative. The copied function uses the real console endpoint when you run it, and the console signs with its configured agent key on Stellar testnet.", "La simulación es ilustrativa. La función copiada usa la API real de la consola al ejecutarla, y la consola firma con la clave configurada del agente en la testnet de Stellar.")}</p>
+    </div>
+  </main>;
+}

@@ -1,0 +1,44 @@
+.ambient-carousel { position: absolute; inset: 0; overflow: hidden; pointer-events: none; user-select: none; }
+
+.ambient-carousel-closing { --ambient-ink: #18418f; --ambient-panel: rgba(255, 255, 255, .58); --ambient-border: rgba(1, 76, 254, .2); }
+html[data-theme="dark"] .ambient-carousel-closing { --ambient-ink: #b4c7f6; --ambient-panel: rgba(30, 52, 91, .78); --ambient-border: rgba(131, 168, 255, .32); }
+.ambient-flow-track { position: absolute; top: 50%; left: -85px; display: flex; width: max-content; transform: translateY(-50%); opacity: .34; animation: ambient-flow-left 34s linear infinite; }
+.ambient-flow-set { display: flex; gap: 14px; padding-right: 14px; }
+.ambient-card { display: flex; flex-direction: column; flex: none; width: 180px; height: 112px; padding: 13px 14px; border: 1px solid var(--ambient-border); border-radius: 10px; background: var(--ambient-panel); box-shadow: 0 12px 32px rgba(4, 35, 98, .08); color: var(--ambient-ink); transform: rotate(-6deg); }
+.ambient-card-heading { display: flex; align-items: center; gap: 7px; font-family: var(--f-mono); font-size: 8px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+.ambient-card-value { margin-top: 12px; font-family: var(--f-display); font-size: 22px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+.ambient-card-value small { font-size: 9px; letter-spacing: .03em; font-weight: 500; }
+.ambient-card-rule { display: flex; gap: 4px; align-items: center; margin-top: auto; }
+.ambient-card-rule i { display: block; height: 3px; width: 42%; border-radius: 3px; background: currentColor; opacity: .22; }
+.ambient-card-rule i:nth-child(2) { width: 27%; }
+.ambient-card-rule i:nth-child(3) { width: 13%; }
+.ambient-card-agent-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 10px; font-weight: 600; line-height: 1.3; }
+.ambient-card-agent-row small { display: block; font-size: 8px; font-weight: 400; }
+.ambient-card-avatar { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(1, 76, 254, .14); font-family: var(--f-mono); }
+.ambient-card-meter { display: block; height: 3px; margin-top: auto; border-radius: 5px; background: rgba(1, 76, 254, .13); }
+.ambient-card-meter i { display: block; width: 45%; height: 100%; border-radius: inherit; background: currentColor; opacity: .55; }
+.ambient-card-check { display: flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 11px; font-weight: 600; }
+.ambient-card-status { display: flex; align-items: center; gap: 6px; margin-top: auto; font-family: var(--f-mono); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; }
+.ambient-card-status span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+.ambient-carousel-stack { opacity: .12; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.ambient-stack-track { position: absolute; top: 50%; left: -140px; display: flex; width: max-content; transform: translateY(-50%); animation: ambient-stack-move 28s linear infinite; }
+.ambient-stack-set { display: flex; align-items: center; gap: 30px; padding-right: 30px; }
+.ambient-stack-mark { display: grid; place-items: center; min-width: 125px; height: 100px; padding-inline: 15px; border: 1px solid var(--blue-text); border-radius: 12px; color: var(--blue-text); font-family: var(--f-display); font-size: 14px; font-weight: 700; letter-spacing: -.04em; white-space: nowrap; transform: rotate(-5deg); }
+
+.ambient-carousel[data-visible="false"] .ambient-flow-track,
+.ambient-carousel[data-visible="false"] .ambient-stack-track,
+html[data-motion="paused"] .ambient-carousel .ambient-flow-track,
+html[data-motion="paused"] .ambient-carousel .ambient-stack-track { animation-play-state: paused; }
+
+@keyframes ambient-flow-left { from { translate: 0 0; } to { translate: -50% 0; } }
+@keyframes ambient-stack-move { from { translate: 0 0; } to { translate: -50% 0; } }
+
+@media (max-width: 760px) {
+  .ambient-flow-track { opacity: .28; }
+  .ambient-carousel-stack { opacity: .09; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-flow-track, .ambient-stack-track { animation: none !important; translate: 0 0; }
+}

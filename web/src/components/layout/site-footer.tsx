@@ -16,6 +16,6 @@ export function SiteFooter() {
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub<ArrowUpRight size={14} /></a>
       </nav>
     </div>
-    <div className="footer-bottom"><p>{t("Stellar testnet prototype. Not audited. Testnet USDC has no monetary value. Demos are simulations.", "Prototipo en Stellar testnet. Sin auditar. Los USDC de testnet no tienen valor monetario. Las demos son simulaciones.")}</p><span>© 2026 Kovan</span></div>
+    <div className="footer-bottom"><p>{t("Stellar testnet prototype. Not audited. Testnet USDC has no monetary value. Demos are simulations.", "Prototipo en Stellar testnet. Sin auditar. Los USDC de testnet no tienen valor monetario. Las demos son simulaciones.")}</p><span className="footer-meta"><span className="footer-hack">{t("Built at HackMeridian 2026", "Hecho en HackMeridian 2026")}</span><span>© 2026 Kovan</span></span></div>
   </footer>;
 }

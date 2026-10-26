@@ -32,6 +32,16 @@ if (deployment.network !== "testnet") {
 
 const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
 
+// Snapshot of completed test runs, not a count of test declarations: parameterized
+// tests expand at runtime, and ignored tests must not count as passing.
+const suites = evidence.testSnapshot?.suites;
+const counts = [suites?.contracts, suites?.dashboard, suites?.sdk];
+if (counts.some((count) => !Number.isSafeInteger(count) || count < 0)
+    || evidence.testCount !== counts.reduce((sum, count) => sum + count, 0)) {
+  console.error("evidence.json testCount must equal the verified suite totals");
+  process.exit(1);
+}
+
 if (existsSync(readmePath)) {
   const readme = readFileSync(readmePath, "utf8");
   const needles = [

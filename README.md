@@ -131,6 +131,8 @@ node examples/testnet-lifecycle.mjs
 
 Cash-only deployment verification snapshot (2026-10-25, before the v3 yield work): **231 tests** passed — 107 contract tests and 124 dashboard tests. Separately, RPC confirmed the new pool's deployed WASM hash and initial v2/shutdown state. The full spending/recovery lifecycle is covered by tests; it has not yet been replayed with funds on this new default pool. The newer local v3 suite has 132 regular contract tests and 144 dashboard tests, plus one separately run DeFindex-bytecode integration test; see [yield verification](docs/YIELD.md#verification).
 
+Post-SDK merge verification snapshot (2026-10-26): **322 tests** passed — 132 contract tests, 149 dashboard tests, and 41 SDK tests. One optional DeFindex-bytecode integration test is ignored by the default contract run and excluded from this total. These local tests include experimental v3 code; they do not change the default v2 deployment.
+
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
 make test                            # builds WASM and runs the contract tests

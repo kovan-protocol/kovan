@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono, Manrope } from "next/font/google";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNav } from "@/components/layout/site-nav";
 import { RouteTransition } from "@/components/layout/route-transition";
+import { CursorGlow } from "@/components/motion/cursor-glow";
+import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import { PreferenceProvider, preferenceScript } from "@/components/marketing/preferences";
 import "./globals.css";
 import "./marketing.css";
@@ -47,9 +49,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head><script dangerouslySetInnerHTML={{ __html: preferenceScript }} /></head>
       <body>
         <PreferenceProvider>
-          <SiteNav />
-          <RouteTransition>{children}</RouteTransition>
-          <SiteFooter />
+          <SmoothScroll>
+            <CursorGlow />
+            <SiteNav />
+            <RouteTransition>{children}</RouteTransition>
+            <SiteFooter />
+          </SmoothScroll>
         </PreferenceProvider>
       </body>
     </html>
