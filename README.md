@@ -366,7 +366,7 @@ Mandates intersect with covenant limits; they never widen them. The operation st
 | Children per agent | 16 |
 | Current release delegation | Maximum depth 4; 17 lifetime agents per root family |
 | Payee lists (`kovan.mjs`) | Up to 10 providers and 10 recipients per agent, one list per address; `--expiry-hours` default 24, max 720 |
-| Agent transaction timeout | 120 s default, 1–300 s; authorization expiry ≈ timeout ÷ 5 ledgers |
+| Agent transaction timeout (SDK `timeoutSeconds`) | 120 s default, 1–300 s; authorization expiry ≈ timeout ÷ 5 ledgers. `kovan.mjs` has no flag for it |
 | Pool accounting | v2 (historical default), v3 (current release) |
 | Mandates | version 1; scopes `Exact` and `Budget`; single-use payment IDs; on-chain receipts |
 | Error codes | Pool `#1`–`#30`; covenant `#3900`–`#3922` ([table](#error-codes)) |
@@ -527,9 +527,11 @@ kovan/
 ├── sdk/                            # @kovan-protocol/sdk (TypeScript/ESM): builders, auth payloads, reads, errors, submit
 │   └── examples/                   #   testnet-lifecycle.mjs
 ├── dashboard/                      # Owner console (Next.js), local only
-│   ├── app/api/                    #   state, events, mandates, tx/build, tx/submit, agent/[action], agent/keys, x402, yield/quote
+│   ├── app/api/                    #   state, events, mandates, tx/build, tx/submit, agent/[action], agent/keys, x402, yield/quote, yield/setup
 │   ├── lib/                        #   x402 payer, request journal, keystore, deployments, decoded errors
-│   └── scripts/                    #   deploy-pool.mjs (pool-only rollout), x402-smoke.mjs, recovery-smoke.mjs
+│   └── scripts/                    #   publish-contracts.mjs (release publish), activate-pool.mjs (adopt a wallet-created default pool),
+│                                   #   prepare/register-yield-vault.mjs, capture-xoxno-fork.mjs (yield tooling), x402/recovery/yield-setup-smoke.mjs,
+│                                   #   deploy-pool.mjs (historical v2-only)
 ├── signer/                         # Hosted signing page (/sign), setup page (/setup), kovan.mjs build
 ├── skills/kovan/                   # Agent skill: SKILL.md (= agent.md), scripts/kovan.mjs, wait-for-result.mjs
 ├── .claude-plugin/                 # Claude Code plugin + marketplace manifests
@@ -538,7 +540,7 @@ kovan/
 ├── docs/                           # POOL.md · MANDATES.md · SDK.md · YIELD.md · AGENTIC_SAFETY.md · pitch/ · superpowers/ (design + plan)
 ├── scripts/deploy.sh               # Testnet deployment (humans hold the keys)
 ├── Makefile                        # build · test · test-js · setup-js · deploy
-├── AI_USAGE.md · LICENSE · .env.example
+├── AI_USAGE.md · LICENSE
 └── README.md
 ```
 
@@ -556,7 +558,7 @@ kovan/
 | `create_agent(agent_pubkey, draw_limit, covenant) → Address` | owner | Deploys a frozen agent account and installs its covenant; refuses if `sum_limits` would exceed `locked` |
 | `amend(agent, draw_limit, amendment)` | owner | Changes numeric caps, expiry and the draw limit (never payees or signers) |
 | `revoke(agent, by)` | owner or parent | Freezes the agent and its children |
-| `return_funds(agent, by, amount)` | agent, owner or parent | Moves USDC from the agent account back to the pool, via the allowance |
+| `return_funds(agent, by, amount)` | agent or owner | Moves USDC from the agent account back to the pool, via the allowance |
 | `close(agent, by)` | owner or parent | Freezes, recovers the wallet balance, settles consumed funding, releases unused allocation (children first) |
 | `close_pool()` | owner | Irreversible shutdown once every agent is closed; returns remaining USDC to the owner |
 | `create_mandate(agent, params)` / `revoke_mandate(agent, id)` | owner | Owner-approved payment grants ([mandates](#payment-mandates)) |
@@ -600,7 +602,7 @@ One JSON line on stdout per command; progress on stderr. Exit `0` success, `1` r
 | `connect` | owner (message) | Proves the owner's address, no transaction |
 | `owner trustline` · `create_pool` · `fund` · `create_agent` · `revoke` · `return_funds` · `close` · `withdraw` | owner, in Freighter on a local page | `create_agent` takes `--agent-key G…`, `--draw-limit`, `--providers/--recipients` with caps, `--expiry-hours` |
 | `owner create_mandate` · `revoke_mandate` | owner | `--scope exact --payee --amount --reference` or `--scope budget --payees --per-payment-cap --total-cap` |
-| `agent draw` · `pay` · `return` | the agent's own key (`--key <stellar identity>` or `KOVAN_AGENT_SECRET`) | `pay` on new agents needs `--mandate-id`, `--request-id`, `--reference`; the tool simulates against the covenant first and reports refusals |
+| `agent draw` · `pay` · `return` | the agent's own key (`--key <stellar identity>` or `KOVAN_AGENT_SECRET`) | `pay` takes `--to G…` or `C…`; on new agents it needs `--mandate-id`, `--request-id` (16–128 chars of `A–Z a–z 0–9 _ -`) and `--reference`; the tool simulates against the covenant first and reports refusals |
 | `status` · `mandate` · `receipt` · `ids` | nobody | Reads; `ids` prints the contract IDs and hashes the tool trusts |
 | Flags | | `--port N`, `--no-open`, `--timeout-min N` (default 15) for the wallet page |
 
@@ -610,7 +612,7 @@ One JSON line on stdout per command; progress on stderr. Exit `0` success, `1` r
 |---|---|---|
 | Local wallet page | agents on the owner's machine | `http://127.0.0.1:<port>/<random>`, served by `kovan.mjs` for one request |
 | Hosted signing page | cloud agents | `https://kovan-protocol.vercel.app/sign#r=<base64url(JSON)>` with `{"v":1,"fn":"fund","pool":"C…","amount":"100"}`; same actions and snake_case fields as the owner commands; optional `callback` + `id` for a POSTed result |
-| One-link setup | chat assistants | `https://kovan-protocol.vercel.app/setup?fund=<USDC>&agent=name:…,draw:…,pay:G…,per:…,total:…,hours:…&agent=…`; the owner signs each step in order on that page. Setup links never approve mandates |
+| One-link setup | chat assistants | `https://kovan-protocol.vercel.app/setup?fund=<USDC>&agent=name:…,draw:…,pay:G…,per:…,total:…,hours:…&agent=…`; optional `pool=C…` reuses an existing pool, and each agent may add `send`, `send_per`, `send_total` (recipients and caps) and `key` (its own `G…` key). At most 5 agents per link; the owner signs each step in order on that page. Setup links never approve mandates |
 
 A link can carry amounts, payees and limits. It cannot choose contract code, policy, verifier or asset: the pages build transactions only against the pinned IDs and hashes in the deployment manifest.
 
@@ -628,6 +630,7 @@ A link can carry amounts, payees and limits. It cannot choose contract code, pol
 | `GET` | `/api/x402?url=` | Reads x402 terms and returns a `quoteId` | — |
 | `POST` | `/api/x402` | `{agent, url, quoteId, requestId, pool?, mandateId?}` → pays, confirms, returns the content | agent key |
 | `POST` | `/api/yield/quote` | Bounded quotes for the optional yield source | — |
+| `POST` | `/api/yield/setup` | Native DeFindex vault setup for the vault manager (`action`: `create`, `activate`, `inspect`, `transaction`); returns unsigned XDR the manager signs in Freighter, backing the `/yield/setup` page | manager signs in the browser |
 
 Bound to `127.0.0.1` by default. It is a key-holding development console, not a hosted service; see [docs/AGENTIC_SAFETY.md](docs/AGENTIC_SAFETY.md).
 
@@ -651,16 +654,7 @@ Bound to `127.0.0.1` by default. It is a key-holding development console, not a 
 
 Names only; copy the example files and never commit real values.
 
-**Root `.env.example`** (deploy scripts)
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `STELLAR_NETWORK` | Must be `testnet` | `testnet` |
-| `RPC_URL` | Stellar RPC endpoint | `https://soroban-testnet.stellar.org` |
-| `USDC_SAC_ID` | Settlement asset contract | Circle testnet USDC |
-| `FACILITATOR_URL` | x402 facilitator | x402.org |
-| `SPONSOR_PUBLIC_KEY` | Fee sponsor, optional | — |
-| `POOL_ID` · `POLICY_ID` · `VERIFIER_ID` · `ACCOUNT_WASM_HASH` | Overrides; leave unset to use `deployments/testnet.json` | manifest |
+**Deploy scripts** take `--source <identity>` and read `deployments/testnet.json`; they read no environment variables. `DEPLOYER=<identity>` is passed to `make deploy` only.
 
 **`dashboard/.env.example`** (console)
 
@@ -669,10 +663,12 @@ Names only; copy the example files and never commit real values.
 | `NEXT_PUBLIC_RPC_URL` | RPC used by the console | testnet RPC |
 | `POOL_ID` · `POLICY_ID` · `VERIFIER_ID` · `USDC_SAC_ID` | Overrides of the manifest | manifest |
 | `KOVAN_DEPLOYMENTS` | Alternative manifest path | `../deployments/testnet.json` |
+| `KOVAN_KEYSTORE` | Alternative keystore file for app-managed agent keys | `.keys/agents.json` |
+| `CHROMIUM_PATH` | Browser binary for the optional smoke scripts (`recovery-smoke`, `x402-smoke`, `yield-setup-smoke`) | — |
 | `AGENT_SECRET` | Single agent signer when the key is not in the local keystore | — |
 | `FEE_PAYER_SECRET` | Pays XLM fees for agent transactions; if unset, a Friendbot-funded fee payer is generated | — |
 
-**Agent tool**: `KOVAN_AGENT_SECRET` (or `--key <stellar identity>`, read with `stellar keys secret`). Owner keys are never read from the environment.
+**Agent tool**: `KOVAN_AGENT_SECRET` (or `--key <stellar identity>`, read with `stellar keys secret`). `wait-for-result.mjs` reads `KOVAN_RPC_URL` (default testnet RPC), `KOVAN_SIGNER_ORIGIN` (one extra allowed page origin) and `KOVAN_WAIT_MINUTES` (default 30). Owner keys are never read from the environment.
 
 ---
 
@@ -745,11 +741,11 @@ Names only; copy the example files and never commit real values.
 
 | What | How |
 |---|---|
-| Contracts (testnet) | `make build`, then `node dashboard/scripts/deploy-pool.mjs --check --source <identity>` (read-only preflight) and `OWNER=<identity> make deploy`. With an existing manifest the script verifies the owner and unchanged shared code, archives the old manifest, deploys and verifies the new pool, and updates `deployments/testnet.json` atomically. It never moves funds and refuses changed shared dependencies. Keys come from the `stellar` CLI; humans hold them |
+| Contracts (testnet) | `make build`, then `node dashboard/scripts/publish-contracts.mjs --check --source <dedicated-deployer>` (read-only preflight, run from `dashboard/`) and `DEPLOYER=<dedicated identity> make deploy`. The deployer must not be a pool owner. The script uploads the agent-account and pool WASM, deploys the policy, archives the previous manifest under `deployments/history/`, and writes `current_release` and `previous_releases` in `deployments/testnet.json`. It never creates, funds or touches a pool. A new default pool is created by the owner in their wallet, then adopted with `node dashboard/scripts/activate-pool.mjs --pool C… --tx HEX` (no signing); the manifest's `activation_mode` records how (`fresh-testnet-pool-user-requested`). `deploy-pool.mjs` is the historical v2-only deployer and refuses multi-generation manifests. Keys come from the `stellar` CLI; humans hold them |
 | Website | `cd web && vercel --prod`. `prebuild` copies the manifest into the site and fails the build if the README is missing any evidence the site shows. Deploys are manual, not on push |
 | Signing page, setup page, agent files | `cd signer && npm run build:cli && npm run build:vercel`, then commit `web/public/`. CI fails if the committed copies are stale and publishes the GitHub Pages redirect |
 | Agent plugin | Served from this repository: `.claude-plugin/marketplace.json` + `skills/kovan/` |
-| SDK | `cd sdk && npm run build && npm pack`; published as `@kovan-protocol/sdk@0.1.0` |
+| SDK | `cd sdk && npm run build && npm pack`; `0.1.0` is on npm (earlier snapshot), source `0.2.0` is unpublished and installed from the tarball |
 
 ---
 

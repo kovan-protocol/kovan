@@ -17,7 +17,7 @@ The quote ID alone is a comparison hash, **not** a user signature or a mandate. 
 
 ## Safe request flow
 
-1. Run the console locally: `cd dashboard && npm run dev -- --port 3001`. Both `dev` and `start` bind to `127.0.0.1` by default. Do not expose a key-holding console through a public proxy; Host/Origin checks are defense in depth, not authentication. A remotely accessible service needs authenticated, owner-scoped access before use.
+1. Run the console locally: `cd dashboard && npm run dev` (port 3000; pass `-- --port N` to change it and set `KOVAN_CONSOLE_URL` accordingly). Both `dev` and `start` bind to `127.0.0.1` by default. Do not expose a key-holding console through a public proxy; Host/Origin checks are defense in depth, not authentication. A remotely accessible service needs authenticated, owner-scoped access before use.
 2. Create and fund an app-managed agent with the provider's payment address allowlisted. Allocating a draw limit alone does not fund its wallet.
 3. Call `GET /api/x402?url=<encoded-https-url>`. It returns validated terms and `quoteId`, without accessing keys. Review the exact amount, asset, payee and URL.
 4. Generate and **persist** one `requestId` for this intended request, then POST:

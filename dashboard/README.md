@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), switch Freighter to Stellar testnet, and connect the pool owner's wallet. Contract IDs come from `../deployments/testnet.json`. The console can create/select pools, lock USDC, create agents, and show balances and events. App-managed agents can draw, pay directly or over x402, and return funds.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000) (the dev server binds to `127.0.0.1` only), switch Freighter to Stellar testnet, and connect the pool owner's wallet. Contract IDs come from `../deployments/testnet.json`. The console can create/select pools, lock USDC, create agents, and show balances and events. App-managed agents can draw, pay directly or over x402, and return funds.
 
 ## Shared SDK
 
@@ -92,6 +92,8 @@ Optional environment overrides are listed in `.env.example`. `AGENT_SECRET` and 
 npm test
 npx tsc --noEmit
 npm run build
-# Optional browser smoke test (all APIs/signatures mocked; requires Chromium)
+# Optional browser smoke tests (all APIs/signatures mocked; set CHROMIUM_PATH to a Chromium binary)
 node scripts/recovery-smoke.mjs
+node scripts/x402-smoke.mjs
+node scripts/yield-setup-smoke.mjs
 ```

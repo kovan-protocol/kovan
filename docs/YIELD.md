@@ -1,14 +1,16 @@
 # Optional yield backing — pool v3
 
 Status: **v3 code published on testnet; yield remains inactive**.
-The mandate release in `current_release` now supplies v3 WASM for `New pool`,
-cash-only until a vault is configured. The displayed default remains historical
-v2. No matching vault is allowlisted, and no existing balances, agents,
-allowances or vault positions were migrated or invested. The live mandate
-rehearsal validates cash operations, not vault integration or liquidity.
-This is an unaudited testnet prototype, not production investment infrastructure.
-The native-vault setup tooling and the draw-valuation optimization described
-below are local source changes, not a published replacement for that release.
+The release in `current_release` supplies v3 WASM for `New pool`, cash-only
+until a vault is configured. The displayed default pool (`CBOOAYAV…CON6`,
+adopted 2026-10-26) runs that v3 code with no vault configured. No matching
+vault is allowlisted (`yield_vaults: []`), and no existing balances, agents,
+allowances or vault positions were migrated or invested. The live mandate and
+recovery rehearsals validate cash operations, not vault integration or
+liquidity. This is an unaudited testnet prototype, not production investment
+infrastructure. The native-vault setup tooling (`/yield/setup`,
+`POST /api/yield/setup`, `prepare-yield-vault.mjs`, `register-yield-vault.mjs`)
+is published in the repository; it is not exercised against any live vault.
 
 ## Native yield and existing positions
 

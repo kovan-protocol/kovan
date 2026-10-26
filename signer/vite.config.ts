@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
-  // Relative asset paths: the page is served from /kovan/ on GitHub Pages.
+  // Relative asset paths: the dev build has no fixed mount point; build:vercel sets base to /sign/ and /setup/.
   base: "./",
   // One copy of the Stellar SDK, even though @kovan-protocol/sdk is linked from ../sdk.
   resolve: { dedupe: ["@stellar/stellar-sdk", "buffer"] },
