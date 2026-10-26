@@ -7,7 +7,7 @@ on:
       - "signer/**"
       - "sdk/**"
       - "deployments/testnet.json"
-      - ".agents/skills/kovan/**"
+      - "skills/kovan/**"
       - ".github/workflows/signer-pages.yml"
   workflow_dispatch:
 
@@ -34,6 +34,9 @@ jobs:
       - name: Test and build signer
         working-directory: signer
         run: npm ci && npm test && npm run build
+      - name: Check the committed agent tool is up to date
+        working-directory: signer
+        run: npm run build:cli && git diff --exit-code ../skills/kovan/scripts/kovan.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

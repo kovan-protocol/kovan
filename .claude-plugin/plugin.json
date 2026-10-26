@@ -1,0 +1,12 @@
+{
+  "name": "kovan",
+  "description": "Kovan on Stellar testnet for agents: create a USDC pool, fund it, create agents bound by on-chain covenants, and spend inside their limits. The owner approves every owner action in their own wallet.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Kovan"
+  },
+  "homepage": "https://kovan-indol.vercel.app",
+  "repository": "https://github.com/kovan-protocol/kovan",
+  "license": "MIT",
+  "skills": "./skills/"
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "kovan",
+  "description": "Kovan: shared USDC pools for AI agents, with on-chain spending limits, on Stellar testnet",
+  "owner": {
+    "name": "Kovan",
+    "url": "https://kovan-indol.vercel.app"
+  },
+  "plugins": [
+    {
+      "name": "kovan",
+      "source": "./",
+      "description": "Agents that spend inside on-chain limits, on Stellar testnet",
+      "version": "0.1.0"
+    }
+  ]
+}
