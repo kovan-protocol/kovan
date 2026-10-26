@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:cli": "node scripts/build-cli.mjs"
   },
   "dependencies": {
     "@kovan/sdk": "file:../sdk",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
     "typescript": "5.9.3",
     "vite": "8.3.5",
     "vitest": "5.0.5"
