@@ -3,6 +3,7 @@
 // (connect, or sign one prepared transaction) comes from the server, which
 // built the summary from the validated request, not from agent-written text.
 import { getNetwork, isConnected, requestAccess, signMessage, signTransaction } from "@stellar/freighter-api";
+import "./appearance";
 
 type Job =
   | { mode: "connect"; message: string; networkPassphrase: string }

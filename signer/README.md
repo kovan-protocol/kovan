@@ -13,6 +13,8 @@ An agent sends a link like `https://kovan-protocol.github.io/kovan/#r=<base64url
 
 ## Develop
 
+Both the hosted signing page and locally generated wallet page follow the home landing design in [`brand.md`](../brand.md). They share `src/style.css` and `src/appearance.ts`: Manrope headings, Inter interface text, JetBrains Mono addresses, cobalt actions, and matching light/dark themes. Fonts are served locally by the hosted page and embedded in the CLI bundle. After editing either template or its styles, rebuild the CLI as well as the static site.
+
 ```bash
 (cd ../sdk && npm ci && npm run build)
 npm ci

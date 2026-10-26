@@ -6,6 +6,7 @@ import { KovanError, type PreparedTransaction, type SubmitResult } from "@kovan/
 import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
 import { describe, parseHash, RequestError, type Envelope } from "./request";
 import "./style.css";
+import "./appearance";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const DONE_KEY = "kovan-signed:";

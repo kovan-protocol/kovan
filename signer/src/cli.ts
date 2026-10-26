@@ -65,12 +65,20 @@ function page(job: Job, done: string): string {
   // JSON inside <script>: escape "<" so no value can close the tag.
   const data = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer"><title>Kovan wallet</title><style>${__WALLET_PAGE_CSS__}</style></head><body><main>
-<header><span class="brand">Kovan</span><span class="badge">Stellar testnet · local</span></header>
+<meta name="referrer" content="no-referrer"><title>Kovan wallet</title><style>${__WALLET_PAGE_CSS__}</style>
+<script>(function(){var t;try{t=localStorage.getItem('kovan-theme')}catch(e){}document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()</script></head><body>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="https://kovan-indol.vercel.app" aria-label="Kovan home"><svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg><span>kovan</span></a>
+<span class="header-label">Wallet approval</span><div class="header-controls"><span class="badge">Stellar testnet · local</span>
+<button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></svg></button>
+</div></div></header><main>
+<p class="page-kicker"><span>Agent autonomy.</span> Human control.</p><div class="approval-card">
+<ol class="approval-steps" aria-label="Approval process"><li><span>01</span> Review request</li><li><span>02</span> Approve in wallet</li><li><span>03</span> Back to your agent</li></ol>
+<div class="request-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg></div>
 <section id="request"><p class="eyebrow">Your agent asks you to</p><h1 id="title"></h1><dl id="rows"></dl><ul id="notes" class="notes"></ul></section>
 <section id="wallet"><button id="act" type="button"></button></section>
 <p id="status" role="status" aria-live="polite" hidden></p>
-<footer><p>This page runs on your computer, served by your agent. Trust what Freighter's own window shows: it is the real transaction. Nothing is signed without your approval there. Testnet only.</p></footer>
+</div><footer><p class="footer-heading">You have the final say.</p><p>This page runs on your computer, served by your agent. Trust what Freighter's own window shows: it is the real transaction. Nothing is signed without your approval there. Testnet only.</p><p class="footer-links"><a href="https://kovan-indol.vercel.app">About Kovan ↗</a><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">View source ↗</a></p></footer>
 </main><script>window.__KOVAN_JOB__=${data(job)};window.__KOVAN_DONE__=${data(done)};</script><script>${__WALLET_PAGE_JS__}</script></body></html>`;
 }
 

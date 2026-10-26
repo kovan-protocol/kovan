@@ -12,6 +12,14 @@ const pageJs = await build({
   bundle: true, write: false, format: "iife", platform: "browser", target: "es2020", minify: true, legalComments: "none",
 });
 
+// Inline the same locally hosted fonts as the static signer. The generated
+// wallet page stays self-contained, including its typography and license.
+const pageCss = await build({
+  entryPoints: [here("../src/style.css")],
+  bundle: true, write: false, loader: { ".woff2": "dataurl" }, minify: true,
+});
+const fontLicense = await readFile(here("../src/fonts/OFL.txt"), "utf8");
+
 await build({
   entryPoints: [here("../src/cli.ts")],
   outfile,
@@ -24,7 +32,7 @@ await build({
   define: {
     __KOVAN_BUNDLE__: "true",
     __WALLET_PAGE_JS__: JSON.stringify(pageJs.outputFiles[0].text),
-    __WALLET_PAGE_CSS__: JSON.stringify(await readFile(here("../src/style.css"), "utf8")),
+    __WALLET_PAGE_CSS__: JSON.stringify(`/* ${fontLicense} */\n${pageCss.outputFiles[0].text}`),
   },
   logLevel: "warning",
 });

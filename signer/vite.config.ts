@@ -17,6 +17,7 @@ export default defineConfig({
       // Publish the agent guide next to the page, so one site serves both.
       name: "agent-guide",
       closeBundle() {
+        copyFileSync(here("src/fonts/OFL.txt"), here("dist/fonts-OFL.txt"));
         copyFileSync(here("../skills/kovan/SKILL.md"), here("dist/agent.md"));
         copyFileSync(here("../skills/kovan/scripts/kovan.mjs"), here("dist/kovan.mjs"));
         copyFileSync(here("../skills/kovan/scripts/wait-for-result.mjs"), here("dist/wait-for-result.mjs"));
