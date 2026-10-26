@@ -9,8 +9,8 @@ Kovan lets an owner lock USDC in a **pool** and give each AI agent a **wallet** 
 
 **Stellar testnet only.** Testnet USDC has no value. Not audited.
 
-- Website: <https://kovan-indol.vercel.app> · Source: <https://github.com/kovan-protocol/kovan>
-- This guide: <https://kovan-protocol.github.io/kovan/agent.md>
+- Website: <https://kovan-protocol.vercel.app> · Source: <https://github.com/kovan-protocol/kovan>
+- This guide: <https://kovan-protocol.vercel.app/agent.md>
 
 ## Install
 
@@ -32,7 +32,7 @@ Kovan lets an owner lock USDC in a **pool** and give each AI agent a **wallet** 
 One self-contained Node.js file (Node 20+). It builds and simulates transactions with the Kovan SDK, using contract IDs and code hashes built into it, and serves a small local wallet page when the owner must approve.
 
 - Installed as a skill: `scripts/kovan.mjs` in this skill's folder.
-- Otherwise: `curl -fsSO https://kovan-protocol.github.io/kovan/kovan.mjs`
+- Otherwise: `curl -fsSO https://kovan-protocol.vercel.app/kovan.mjs`
 
 Every command prints **one JSON line** on stdout (progress goes to stderr). Exit code 0 = success, 1 = failed on-chain or refused, 2 = bad usage. Amounts are **USDC** (`100`, `0.25`; at most 7 decimals). `node kovan.mjs --help` lists everything.
 
@@ -114,11 +114,11 @@ Before sending, the tool simulates the action against the covenant, so a refused
 If you can't serve a page on the person's machine, use the hosted signing page. It builds the transaction in the person's browser, so you don't even need their address:
 
 ```
-https://kovan-protocol.github.io/kovan/#r=<base64url(JSON)>
+https://kovan-protocol.vercel.app/sign#r=<base64url(JSON)>
 ```
 
 ```bash
-node -e 'console.log("https://kovan-protocol.github.io/kovan/#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
+node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 

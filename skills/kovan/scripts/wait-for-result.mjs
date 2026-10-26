@@ -16,7 +16,9 @@ if (!id || !/^[A-Za-z0-9._-]{1,64}$/.test(id)) {
 const port = Number(portArg);
 const RPC = process.env.KOVAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
 const ORIGINS = new Set([
-  "https://kovan-protocol.github.io",
+  "https://kovan-protocol.vercel.app",
+  "https://kovan-protocol.github.io", // earlier home of the signing page; now redirects
+
   "http://127.0.0.1:4173", "http://localhost:4173", "http://127.0.0.1:5173", "http://localhost:5173",
   ...(process.env.KOVAN_SIGNER_ORIGIN ? [process.env.KOVAN_SIGNER_ORIGIN] : []),
 ]);

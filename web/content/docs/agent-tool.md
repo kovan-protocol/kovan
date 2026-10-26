@@ -8,7 +8,7 @@ description: kovan.mjs, the one-file tool agents use to set up pools and agents 
 One self-contained Node.js file (Node 20+). Agents use it to prepare every Kovan transaction. Owner actions are approved by the person in **Freighter**; agent actions are signed with the agent's own key.
 
 - Installed with the Kovan skill: `skills/kovan/scripts/kovan.mjs`
-- Or download it: `curl -fsSO https://kovan-protocol.github.io/kovan/kovan.mjs`
+- Or download it: `curl -fsSO https://kovan-protocol.vercel.app/kovan.mjs`
 - `node kovan.mjs --help` lists every command.
 
 Contract IDs and code hashes are built into the file from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json). Nothing passed on the command line can change them.
@@ -102,7 +102,7 @@ Full list: [Contracts → Error codes](/docs/contracts#error-codes).
 If the agent can't serve a page on the person's machine, it sends a link to the hosted signing page instead. The page builds the transaction in the person's browser, so the agent doesn't even need their address:
 
 ```bash
-node -e 'console.log("https://kovan-protocol.github.io/kovan/#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
+node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 

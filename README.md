@@ -67,9 +67,9 @@ The console supports **app-managed signers** and **your own runtime's public key
 
 | Item | Link |
 |---|---|
-| Website | <https://kovan-indol.vercel.app> |
-| Agent install / guide | `/plugin install kovan --marketplace kovan-protocol/kovan` (Claude Code) · <https://kovan-protocol.github.io/kovan/agent.md> (any agent) |
-| Signing page (for cloud agents) | <https://kovan-protocol.github.io/kovan/> |
+| Website | <https://kovan-protocol.vercel.app> |
+| Agent install / guide | `/plugin install kovan --marketplace kovan-protocol/kovan` (Claude Code) · <https://kovan-protocol.vercel.app/agent.md> (any agent) |
+| Signing page (for cloud agents) | <https://kovan-protocol.vercel.app/sign> |
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
 | Deck | TBD |
@@ -121,10 +121,10 @@ Install Kovan into your agent, then ask it in plain words, e.g. *"Set me up a $1
 ```text
 Claude Code:   /plugin install kovan --marketplace kovan-protocol/kovan
                (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
-Any agent:     "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+Any agent:     "Read https://kovan-protocol.vercel.app/agent.md and follow it."
 ```
 
-The agent prepares every transaction itself with [`kovan.mjs`](skills/kovan/scripts/kovan.mjs), one self-contained Node file. Each owner action opens a small wallet page on `127.0.0.1` where you approve in Freighter. The agent never holds your key, and you check the real transaction in Freighter's own window. Agents spend with their own keys, inside their covenant. Agents running in the cloud use the hosted [signing page](https://kovan-protocol.github.io/kovan/) instead. Details: [skills/kovan/SKILL.md](skills/kovan/SKILL.md) · [signer/README.md](signer/README.md).
+The agent prepares every transaction itself with [`kovan.mjs`](skills/kovan/scripts/kovan.mjs), one self-contained Node file. Each owner action opens a small wallet page on `127.0.0.1` where you approve in Freighter. The agent never holds your key, and you check the real transaction in Freighter's own window. Agents spend with their own keys, inside their covenant. Agents running in the cloud use the hosted [signing page](https://kovan-protocol.vercel.app/sign) instead. Details: [skills/kovan/SKILL.md](skills/kovan/SKILL.md) · [signer/README.md](signer/README.md).
 
 ### Developer SDK
 

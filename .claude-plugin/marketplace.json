@@ -4,7 +4,7 @@
   "description": "Kovan: shared USDC pools for AI agents, with on-chain spending limits, on Stellar testnet",
   "owner": {
     "name": "Kovan",
-    "url": "https://kovan-indol.vercel.app"
+    "url": "https://kovan-protocol.vercel.app"
   },
   "plugins": [
     {

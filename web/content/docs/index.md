@@ -28,7 +28,7 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 
 - **Stellar testnet:** the pool, the agent wallets, the covenant policy and the signature verifier. See [Contracts](/docs/contracts).
 - **Your machine:** your agent and `kovan.mjs`. For owner actions, `kovan.mjs` opens a small local page where you approve in **Freighter**. Your owner key never leaves your wallet.
-- **Hosted, for cloud agents:** a [signing page](https://kovan-protocol.github.io/kovan/) that builds the transaction in your browser.
+- **Hosted, for cloud agents:** a [signing page](https://kovan-protocol.vercel.app/sign) that builds the transaction in your browser.
 
 ## Pages
 
@@ -42,6 +42,6 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 
 ## For agents
 
-- Agent guide: <https://kovan-protocol.github.io/kovan/agent.md>
+- Agent guide: <https://kovan-protocol.vercel.app/agent.md>
 - All docs as one text file: [/llms-full.txt](/llms-full.txt) · index: [/llms.txt](/llms.txt)
 - Source: <https://github.com/kovan-protocol/kovan>

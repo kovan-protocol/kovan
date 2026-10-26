@@ -1,8 +1,8 @@
 # Kovan docs (all pages)
 
-Source: https://kovan-indol.vercel.app/docs · Stellar testnet only · Not audited
+Source: https://kovan-protocol.vercel.app/docs · Stellar testnet only · Not audited
 
-<!-- https://kovan-indol.vercel.app/docs -->
+<!-- https://kovan-protocol.vercel.app/docs -->
 # Kovan docs
 
 Kovan gives AI agents shared USDC budgets they can't overspend. An owner locks USDC in one **pool**. Each agent gets its own Stellar smart account, bound to a **covenant**: how much it may draw, which addresses it may pay, how much per payment and in total, and until when. The agent's own account enforces these rules on-chain, so a buggy, looping or prompt-injected agent can't break them.
@@ -28,7 +28,7 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 
 - **Stellar testnet:** the pool, the agent wallets, the covenant policy and the signature verifier. See [Contracts](/docs/contracts).
 - **Your machine:** your agent and `kovan.mjs`. For owner actions, `kovan.mjs` opens a small local page where you approve in **Freighter**. Your owner key never leaves your wallet.
-- **Hosted, for cloud agents:** a [signing page](https://kovan-protocol.github.io/kovan/) that builds the transaction in your browser.
+- **Hosted, for cloud agents:** a [signing page](https://kovan-protocol.vercel.app/sign) that builds the transaction in your browser.
 
 ## Pages
 
@@ -42,13 +42,13 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 
 ## For agents
 
-- Agent guide: <https://kovan-protocol.github.io/kovan/agent.md>
+- Agent guide: <https://kovan-protocol.vercel.app/agent.md>
 - All docs as one text file: [/llms-full.txt](/llms-full.txt) · index: [/llms.txt](/llms.txt)
 - Source: <https://github.com/kovan-protocol/kovan>
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/quickstart -->
+<!-- https://kovan-protocol.vercel.app/docs/quickstart -->
 # Quickstart
 
 Two paths: let an agent do it for you, or call the SDK from your own code. Both run on **Stellar testnet**.
@@ -68,7 +68,7 @@ Tip: use a separate Freighter account as the pool owner. A pool's owner can't be
 ```text
 Claude Code:  /plugin install kovan --marketplace kovan-protocol/kovan
               (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
-Other agents: "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+Other agents: "Read https://kovan-protocol.vercel.app/agent.md and follow it."
 ```
 
 ### 2. Ask for what you want
@@ -134,7 +134,7 @@ Or open the pool on [stellar.expert](https://stellar.expert/explorer/testnet). E
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/concepts -->
+<!-- https://kovan-protocol.vercel.app/docs/concepts -->
 # Concepts
 
 > *The pool is the bank. Each agent's wallet holds its own funds. The covenant says how much it may take and what it may do.*
@@ -229,13 +229,13 @@ USDC has 7 decimals: 1 USDC = 10,000,000 base units. The contracts and the SDK u
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/agent-tool -->
+<!-- https://kovan-protocol.vercel.app/docs/agent-tool -->
 # Agent tool: `kovan.mjs`
 
 One self-contained Node.js file (Node 20+). Agents use it to prepare every Kovan transaction. Owner actions are approved by the person in **Freighter**; agent actions are signed with the agent's own key.
 
 - Installed with the Kovan skill: `skills/kovan/scripts/kovan.mjs`
-- Or download it: `curl -fsSO https://kovan-protocol.github.io/kovan/kovan.mjs`
+- Or download it: `curl -fsSO https://kovan-protocol.vercel.app/kovan.mjs`
 - `node kovan.mjs --help` lists every command.
 
 Contract IDs and code hashes are built into the file from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json). Nothing passed on the command line can change them.
@@ -329,7 +329,7 @@ Full list: [Contracts → Error codes](/docs/contracts#error-codes).
 If the agent can't serve a page on the person's machine, it sends a link to the hosted signing page instead. The page builds the transaction in the person's browser, so the agent doesn't even need their address:
 
 ```bash
-node -e 'console.log("https://kovan-protocol.github.io/kovan/#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
+node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 
@@ -337,7 +337,7 @@ The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, 
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/sdk -->
+<!-- https://kovan-protocol.vercel.app/docs/sdk -->
 # SDK: `@kovan/sdk`
 
 A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
@@ -475,7 +475,7 @@ node examples/testnet-lifecycle.mjs --execute    # full lifecycle on a NEW testn
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/contracts -->
+<!-- https://kovan-protocol.vercel.app/docs/contracts -->
 # Contracts
 
 Four Soroban contracts, written in Rust with `soroban-sdk` 28 and OpenZeppelin `stellar-accounts` 0.8.0. Source: [`contracts/`](https://github.com/kovan-protocol/kovan/tree/main/contracts).
@@ -615,7 +615,7 @@ cd contracts && stellar contract build && cargo test   # target wasm32v1-none
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/x402 -->
+<!-- https://kovan-protocol.vercel.app/docs/x402 -->
 # Paying with x402
 
 [x402](https://x402.org) lets an API charge per request: the server answers `402 Payment Required` with its terms, the client pays, and a facilitator settles the payment on-chain. On Stellar, the payment is a single USDC `transfer(from, to, amount)`.
@@ -642,7 +642,7 @@ x402 payments are implemented in the Kovan console (`dashboard/lib/agent-x402.ts
 
 ---
 
-<!-- https://kovan-indol.vercel.app/docs/security -->
+<!-- https://kovan-protocol.vercel.app/docs/security -->
 # Security model
 
 > Testnet prototype. **Not audited.** Don't use it with real funds.

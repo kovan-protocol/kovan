@@ -6,7 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { Marked } from "marked";
 
-const SITE = "https://kovan-indol.vercel.app";
+const SITE = "https://kovan-protocol.vercel.app";
 const ORDER = ["index", "quickstart", "concepts", "agent-tool", "sdk", "contracts", "x402", "security"];
 const here = (p) => new URL(p, import.meta.url);
 
@@ -76,9 +76,9 @@ ${pages.map((p) => `- [${p.title}](${SITE}${p.href}): ${p.description}`).join("\
 
 ## For agents
 
-- [Agent guide (skill)](https://kovan-protocol.github.io/kovan/agent.md): rules and step-by-step recipes for agents
-- [kovan.mjs](https://kovan-protocol.github.io/kovan/kovan.mjs): the one-file agent tool (Node 20+)
-- [Signing page](https://kovan-protocol.github.io/kovan/): for agents that can't serve a local approval page
+- [Agent guide (skill)](https://kovan-protocol.vercel.app/agent.md): rules and step-by-step recipes for agents
+- [kovan.mjs](https://kovan-protocol.vercel.app/kovan.mjs): the one-file agent tool (Node 20+)
+- [Signing page](https://kovan-protocol.vercel.app/sign): for agents that can't serve a local approval page
 - [Deployment record](https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json): contract IDs and code hashes
 
 ## Optional

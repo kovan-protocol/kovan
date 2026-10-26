@@ -22,7 +22,7 @@ Tip: use a separate Freighter account as the pool owner. A pool's owner can't be
 ```text
 Claude Code:  /plugin install kovan --marketplace kovan-protocol/kovan
               (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
-Other agents: "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+Other agents: "Read https://kovan-protocol.vercel.app/agent.md and follow it."
 ```
 
 ### 2. Ask for what you want

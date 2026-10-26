@@ -23,7 +23,7 @@ export const DEMO_REPLAY_HREF = "/playground";
 export const DOCS_URL = "/docs";
 
 /** Production origin, for robots.txt and sitemap.xml. Keep in sync with SITE in scripts/build-docs.mjs. */
-export const SITE_URL = "https://kovan-indol.vercel.app";
+export const SITE_URL = "https://kovan-protocol.vercel.app";
 
 export const GITHUB_URL = "https://github.com/kovan-protocol/kovan";
 
