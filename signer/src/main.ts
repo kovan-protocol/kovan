@@ -2,7 +2,7 @@
 // the transaction for the connected wallet, sign, submit, and deliver the
 // result to the agent's callback (or show it for copying).
 import { getNetwork, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
-import { KovanError, type PreparedTransaction, type SubmitResult } from "@kovan-protocol/sdk";
+import { KovanError, signPrepared, transactionStatus, type PreparedTransaction, type SubmitResult } from "@kovan-protocol/sdk";
 import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
 import { describe, parseHash, RequestError, type Envelope } from "./request";
 import "./style.css";
@@ -10,6 +10,8 @@ import "./appearance";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const DONE_KEY = "kovan-signed:";
+const PENDING_KEY = "kovan-pending:";
+type Pending = { hash: string; xdr: string; owner: string };
 
 let env: Envelope | null = null;
 let owner: string | null = null;
@@ -53,7 +55,7 @@ function renderRequest(e: Envelope) {
   $("wallet").hidden = false;
 
   const prior = storage(() => localStorage.getItem(DONE_KEY + location.hash));
-  if (prior) status(`This link was already signed in this browser (transaction ${prior.slice(0, 10)}…). Signing again would repeat the action.`, "error");
+  if (prior) status(`This link already has transaction ${prior.slice(0, 10)}…. Continuing checks that transaction; it does not repeat the action.`, "info");
 }
 
 async function connect() {
@@ -84,14 +86,34 @@ async function sign() {
   busy = true;
   ($("sign") as HTMLButtonElement).disabled = true;
   try {
+    const saved = localStorage.getItem(PENDING_KEY + location.hash);
+    const prior = localStorage.getItem(DONE_KEY + location.hash);
+    if (saved || prior) {
+      const pending = saved ? JSON.parse(saved) as Pending : null;
+      if (pending && pending.owner !== owner) throw new Error("Reconnect the wallet that signed this transaction.");
+      const hash = pending?.hash ?? prior!;
+      let result = await transactionStatus(client, hash);
+      if (result.status === "NOT_FOUND" && pending) result = await client.submit(pending.xdr);
+      if (result.status === "ERROR") result = { ...result, hash, status: "NOT_FOUND" };
+      if (result.status === "FAILED") {
+        localStorage.removeItem(PENDING_KEY + location.hash);
+        localStorage.removeItem(DONE_KEY + location.hash);
+      }
+      await showResult(env, result);
+      return;
+    }
     status("Preparing and simulating the transaction…");
     const prepared: PreparedTransaction = await prepare(env.req, owner);
     status("Approve the transaction in Freighter…");
-    const result = await client.signAndSend(prepared, async (xdr, ctx) => {
+    const signed = await signPrepared(prepared, async (xdr, ctx) => {
       const r = await signTransaction(xdr, { networkPassphrase: ctx.networkPassphrase, address: ctx.address });
       if (r.error) throw new Error(errText(r.error, "Signing was cancelled"));
       return r.signedTxXdr;
     });
+    localStorage.setItem(PENDING_KEY + location.hash, JSON.stringify({ hash: prepared.hash, xdr: signed, owner } satisfies Pending));
+    let result = await client.submit(signed);
+    if (result.status === "FAILED") localStorage.removeItem(PENDING_KEY + location.hash);
+    if (result.status === "ERROR") result = { ...result, hash: prepared.hash, status: "NOT_FOUND" };
     await showResult(env, result);
   } catch (e) {
     const msg = e instanceof KovanError || e instanceof Error ? e.message : String(e);
@@ -109,8 +131,11 @@ async function showResult(e: Envelope, r: SubmitResult) {
     ($("sign") as HTMLButtonElement).disabled = false;
     return;
   }
-  storage(() => localStorage.setItem(DONE_KEY + location.hash, r.hash));
-  $("sign").hidden = true;
+  localStorage.setItem(DONE_KEY + location.hash, r.hash);
+  if (r.status === "SUCCESS") localStorage.removeItem(PENDING_KEY + location.hash);
+  $("sign").hidden = r.status === "SUCCESS";
+  ($("sign") as HTMLButtonElement).disabled = false;
+  if (r.status === "NOT_FOUND") $("sign").textContent = "Check saved transaction";
 
   const out: Record<string, unknown> = { v: 1, fn: req.fn, status: r.status, tx: r.hash };
   if (e.id) out.id = e.id;

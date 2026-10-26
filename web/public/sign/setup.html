@@ -7,9 +7,9 @@
     <title>Kovan Setup</title>
     <meta name="description" content="Set up a Kovan pool and its agents from one link your agent wrote. You approve each step in your own wallet. Stellar testnet only." />
     <script>(function(){var t;try{t=localStorage.getItem('kovan-theme')}catch(e){}document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()</script>
-    <script type="module" crossorigin src="/sign/assets/setup-DMj8hE_B.js"></script>
+    <script type="module" crossorigin src="/sign/assets/setup-CIP5d3KO.js"></script>
     <link rel="modulepreload" crossorigin href="/sign/assets/scval-B93zeJ2Y.js">
-    <link rel="modulepreload" crossorigin href="/sign/assets/appearance-Dc210F5w.js">
+    <link rel="modulepreload" crossorigin href="/sign/assets/appearance-CEOnGXTl.js">
     <link rel="stylesheet" crossorigin href="/sign/assets/appearance-CAKZi1IT.css">
     <link rel="stylesheet" crossorigin href="/sign/assets/setup-2lyUW6mP.css">
   </head>
@@ -64,12 +64,14 @@
 
       <p id="status" role="status" aria-live="polite" hidden></p>
 
-      <section id="result" hidden>
         <div id="keys" class="plan-keys" hidden>
-          <h2>Download your agent keys</h2>
-          <p>These keys were generated in this browser. Give each one only to the bot that spends for that agent; its covenant limits what the key can do. They aren't stored anywhere else.</p>
+          <h2>Back up keys before deploying</h2>
+          <p>Keys stay only in this tab. Download the backup before creating any agents. After a reload, import the same file to continue. Keep it private; never paste secrets into chat.</p>
           <button id="download" type="button">Download agent keys</button>
+          <label><input id="backup-confirm" type="checkbox" disabled /> I saved the backup file securely.</label>
+          <label>Restore backup <input id="import-keys" type="file" accept="application/json,.json" /></label>
         </div>
+      <section id="result" hidden>
         <h2>Send this back to your agent</h2>
         <pre id="result-json" class="mono"></pre>
         <button id="copy" type="button" class="secondary">Copy</button>

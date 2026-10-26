@@ -166,7 +166,7 @@ Rules for writing it:
 - Use only the limits the person stated. If a payee address, an amount or a duration is missing, **ask**; never invent addresses.
 - Draw limits of a new pool must add up to at most `fund`. Caps must be above 0, and `per` at most `total`.
 - Repeat the plan back in plain words (who may be paid, how much, until when) before giving the link.
-- Without `key`, the page generates each agent's key in the person's browser and offers it as a download, to give to the bot that will spend. Never ask for that file or any secret in the chat.
+- Without `key`, the page generates each agent's key in the person's browser and requires downloading and confirming a private backup before deployment. After a reload, import that same file; never generate a replacement for an existing account. Give each key only to its runtime, never paste the backup or secrets into chat.
 
 When they're done, the page shows a short summary (pool and agent addresses, limits, transactions) for them to paste back to you. Bad links are refused on the page with the reason.
 

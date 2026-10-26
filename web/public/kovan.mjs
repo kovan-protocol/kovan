@@ -37029,7 +37029,7 @@ init_unsigned_hyper();
 init_scval();
 
 // ../sdk/dist/client.js
-import { Buffer as Buffer69 } from "node:buffer";
+import { Buffer as Buffer70 } from "node:buffer";
 
 // ../sdk/node_modules/@stellar/stellar-sdk/lib/esm/rpc/index.js
 var rpc_exports = {};
@@ -37368,7 +37368,9 @@ var POOL_ERRORS = {
   25: "YieldLiquidity",
   26: "YieldUnderfunded",
   27: "YieldArithmetic",
-  28: "UnsupportedMandate"
+  28: "UnsupportedMandate",
+  29: "TooManyDescendants",
+  30: "DelegationTooDeep"
 };
 var COVENANT_ERRORS = {
   3900: "NotInstalled",
@@ -37658,6 +37660,50 @@ function safeNative(v) {
   }
 }
 
+// ../sdk/dist/deployments.js
+import { Buffer as Buffer69 } from "node:buffer";
+function currentRelease(manifest) {
+  if (manifest.network !== "testnet")
+    throw new Error("Kovan deployment manifest must be testnet");
+  return manifest.current_release ?? manifest;
+}
+function releaseContracts(release) {
+  return {
+    policy: release.policy,
+    verifier: release.verifier,
+    usdc: release.usdc,
+    poolWasmHash: release.pool_wasm_hash,
+    accountWasmHash: release.account_wasm_hash,
+    ...release.mandate_version === 1 ? {} : { legacyBindings: true }
+  };
+}
+function deploymentReleases(manifest) {
+  currentRelease(manifest);
+  return [currentRelease(manifest), ...manifest.previous_releases ?? [], manifest, ...(manifest.legacy_pools ?? []).map((p) => ({ ...manifest, ...p }))];
+}
+function assertPoolBindings(config3, expected) {
+  if (!config3 || config3.mandate_version !== 1 || config3.policy !== expected.policy || config3.verifier !== expected.verifier || config3.usdc !== expected.usdc || !(config3.account_wasm_hash instanceof Uint8Array) || Buffer69.from(config3.account_wasm_hash).toString("hex") !== expected.accountWasmHash.toLowerCase()) {
+    throw new Error("Pool constructor bindings do not match the reviewed release");
+  }
+}
+function releaseForHash(manifest, wasmHash) {
+  const matches = deploymentReleases(manifest).filter((r) => r.pool_wasm_hash.toLowerCase() === wasmHash.toLowerCase());
+  if (!matches.length)
+    throw new Error("Pool is not a Kovan pool: untrusted WASM hash");
+  const distinct = new Set(matches.map((r) => JSON.stringify(releaseContracts(r))));
+  if (distinct.size !== 1)
+    throw new Error("Ambiguous deployment bindings for this pool code");
+  return matches[0];
+}
+async function resolvePoolRelease(ctx, manifest, pool) {
+  const code = await ctx.rpc.getContractWasmByContractId(pool);
+  const release = releaseForHash(manifest, hash2(Buffer69.from(code)).toString("hex"));
+  if (release.mandate_version === 1) {
+    assertPoolBindings(await simulateRead(ctx, pool, "get_config"), releaseContracts(release));
+  }
+  return release;
+}
+
 // ../sdk/dist/client.js
 var KovanClient = class {
   rpc;
@@ -37691,8 +37737,11 @@ var KovanClient = class {
   }
   async assertPool(address) {
     const code = await this.rpc.getContractWasmByContractId(address);
-    if (!this.poolHashes.has(hash2(Buffer69.from(code)).toString("hex")))
+    if (!this.poolHashes.has(hash2(Buffer70.from(code)).toString("hex")))
       throw new KovanError("guard", "Pool does not run an explicitly trusted Kovan code hash");
+    if (!this.contracts.legacyBindings) {
+      assertPoolBindings(await this.read(address, "get_config"), this.contracts);
+    }
   }
   async prepareCreatePool(owner2, salt = Keypair2.random().rawPublicKey()) {
     return prepareOperation(this, { source: owner2, maxFeeStroops: this.maxFeeStroops, operation: buildCreatePoolOp({ owner: owner2, salt, ...this.contracts }) });
@@ -37742,7 +37791,7 @@ var PoolClient = class {
     }
     if (agent2) {
       const code = await this.client.rpc.getContractWasmByContractId(agent2);
-      if (hash2(Buffer69.from(code)).toString("hex") !== this.client.contracts.accountWasmHash.toLowerCase())
+      if (hash2(Buffer70.from(code)).toString("hex") !== this.client.contracts.accountWasmHash.toLowerCase())
         throw new KovanError("guard", "Mandate agent does not run the configured account code");
     }
   }
@@ -37765,7 +37814,7 @@ var PoolClient = class {
       throw new KovanError("guard", "Agent does not have the supported single External signer on rule 0");
     if (rule.policies?.length !== 1 || rule.policies[0] !== this.client.contracts.policy)
       throw new KovanError("guard", "Agent policy does not match the configured covenant policy");
-    return { verifier: String(signer[1]), pubkeyHex: Buffer69.from(signer[2]).toString("hex") };
+    return { verifier: String(signer[1]), pubkeyHex: Buffer70.from(signer[2]).toString("hex") };
   }
   async checkedPool() {
     await assertNetwork(this.client);
@@ -37840,40 +37889,6 @@ var PoolClient = class {
   }
 };
 
-// ../sdk/dist/deployments.js
-import { Buffer as Buffer70 } from "node:buffer";
-function currentRelease(manifest) {
-  if (manifest.network !== "testnet")
-    throw new Error("Kovan deployment manifest must be testnet");
-  return manifest.current_release ?? manifest;
-}
-function releaseContracts(release) {
-  return { policy: release.policy, verifier: release.verifier, usdc: release.usdc, poolWasmHash: release.pool_wasm_hash, accountWasmHash: release.account_wasm_hash };
-}
-function deploymentReleases(manifest) {
-  currentRelease(manifest);
-  return [currentRelease(manifest), manifest, ...(manifest.legacy_pools ?? []).map((p) => ({ ...manifest, ...p }))];
-}
-function releaseForHash(manifest, wasmHash) {
-  const matches = deploymentReleases(manifest).filter((r) => r.pool_wasm_hash.toLowerCase() === wasmHash.toLowerCase());
-  if (!matches.length)
-    throw new Error("Pool is not a Kovan pool: untrusted WASM hash");
-  const distinct = new Set(matches.map((r) => JSON.stringify(releaseContracts(r))));
-  if (distinct.size !== 1)
-    throw new Error("Ambiguous deployment bindings for this pool code");
-  return matches[0];
-}
-async function resolvePoolRelease(ctx, manifest, pool) {
-  const code = await ctx.rpc.getContractWasmByContractId(pool);
-  const release = releaseForHash(manifest, hash2(Buffer70.from(code)).toString("hex"));
-  if (release.mandate_version === 1) {
-    const config3 = await simulateRead(ctx, pool, "get_config");
-    if (config3.mandate_version !== 1 || config3.policy !== release.policy || config3.verifier !== release.verifier || config3.usdc !== release.usdc || Buffer70.from(config3.account_wasm_hash).toString("hex") !== release.account_wasm_hash.toLowerCase())
-      throw new Error("Pool constructor bindings do not match the reviewed release");
-  }
-  return release;
-}
-
 // ../deployments/testnet.json
 var testnet_default = {
   network: "testnet",
@@ -37896,45 +37911,89 @@ var testnet_default = {
     }
   ],
   current_release: {
-    name: "native-mandates-v1",
+    name: "native-mandates-v1-recovery-v1",
     mandate_version: 1,
+    recovery_version: 1,
     accounting_version: 3,
-    policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+    max_delegation_depth: 4,
+    max_family_agents: 17,
+    policy: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
     verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
     usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    account_wasm_hash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
-    pool_wasm_hash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+    account_wasm_hash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+    pool_wasm_hash: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
     policy_wasm_hash: "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
     verifier_wasm_hash: "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e",
-    published_at: "2026-10-26T09:03:09.525Z",
+    published_at: "2026-10-26T10:22:37.729Z",
     deployer: "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
     transactions: {
       account_upload: {
-        value: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
-        tx: "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883",
+        value: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+        tx: "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e",
         transactions: [
-          "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883"
+          "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e"
         ]
       },
       pool_upload: {
-        value: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
-        tx: "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292",
+        value: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+        tx: "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071",
         transactions: [
-          "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292"
+          "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071"
         ]
       },
       policy_deploy: {
-        value: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
-        tx: "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a",
+        value: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+        tx: "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c",
         transactions: [
-          "e085289aa9c35ec0994ea97eec4e76646ccd472d33a623f86af481e0f1d1bdd7",
-          "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a"
+          "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c"
         ]
       }
     },
     supports_yield: true,
     yield_vaults: []
-  }
+  },
+  previous_releases: [
+    {
+      name: "native-mandates-v1",
+      mandate_version: 1,
+      accounting_version: 3,
+      policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+      verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+      usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      account_wasm_hash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+      pool_wasm_hash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+      policy_wasm_hash: "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
+      verifier_wasm_hash: "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e",
+      published_at: "2026-10-26T09:03:09.525Z",
+      deployer: "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
+      transactions: {
+        account_upload: {
+          value: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+          tx: "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883",
+          transactions: [
+            "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883"
+          ]
+        },
+        pool_upload: {
+          value: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+          tx: "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292",
+          transactions: [
+            "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292"
+          ]
+        },
+        policy_deploy: {
+          value: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+          tx: "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a",
+          transactions: [
+            "e085289aa9c35ec0994ea97eec4e76646ccd472d33a623f86af481e0f1d1bdd7",
+            "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a"
+          ]
+        }
+      },
+      supports_yield: true,
+      yield_vaults: []
+    }
+  ]
 };
 
 // src/request.ts

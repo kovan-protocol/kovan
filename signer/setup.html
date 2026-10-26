@@ -59,12 +59,14 @@
 
       <p id="status" role="status" aria-live="polite" hidden></p>
 
-      <section id="result" hidden>
         <div id="keys" class="plan-keys" hidden>
-          <h2>Download your agent keys</h2>
-          <p>These keys were generated in this browser. Give each one only to the bot that spends for that agent; its covenant limits what the key can do. They aren't stored anywhere else.</p>
+          <h2>Back up keys before deploying</h2>
+          <p>Keys stay only in this tab. Download the backup before creating any agents. After a reload, import the same file to continue. Keep it private; never paste secrets into chat.</p>
           <button id="download" type="button">Download agent keys</button>
+          <label><input id="backup-confirm" type="checkbox" disabled /> I saved the backup file securely.</label>
+          <label>Restore backup <input id="import-keys" type="file" accept="application/json,.json" /></label>
         </div>
+      <section id="result" hidden>
         <h2>Send this back to your agent</h2>
         <pre id="result-json" class="mono"></pre>
         <button id="copy" type="button" class="secondary">Copy</button>

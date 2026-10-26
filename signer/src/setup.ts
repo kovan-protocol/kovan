@@ -1,9 +1,10 @@
 // Kovan setup page: runs a whole plan from one link (create pool → fund →
 // create agents). The owner connects Freighter once and approves each step.
-// Progress (never keys) survives a reload, so a refresh can't create a second pool.
+// Persist signed pending transactions before broadcast; reconcile them on reload.
+// Secrets stay in memory and must be backed up before any agent is deployed.
 import { getNetwork, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Keypair } from "@stellar/stellar-sdk";
-import { addrVal, type SubmitResult } from "@kovan-protocol/sdk";
+import { addrVal, signPrepared, transactionStatus, type SubmitResult } from "@kovan-protocol/sdk";
 import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
 import { describeAgent, parsePlan, steps, type Plan } from "./plan";
 import { encodeRequest, formatUsdc, RequestError, type SignRequest } from "./request";
@@ -12,7 +13,11 @@ import "./setup.css";
 import "./appearance";
 
 type Step = ReturnType<typeof steps>[number];
-type Progress = { pool?: string; done: boolean[]; agents: (string | null)[]; txs: (string | null)[] };
+type Progress = {
+  pool?: string; owner?: string; done: boolean[]; agents: (string | null)[]; txs: (string | null)[];
+  publicKeys?: Record<number, string>;
+  pending?: { index: number; hash: string; xdr?: string };
+};
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 const PROGRESS_KEY = "kovan-setup:" + location.search;
@@ -49,15 +54,25 @@ function status(text: string, kind: "info" | "error" | "ok" = "info") {
 
 function load(): Progress {
   const empty: Progress = { done: list.map(() => false), agents: plan.agents.map(() => null), txs: list.map(() => null) };
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(PROGRESS_KEY) ?? "null") as Progress | null;
-    if (saved && saved.done.length === list.length) return saved;
-  } catch { /* start fresh */ }
-  return empty;
+  const saved = JSON.parse(sessionStorage.getItem(PROGRESS_KEY) ?? "null") as Progress | null;
+  if (!saved) return empty;
+  if (!Array.isArray(saved.done) || saved.done.length !== list.length || saved.done.some(d => typeof d !== "boolean")
+      || !Array.isArray(saved.agents) || saved.agents.length !== plan.agents.length || !Array.isArray(saved.txs) || saved.txs.length !== list.length) {
+    throw new Error("Saved setup progress is invalid. Reconcile the existing transactions before starting a new setup.");
+  }
+  // Preserve unknown hashes written by the older setup page. Never rebuild
+  // those steps simply because their signed envelope was not retained.
+  const unknown = saved.txs.map((hash, index) => !saved.done[index] && hash ? { index, hash } : null).filter(x => x !== null);
+  if (unknown.length > 1) throw new Error("Multiple unresolved transactions; reconcile them before continuing.");
+  saved.pending ??= unknown[0];
+  if (saved.pending && (!Number.isInteger(saved.pending.index) || saved.pending.index < 0 || saved.pending.index >= list.length
+      || saved.done[saved.pending.index] || !/^[a-f0-9]{64}$/.test(saved.pending.hash))) throw new Error("Invalid pending transaction; reconcile before continuing.");
+  return saved;
 }
 
 function save() {
-  try { sessionStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch { /* best effort */ }
+  // Persistence is a prerequisite to submission, not a best-effort convenience.
+  sessionStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 }
 
 const PLAIN: [RegExp, string][] = [
@@ -101,6 +116,8 @@ function renderSteps() {
     if (progress.done[i] && tx) {
       li.append(" ", link("✓ done", explorerTx(tx)));
       li.className = "step-done";
+    } else if (tx) {
+      li.append(" ", link("Check pending transaction", explorerTx(tx)));
     }
     return li;
   }));
@@ -121,6 +138,10 @@ async function connect() {
     const net = await getNetwork();
     if (net.networkPassphrase !== NETWORK_PASSPHRASE) throw new Error(`Freighter is on ${net.network || "another network"}. Switch it to Testnet and try again.`);
     owner = access.address;
+    if (progress.owner && progress.owner !== owner) throw new Error("Reconnect the wallet that started this setup.");
+    progress.owner = owner;
+    save();
+    prepareKeys();
     $("owner").textContent = owner;
     $("connected").hidden = false;
     $("connect").hidden = true;
@@ -148,13 +169,32 @@ async function checkBalance(addr: string) {
   }
 }
 
-async function signAndSend(req: SignRequest): Promise<SubmitResult> {
+async function signAndSend(req: SignRequest, index: number): Promise<SubmitResult> {
   const prepared = await prepare(req, owner!);
-  return client.signAndSend(prepared, async (xdr, ctx) => {
+  const signed = await signPrepared(prepared, async (xdr, ctx) => {
     const r = await signTransaction(xdr, { networkPassphrase: ctx.networkPassphrase, address: ctx.address });
     if (r.error) throw new Error(errText(r.error, "Signing was cancelled"));
     return r.signedTxXdr;
   });
+  progress.pending = { index, hash: prepared.hash, xdr: signed };
+  progress.txs[index] = prepared.hash;
+  save(); // Must succeed BEFORE the first possible broadcast.
+  return client.submit(signed);
+}
+
+function prepareKeys() {
+  progress.publicKeys ??= {};
+  plan.agents.forEach((a, i) => {
+    if (a.keyGiven || progress.publicKeys![i] || progress.agents[i]) return;
+    // An old pending deployment must be reconciled before generating a key.
+    if (progress.pending && list[progress.pending.index]?.agent === i) return;
+    const key = Keypair.random();
+    keys.set(i, key);
+    progress.publicKeys![i] = key.publicKey();
+    keysSaved = false;
+  });
+  save();
+  $("keys").hidden = !plan.agents.some(a => !a.keyGiven);
 }
 
 function requestFor(step: Step): SignRequest {
@@ -164,8 +204,9 @@ function requestFor(step: Step): SignRequest {
   if (step.kind === "fund") return { fn: "fund", pool, amount: plan.fund! };
   const a = plan.agents[step.agent!];
   if (a.keyGiven) return { ...a.req, pool };
-  let kp = keys.get(step.agent!);
-  if (!kp) { kp = Keypair.random(); keys.set(step.agent!, kp); keysSaved = false; }
+  const kp = keys.get(step.agent!);
+  if (!kp) throw new Error("Import your saved agent-key backup to resume. A replacement key would not control an already-created agent.");
+  if (!keysSaved) throw new Error("Download the agent-key backup and confirm it is saved before deploying agents.");
   return { ...a.req, pool, agentKey: kp.publicKey(), agentPubkeyHex: kp.rawPublicKey().toString("hex") };
 }
 
@@ -175,17 +216,28 @@ async function run() {
   const button = $("run") as HTMLButtonElement;
   button.disabled = true;
   try {
+    if (progress.owner !== owner) throw new Error("Reconnect the wallet that started this setup.");
     for (let i = 0; i < list.length; i++) {
       if (progress.done[i]) continue;
       const step = list[i];
-      status(`Step ${i + 1} of ${list.length}: ${step.label}. Approve it in Freighter.`);
-      const r = await signAndSend(requestFor(step));
-      if (r.status === "NOT_FOUND") {
-        progress.txs[i] = r.hash;
-        save();
-        throw new Error(`Step ${i + 1} was submitted but isn't confirmed yet (${r.hash.slice(0, 10)}…). Check it on stellar.expert before continuing, so nothing runs twice.`);
+      let r: SubmitResult;
+      if (progress.pending) {
+        if (progress.pending.index !== i) throw new Error("Reconcile the pending step before continuing.");
+        status(`Checking the saved transaction for step ${i + 1}. No new approval or payment is being created.`);
+        r = await transactionStatus(client, progress.pending.hash);
+        if (r.status === "NOT_FOUND" && progress.pending.xdr) { save(); r = await client.submit(progress.pending.xdr); }
+      } else {
+        status(`Step ${i + 1} of ${list.length}: ${step.label}. Approve it in Freighter.`);
+        r = await signAndSend(requestFor(step), i);
       }
-      if (r.status !== "SUCCESS") throw new Error(r.error ?? `Step ${i + 1} ${r.status.toLowerCase()}`);
+      if (r.status === "FAILED") {
+        delete progress.pending;
+        progress.txs[i] = null;
+        save();
+        throw new Error(r.error ?? "Transaction failed on-chain; this step can be tried again.");
+      }
+      if (r.status !== "SUCCESS") throw new Error(`Step ${i + 1} is unresolved (${progress.pending?.hash}). Continue only checks/resends this same transaction, never a new payment. ${r.error ?? ""}`);
+      if ((step.kind === "agent" || step.kind === "create_pool") && typeof r.returnValue !== "string") throw new Error("Confirmed deployment has no readable address. Reconcile its result before continuing.");
       if (step.kind === "create_pool") progress.pool = String(r.returnValue);
       if (step.kind === "agent") {
         progress.agents[step.agent!] = String(r.returnValue);
@@ -195,6 +247,7 @@ async function run() {
       }
       progress.done[i] = true;
       progress.txs[i] = r.hash;
+      delete progress.pending;
       save();
       renderSteps();
     }
@@ -209,7 +262,7 @@ async function run() {
 }
 
 function agentKey(i: number): string {
-  return plan.agents[i].keyGiven ? plan.agents[i].req.agentKey : keys.get(i)?.publicKey() ?? "(generated key not in this tab)";
+  return plan.agents[i].keyGiven ? plan.agents[i].req.agentKey : progress.publicKeys?.[i] ?? "(import backup; legacy key unavailable)";
 }
 
 function summary(): string {
@@ -231,29 +284,52 @@ function finish() {
   const links = $("links");
   links.replaceChildren(link("View pool", explorerContract(pool)), ...progress.agents.flatMap((a, i) => a ? [link(`View ${plan.agents[i].name}`, explorerContract(a))] : []));
   $("result-json").textContent = summary();
-  const generated = [...keys.keys()].filter((i) => progress.agents[i]);
-  $("keys").hidden = !generated.length;
+  $("keys").hidden = !plan.agents.some(a => !a.keyGiven);
   res.hidden = false;
 }
 
 function downloadKeys() {
-  const pool = plan.pool ?? progress.pool!;
-  const agents = [...keys.entries()].filter(([i]) => progress.agents[i]).map(([i, kp]) => ({
-    name: plan.agents[i].name, agent: progress.agents[i], public_key: kp.publicKey(), secret: kp.secret(),
+  const pool = plan.pool ?? progress.pool;
+  const agents = [...keys.entries()].map(([i, kp]) => ({
+    index: i, name: plan.agents[i].name, agent: progress.agents[i], public_key: kp.publicKey(), secret: kp.secret(),
   }));
+  if (!agents.length) { status("Import your existing backup; no secret keys are available in this tab.", "error"); return; }
   const body = JSON.stringify({
-    kind: "kovan-agent-keys", version: 1, network: "testnet", pool, agents,
+    kind: "kovan-agent-keys", version: 2, network: "testnet", plan: location.search, pool, agents,
     use: "Give each secret only to the agent runtime that spends for it, e.g. KOVAN_AGENT_SECRET=S… node kovan.mjs agent draw --pool … --agent … --amount 1. Never paste it into a chat.",
   }, null, 2);
   const url = URL.createObjectURL(new Blob([body], { type: "application/json" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `kovan-agent-keys-${pool.slice(0, 8)}.json`;
+  a.download = `kovan-agent-keys-${pool?.slice(0, 8) ?? "setup"}.json`;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  keysSaved = true;
+  ($("backup-confirm") as HTMLInputElement).disabled = false;
+}
+
+async function importKeys() {
+  const input = $("import-keys") as HTMLInputElement;
+  try {
+    const file = input.files?.[0];
+    if (!file || file.size > 100_000) throw new Error("Select a valid small JSON key backup.");
+    const backup = JSON.parse(await file.text());
+    if (backup.kind !== "kovan-agent-keys" || backup.version !== 2 || backup.network !== "testnet" || backup.plan !== location.search || !Array.isArray(backup.agents)) throw new Error("Backup does not match this setup link.");
+    const restored = new Map<number, Keypair>();
+    for (const a of backup.agents) {
+      if (!Number.isInteger(a.index) || !plan.agents[a.index] || plan.agents[a.index].keyGiven || restored.has(a.index)) throw new Error("Invalid backup agent.");
+      const key = Keypair.fromSecret(a.secret);
+      if (key.publicKey() !== a.public_key || progress.publicKeys?.[a.index] !== a.public_key) throw new Error("Backup key does not match the saved deployment key.");
+      restored.set(a.index, key);
+    }
+    if (Object.keys(progress.publicKeys ?? {}).some(i => !restored.has(Number(i)))) throw new Error("Incomplete backup.");
+    for (const [i, key] of restored) keys.set(i, key);
+    keysSaved = true;
+    const check = $("backup-confirm") as HTMLInputElement; check.checked = true; check.disabled = false;
+    status("Backup restored locally. No keys were sent to a server.", "ok");
+  } catch { status("Could not restore this backup. It must match the setup link and saved public keys.", "error"); }
+  finally { input.value = ""; }
 }
 
 async function copySummary() {
@@ -266,6 +342,8 @@ function start() {
   $("run").addEventListener("click", run);
   $("copy").addEventListener("click", copySummary);
   $("download").addEventListener("click", downloadKeys);
+  $("import-keys").addEventListener("change", importKeys);
+  $("backup-confirm").addEventListener("change", () => { keysSaved = ($("backup-confirm") as HTMLInputElement).checked; });
   window.addEventListener("beforeunload", (e) => { if (!keysSaved) e.preventDefault(); });
   let parsed: Plan | null;
   try {
@@ -278,7 +356,8 @@ function start() {
   if (!parsed) return;
   plan = parsed;
   list = steps(plan);
-  progress = load();
+  try { progress = load(); }
+  catch (e) { status(`Cannot safely resume: ${(e as Error).message}`, "error"); return; }
   $("empty").hidden = true;
   renderPlan();
   if (progress.done.every(Boolean)) { status("This setup was already completed in this tab.", "ok"); finish(); }

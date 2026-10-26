@@ -19,6 +19,8 @@ Kovan gives AI agents shared USDC budgets they can't overspend. An owner locks U
 
 The owner can revoke an agent at any time and pull its funds back into the pool without the agent's signature. See [Concepts](/docs/concepts).
 
+New testnet pools additionally require native owner-approved payment mandates: exact or budget grants, intent/purchase commitments, deadlines, consumed payment IDs and receipts. Existing pools retain their original code. These grants are not AP2 signed credentials or proof of task delivery; see [Contracts](/docs/contracts).
+
 ## Two ways to use Kovan
 
 - **Through an agent.** Install Kovan into your agent and ask in plain words: *"Set me up a $100 pool with 2 agents."* The agent prepares every transaction with [`kovan.mjs`](/docs/agent-tool); you approve each owner action in Freighter. → [Quickstart](/docs/quickstart)
@@ -92,10 +94,18 @@ node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
   --agent-key "$(stellar keys public-key kovan-agent-1)" --draw-limit 40 \
   --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
 node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
-node kovan.mjs agent pay  --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1
+# Persist these nonzero 32-byte hex commitments; choose a future ledger
+# no later than the agent's expiry, read from `status`.
+node kovan.mjs owner create_mandate --owner G…OWNER --pool C…POOL --agent C…AGENT \
+  --mandate-id $MANDATE_ID --intent-hash $INTENT_HASH --expiry-ledger $EXPIRY_LEDGER \
+  --scope budget --payees G…PROVIDER --per-payment-cap 0.5 --total-cap 40
+node kovan.mjs agent pay --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1 \
+  --mandate-id $MANDATE_ID --request-id $PERSISTED_REQUEST_ID --reference $PURCHASE_HASH
 ```
 
 Every command prints one JSON line. See [Agent tool](/docs/agent-tool) for all commands.
+
+The setup page creates pools and agents, but does not automatically approve payment grants. Approve one separately in the console or signing page. Keep each purchase's ID and exact inputs across retries; a receipt proves payment, not delivery.
 
 ## From code
 
@@ -107,22 +117,25 @@ npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
 
 ```ts
 import { Networks } from "@stellar/stellar-sdk";
-import { KovanClient } from "@kovan-protocol/sdk";
+import { KovanClient, currentRelease, releaseContracts } from "@kovan-protocol/sdk";
 
 const d = await (await fetch("https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json")).json();
 const kovan = new KovanClient({
   rpcUrl: "https://soroban-testnet.stellar.org",
   networkPassphrase: Networks.TESTNET,
-  contracts: { usdc: d.usdc, policy: d.policy, verifier: d.verifier, poolWasmHash: d.pool_wasm_hash, accountWasmHash: d.account_wasm_hash },
+  contracts: releaseContracts(currentRelease(d)),
 });
 
 // Owner: prepare → show the owner → sign (e.g. Freighter) → submit.
 const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), signOwner);
+if (created.status !== "SUCCESS") throw new Error(`${created.status}: ${created.hash}`);
 const pool = kovan.pool(created.returnValue as string);
 await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signOwner); // 100 USDC
 ```
 
 SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
+
+Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the retained historical default. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
 
 ## Check what happened
 
@@ -240,6 +253,8 @@ One self-contained Node.js file (Node 20+). Agents use it to prepare every Kovan
 
 Contract IDs and code hashes are built into the file from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json). Nothing passed on the command line can change them.
 
+Use the rebuilt tool for the native-mandate release: new creation selects `current_release`, while existing pools retain their verified original bindings. New accounts require a grant before payment; old accounts do not upgrade automatically.
+
 ## Output
 
 - **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","pool":"C…"}`
@@ -284,8 +299,12 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 | `return_funds` | `--pool --agent --amount` | Pulls USDC from the agent wallet back into the pool |
 | `close` | `--pool --agent` | Final; after everything drawn is back |
 | `withdraw` | `--pool --amount` | Takes back unassigned USDC |
+| `create_mandate` | `--pool --agent --mandate-id HEX --intent-hash HEX --expiry-ledger N`, plus scope flags below | Owner approves a payment grant |
+| `revoke_mandate` | `--pool --agent --mandate-id HEX` | Permanently revoke a grant, without blocking returns |
 
 `--agent-key` takes the agent's **public** key (`G…` or 64 hex characters). A secret key is refused with a warning.
+
+Mandate scopes: `--scope exact --payee G… --amount 0.01 --reference HEX` authorizes one purchase; `--scope budget --payees G…,G… --per-payment-cap 0.1 --total-cap 1` authorizes multiple purchases within limits. Hashes are nonzero 32-byte hex; expiry is a future ledger no later than the covenant. Grants never expand covenant permissions.
 
 ### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…]`
 
@@ -304,6 +323,10 @@ The covenant is checked during simulation, so a refused payment fails before any
 ```
 
 ### `status --pool C… [--agent C…]`
+
+New agents require `--mandate-id HEX --request-id PERSISTED_ID --reference HEX` for `pay`. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. Draw/return do not take payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
+
+Read grants with `mandate --pool C… --agent C… --mandate-id HEX`, and receipts with `receipt --pool C… --agent C… --request-id PERSISTED_ID`. A receipt proves authorized transfer, not delivery. Missing receipt while authorization is live does not prove nonpayment.
 
 Reads the pool (owner, locked, assigned, agents) and, with `--agent`, that agent's limits, drawn amount, covenant and spend counters.
 
@@ -328,6 +351,8 @@ Full list: [Contracts → Error codes](/docs/contracts#error-codes).
 
 Chat assistants that can't run commands (ChatGPT, Grok, Claude.ai) write **one plain link** from the limits you give them in the chat. You open it, connect Freighter once, and approve each step; the page creates the pool, funds it and creates every agent.
 
+Setup does **not** approve mandates. New agents need a separate owner-approved grant in the console or a signing link before spending.
+
 ```text
 https://kovan-protocol.vercel.app/setup?fund=100
   &agent=name:research,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
@@ -351,6 +376,8 @@ node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(pro
 
 The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there.
 
+`create_mandate` adds `mandate_id`, `intent_hash`, `expiry_ledger`, and `scope` (`exact`: `payee`, `amount`, `reference`; `budget`: `payees` array, `per_payment_cap`, `total_cap`). `revoke_mandate` needs `pool`, `agent`, `mandate_id`. Amounts remain decimal USDC strings. The page fixes the asset to the verified pool's USDC.
+
 ---
 
 <!-- https://kovan-protocol.vercel.app/docs/sdk -->
@@ -358,17 +385,17 @@ The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, 
 
 A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
 
-> Available on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk). Testnet prototype, not audited.
+> Testnet prototype, not audited. The fixes and current-release examples below use source version **0.2.0**, not yet published to npm. The earlier 0.1.0 package remains on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk).
 
 ## Install
 
+Build a local tarball with `npm ci && npm pack` from the repository's `sdk/`, then install it into your application:
+
 ```bash
-npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
+npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
 
-`@stellar/stellar-sdk` is a peer dependency, shared with your app.
-
-To develop against the latest repository code, build a local tarball with `npm ci && npm pack` from `sdk/`. The repository may contain changes newer than the published release.
+`@stellar/stellar-sdk` is a peer dependency, shared with your app. Packing builds the package but does not publish it.
 
 ## Configure
 
@@ -383,16 +410,20 @@ const kovan = new KovanClient({
   networkPassphrase: Networks.TESTNET,
   contracts: {
     usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+    policy: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
     verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
-    poolWasmHash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
-    accountWasmHash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+    poolWasmHash: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+    accountWasmHash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
   },
   maxFeeStroops: "10000000", // fee ceiling: 1 XLM
 });
 ```
 
 This configuration uses the new native-mandate release. Build the latest source for deployment helpers: `releaseContracts(currentRelease(manifest))` selects new creation; `releaseContracts(await resolvePoolRelease(kovan, manifest, address))` selects an existing pool's verified generation for a separate client. Old code hashes alone do not reconcile different policies or account code. Do not point an old pool at the new policy.
+
+Version 0.2.0 checks the immutable policy, verifier, token, account WASM and mandate capability before preparing pool operations. A failed binding read refuses preparation. Only explicitly reviewed pre-mandate releases use `legacyBindings: true`; it must never be an automatic fallback for an RPC error. Retained `previous_releases` keep existing pools resolvable after a rollout.
+
+For uncertain submissions, persist the hash and signed envelope before sending and use `transactionStatus(kovan, hash)` to reconcile without another signature. If resubmission is necessary, use the identical envelope, not a freshly prepared action.
 
 **Amounts are integer base-unit strings.** USDC has 7 decimals: `"10000000"` is 1 USDC.
 
@@ -513,9 +544,19 @@ Four Soroban contracts, written in Rust with `soroban-sdk` 28 and OpenZeppelin `
 
 ## Deployed on testnet
 
+Latest release, published 2026-10-26: native mandate v1, recovery v1, accounting v3. `New pool` uses these artifacts; a pool instance still needs owner wallet approval. No existing agents or funds are migrated.
+
+| New artifact | ID / hash |
+| --- | --- |
+| Covenant policy | `CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7` |
+| Pool WASM | `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` |
+| Agent-account WASM | `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
+
+The verifier and USDC below are reused. The following bindings describe the **historical displayed default**, not new creation:
+
 | Contract | ID / hash |
 |---|---|
-| Pool (v2, current) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
+| Pool (v2, retained default) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
 | Pool code (wasm hash) | `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` |
 | Covenant policy | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
 | ed25519 verifier | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
@@ -535,7 +576,7 @@ Anyone can deploy their own pool from the published pool code (`kovan.mjs owner 
 
 The policy is a separate contract from the pool on purpose: Soroban forbids re-entering a contract. When an agent calls the pool, the pool asks the wallet to authorize, and the wallet asks its policy. If the policy were the pool, that would re-enter the pool.
 
-## Pool functions (v2)
+## Pool functions
 
 | Function | Caller | Effect |
 |---|---|---|
@@ -552,8 +593,16 @@ The policy is a separate contract from the pool on purpose: Soroban forbids re-e
 | `dispute(agent, by, evidence)` / `resolve_dispute(agent, outcome)` | agent or owner / owner | Record an objection / the owner's ruling |
 | `delegate(parent, child_pubkey, child_draw_limit, child_covenant) → Address` | agent | Create a narrower child agent |
 | `get_pool()`, `get_agent(agent)`, `list_agents()` | anyone | Read state |
+| `get_config()`, `mandate_version()` | anyone | New release: immutable constructor bindings / native mandate capability |
+| `create_mandate(agent, params)` | original owner | New release: approve immutable exact or budget grant |
+| `revoke_mandate(agent, id)` | original owner | New release: terminal grant revocation |
+| `get_mandate(agent, id)`, `get_payment(agent, payment_id)` | anyone | New release: read grant / durable payment receipt |
 
-The repository also contains experimental v3 functions for optional yield on idle pool funds. They are **not deployed** and not part of the current pool.
+The published v3 code includes experimental optional-yield functions, but no matching vault is enabled. Pools start cash-only; publication does not activate yield.
+
+Recovery v1 renews the fixed pool/token allowance before recovering an agent's balance, including after its previous 3,000,000-ledger allowance has expired. Only the bound pool can renew it; no signer, policy or arbitrary spender can be added. The new delegation limits are 16 direct children, depth 4 (root is depth 0), and 17 agents per root family over its lifetime. Closed descendants still count so recursive revocation remains bounded. Older immutable releases do not acquire these fixes.
+
+Native mandates are owner-approved exact-transfer or budget grants with intent hashes and deadlines. New account authorization binds mandate ID, single-use payment ID, purchase reference and expiry. The policy enforces both grant and covenant, recording a receipt atomically with payment. Returns to the pool do not require a grant. Generic calls retain covenant checks; native mandates do not implement AP2 credentials, remote task execution or delivery verification. Legacy pools do not acquire these rules.
 
 ### Covenant parameters
 
@@ -587,6 +636,8 @@ The pool publishes one event per state change. Use Stellar RPC `getEvents` on th
 
 Agent payments appear as USDC `transfer` events from the agent's wallet address.
 
+The new **policy** also emits `MandateCreated` (agent, mandate ID, params), `MandateRevoked` (agent, mandate ID), and `MandatePayment` (agent, payment ID, receipt). Query the selected pool's policy, not a global latest policy when viewing an old pool.
+
 ## Error codes
 
 Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.g. `#3904 PayeeNotAllowed`.
@@ -611,8 +662,10 @@ Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.
 | 16 | `Expired` | The agent's covenant has expired |
 | 17 | `PoolClosed` | The pool is permanently closed |
 | 18 | `PoolNotEmpty` | Can't close the pool while agents are open |
+| 29 | `TooManyDescendants` | Root family already contains 17 lifetime agents |
+| 30 | `DelegationTooDeep` | Child would exceed depth 4, counting the root as 0 |
 
-Codes 2 and 8 are reserved; 19–27 belong to the undeployed v3 yield code.
+Codes 2 and 8 are reserved; 19–27 belong to v3 yield operations. `28 UnsupportedMandate` refuses grants for agents without the new capability.
 
 ### Covenant policy
 
@@ -633,6 +686,14 @@ Codes 2 and 8 are reserved; 19–27 belong to the undeployed v3 yield code.
 | 3912 | `SelfCallForbidden` | The wallet can't call itself |
 | 3913 | `NoSigner` | No authenticated signer |
 | 3914 | `NotPool` | Reserved (revoke and amend on the policy already require the pool's authorization) |
+| 3915 | `MandateRequired` | New outgoing payment lacks a grant envelope |
+| 3916 | `MandateInvalid` | Invalid grant or payment binding |
+| 3917 | `MandateExists` | Grant ID cannot be replaced |
+| 3918 | `MandateMissing` | Unknown grant |
+| 3919 | `MandateRevoked` | Grant permanently revoked |
+| 3920 | `MandateExceeded` | Grant budget exhausted |
+| 3921 | `PaymentConsumed` | Payment ID already used, even under another grant |
+| 3922 | `PaymentMismatch` | Payment differs from the authorized scope |
 
 ### Smart account (OpenZeppelin, 3000–3018)
 
@@ -661,15 +722,17 @@ The standard `@x402/stellar` client signs only for classic `G…` accounts. Kova
 
 1. Request the resource and read the `402` terms: price, USDC asset, `payTo` (a `G…` account with a USDC trustline).
 2. Build `USDC.transfer(agentWallet, payTo, amount)` and simulate it to get the wallet's authorization entry.
-3. Sign that entry with the agent's key as an OpenZeppelin `AuthPayload` (the signature covers the `AuthDigestPreimage` digest and the rule ID), with an expiration ledger within the facilitator's limit.
+3. Legacy accounts sign an OpenZeppelin `AuthPayload`. New accounts require an owner-approved mandate and a versioned envelope binding the mandate ID, payment ID, purchase-reference hash and expiry into the signed digest. Both use an authorization expiration within the facilitator's limit.
 4. Send `{ transaction }` as the x402 payment payload. The facilitator verifies and settles it; on testnet, [x402.org](https://x402.org) sponsors the fees.
 5. During settlement, Stellar asks the wallet to authorize the transfer, and the wallet asks the covenant. Allowed: the API returns the resource. Refused: nothing moves.
 
-On testnet, an agent paid Stellar's x402 demo endpoint 0.01 USDC this way ([transaction](https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d)). A payment to an address outside the covenant was refused by the wallet with `#3904 PayeeNotAllowed`, before anything was submitted.
+On testnet, a **legacy account** paid Stellar's x402 demo endpoint 0.01 USDC this way ([transaction](https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d)). A payment to an address outside the covenant was refused by the wallet with `#3904 PayeeNotAllowed`, before anything was submitted. This historical transaction does not validate the new mandate envelope through the live facilitator.
 
 ## Status
 
-x402 payments are implemented in the Kovan console (`dashboard/lib/agent-x402.ts`). They are not yet in `@kovan-protocol/sdk` or `kovan.mjs`. Until then, agents pay listed providers directly with `kovan.mjs agent pay` or `prepareAgent("pay", …)`. The covenant applies the same rules either way.
+x402 HTTP handling is implemented in the Kovan console (`dashboard/lib/agent-x402.ts`), using `@kovan-protocol/sdk` for contract authorization. The SDK and CLI do not independently fetch paid resources. The console discovers and reviews a quote first, then requires the same `quoteId` and a persisted `requestId` when paying. New accounts also require `mandateId`; the signed reference is the quote hash, and `paymentIdForRequest(requestId)` supplies replay protection. Exact grants bind the quoted recipient/amount/reference; budget grants limit multiple purchases. Unknown settlement outcomes must be reconciled before another purchase.
+
+The new contracts have passed a live **direct-payment** mandate lifecycle with disposable testnet XLM. Live x402 facilitator acceptance for this release remains unverified. The chain enforces hashes and spending rules, not URL contents, work quality or refunds. This is native Kovan authorization, not AP2 credential conformance.
 
 ---
 

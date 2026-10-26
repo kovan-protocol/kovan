@@ -11,6 +11,22 @@ An agent sends a link like `https://kovan-protocol.github.io/kovan/#r=<base64url
 
 ## Agent tool: `kovan.mjs`
 
+### Setup recovery and key backup
+
+The `/setup` page requires downloading and confirming a key backup **before
+deploying generated-key agents**. Secrets remain only in memory and the downloaded
+file, never browser storage or a backend. After a reload, import that file; its
+keys must match the public keys saved with the setup. An older setup that already
+lost its keys requires owner recovery and replacement agents.
+
+Both hosted signing pages persist pending signed envelopes and hashes before
+broadcast. Continue reconciles the saved hash and can resend only the identical
+envelope. Unknown settlement never permits a new payment. Unavailable storage
+blocks submission. If the hash has aged out of RPC history, reconcile through an
+explorer/operator; do not clear storage to retry.
+
+### Local CLI
+
 `src/cli.ts` builds into [`skills/kovan/scripts/kovan.mjs`](../skills/kovan/scripts/kovan.mjs), one self-contained Node file for agents running on the owner's machine: `connect`, `owner <action>`, `agent draw|pay|return`, `status`. It reuses this folder's request validation (`src/request.ts`) and transaction building (`src/chain.ts`). For owner approval it serves a local wallet page (`src/wallet-page.ts`) on `127.0.0.1` behind a random path, so the agent itself prepares each transaction and the owner signs in Freighter. The bundle is committed so the skill works when installed; CI rebuilds it and fails if the committed copy is stale. It's also published as `kovan.mjs` next to the page.
 
 ## Develop
