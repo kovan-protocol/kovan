@@ -7,17 +7,15 @@ description: "@kovan-protocol/sdk: create pools and agents, and sign agent payme
 
 A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
 
-> Testnet prototype, not audited. The fixes and current-release examples below use source version **0.2.0**, not yet published to npm. The earlier 0.1.0 package remains on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk).
+> Testnet prototype, not audited. The examples below use version **0.2.0** on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk). The earlier 0.1.0 package lacks the constructor-binding checks and deployment helpers.
 
 ## Install
 
-Build a local tarball with `npm ci && npm pack` from the repository's `sdk/`, then install it into your application:
-
 ```bash
-npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.2.0 @stellar/stellar-sdk@16.4.1
 ```
 
-`@stellar/stellar-sdk` is a peer dependency, shared with your app. Packing builds the package but does not publish it.
+`@stellar/stellar-sdk` is a peer dependency, shared with your app. To try unreleased changes instead, build a local tarball with `npm ci && npm pack` from the repository's `sdk/` and install that file.
 
 ## Configure
 

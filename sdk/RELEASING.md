@@ -46,9 +46,9 @@ being released:
 
 ```bash
 npm pack --json --pack-destination /tmp/kovan-npm-release
-tar -tzf /tmp/kovan-npm-release/kovan-protocol-sdk-0.1.0.tgz
-npm publish /tmp/kovan-npm-release/kovan-protocol-sdk-0.1.0.tgz --access public --registry=https://registry.npmjs.org/
-npm view @kovan-protocol/sdk@0.1.0 version dist.integrity --json --registry=https://registry.npmjs.org/
+tar -tzf /tmp/kovan-npm-release/kovan-protocol-sdk-0.2.0.tgz
+npm publish /tmp/kovan-npm-release/kovan-protocol-sdk-0.2.0.tgz --access public --registry=https://registry.npmjs.org/
+npm view @kovan-protocol/sdk@0.2.0 version dist.integrity --json --registry=https://registry.npmjs.org/
 ```
 
 Create the output directory first. Review the compiled files, sources, examples,

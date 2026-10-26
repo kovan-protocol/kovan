@@ -2,7 +2,7 @@
 
 Subsequent work adds [native on-chain payment mandates](MANDATES.md) to the contracts, SDK, dashboard and signer. New artifacts were published on testnet on 2026-10-26 and passed a separate disposable-XLM mandate lifecycle (evidence in that guide). The historical execution below used legacy contracts. New-pool creation selects `current_release`; existing pools retain their original bindings and funds.
 
-`sdk/` is a standalone TypeScript/ESM package. [`@kovan-protocol/sdk` v0.1.0](https://www.npmjs.com/package/@kovan-protocol/sdk/v/0.1.0) was published to npm on 2026-10-26. See [integration instructions](../sdk/README.md).
+`sdk/` is a standalone TypeScript/ESM package. [`@kovan-protocol/sdk` v0.1.0](https://www.npmjs.com/package/@kovan-protocol/sdk/v/0.1.0) was published to npm on 2026-10-26 at 09:00 UTC, and [v0.2.0](https://www.npmjs.com/package/@kovan-protocol/sdk/v/0.2.0) at 11:31 UTC the same day. See [integration instructions](../sdk/README.md).
 
 The published tarball passed 73 tests, the Chromium compatibility check, and an isolated installation/TypeScript consumer check. Its registry integrity matches the validated artifact:
 
@@ -12,7 +12,11 @@ sha512-YhEdqcYvynUQ+0J7jmCYWxiJ1L2U+0ms7y8ymAapU0NJJvOP4yC3z5cF84YAgt4Ejx87fptLM
 
 This release used a fixed source snapshot. Later working-tree changes, including deployment helpers and the standalone mandate-payment example, are not included in v0.1.0; they require a subsequent release. Package publication does not deploy or upgrade contracts.
 
-Source version **0.2.0** is now built and tested locally, not published to npm. It validates pool constructor bindings, retains earlier releases, adds read-only transaction reconciliation, and includes the current recovery-v1 testnet configuration. Install its local tarball following the SDK README. The signer/CLI bundles use this updated source.
+Version **0.2.0** validates pool constructor bindings, retains earlier releases, adds read-only transaction reconciliation, and includes the current recovery-v1 testnet configuration. The signer/CLI bundles use this source. Before publishing it passed 107 tests and the packaged-consumer check; the published tarball (71 files, 259,697 bytes unpacked) was installed into a fresh consumer and read the default pool through the deployment helpers. Its registry integrity:
+
+```text
+sha512-wBwTIEdcwoNxZAKJAimMLic8KydTmMw1LR+UgZ5prU39J2rRkOP3MtlRsPJwv7PnAchDO26x+78EMfhIzs3iCQ==
+```
 
 The dashboard consumes SDK builders, covenant serialization, custom authorization, reads, error decoding, owner preparation, agent execution and submission. Deployment discovery, local keys, Freighter UI, x402 HTTP handling, yield-provider activation gates and recovery UI remain application-side. Unfinished yield operations have an explicitly experimental export, not a stable client API.
 

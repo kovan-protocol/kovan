@@ -4,15 +4,15 @@ Standalone TypeScript/ESM SDK for Kovan's pool → agent → spending → recove
 
 **Testnet prototype, not audited.** New pool/account code and the native-mandate policy are published on testnet. Existing v2 pools retain their original bindings. Yield is experimental, provider-specific v3 code, not an enabled live integration.
 
-Native mandate v1 provides owner-approved exact/budget grants, signed purchase bindings, replay protection and payment receipts. The configuration below creates matching new pools/agents. See [the mandate guide and live rehearsal](https://github.com/kovan-protocol/kovan/blob/main/docs/MANDATES.md) and [direct-payment example](examples/mandate-payment.mjs). This is not AP2 credential conformance. Build this source for the latest deployment helpers; npm v0.1.0 is a separate, earlier snapshot.
+Native mandate v1 provides owner-approved exact/budget grants, signed purchase bindings, replay protection and payment receipts. The configuration below creates matching new pools/agents. See [the mandate guide and live rehearsal](https://github.com/kovan-protocol/kovan/blob/main/docs/MANDATES.md) and [direct-payment example](examples/mandate-payment.mjs). This is not AP2 credential conformance. The deployment helpers need 0.2.0 or later; npm v0.1.0 is an earlier snapshot without them.
 
-## Install the earlier npm snapshot
+## Install
 
 ```bash
-npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.2.0 @stellar/stellar-sdk@16.4.1
 ```
 
-Stellar's SDK is a peer dependency, shared with the application. For the **0.2.0 fixes and current-release examples below**, build this source using the next section; 0.2.0 has not been published to npm. The package includes compiled JavaScript, TypeScript declarations, source files for debugging, documentation and standalone examples.
+Stellar's SDK is a peer dependency, shared with the application. Version 0.2.0 (published 2026-10-26) carries the fixes and current-release examples below; 0.1.0 is an earlier snapshot without the constructor-binding checks, deployment helpers and reconciliation. The package includes compiled JavaScript, TypeScript declarations, source files for debugging, documentation and standalone examples.
 
 ## Build from source
 
@@ -31,7 +31,7 @@ In another application:
 npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
 
-`npm pack` builds a local tarball; it does not publish to npm.
+`npm pack` builds a local tarball; it does not publish to npm. Use this to try unreleased changes.
 
 ## Configure explicitly
 
@@ -42,7 +42,7 @@ Use `releaseContracts` with a reviewed deployment manifest: it explicitly marks
 pre-mandate releases with `legacyBindings: true` because those contracts cannot
 report their constructor bindings. Never enable that exception for arbitrary
 untrusted pools. `previous_releases` preserves access to older immutable native
-mandate releases after a rollout. This source update does not publish to npm.
+mandate releases after a rollout.
 
 `transactionStatus(client, hash)` reconciles a saved submission without signing
 or sending anything. Persist the signed envelope and hash before broadcast;

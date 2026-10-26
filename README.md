@@ -457,11 +457,10 @@ You need Freighter on Stellar testnet with some testnet USDC (`owner trustline`,
 ### Developer SDK
 
 ```bash
-cd sdk && npm ci && npm pack          # builds kovan-protocol-sdk-0.2.0.tgz; 0.2.0 is not on npm yet
-npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.2.0 @stellar/stellar-sdk@16.4.1
 ```
 
-The npm package (0.1.0) is an earlier snapshot: it lacks the constructor-binding checks, deployment-manifest helpers and reconciliation described below, and its bundled example targets the legacy v2 release.
+Use 0.2.0 or later: 0.1.0 is an earlier snapshot that lacks the constructor-binding checks, deployment-manifest helpers and reconciliation described below, and its bundled example targets the legacy v2 release.
 
 ```ts
 import { KovanClient } from "@kovan-protocol/sdk";
@@ -644,7 +643,7 @@ Bound to `127.0.0.1` by default. It is a key-holding development console, not a 
 | `pool.prepareOwner(fn, args, owner)` | `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute`, `create_mandate`, `revoke_mandate` |
 | `pool.prepareAgent(action, request, { source, signer, timeoutSeconds? })` | `draw`, `pay`, `return`; signs only the agent's authorization entries, verified by an enforce-mode simulation |
 | `buildAuthPayload` / `buildMandateAuthPayload` / `signAgentAuthorization` · `decodeContractError` / `explainError` · `covenantToScVal` and other ScVal helpers | Smart-account `AuthPayload` construction, decoded contract errors, ScVal conversion |
-| `currentRelease(manifest)` · `releaseContracts(release)` · `resolvePoolRelease(client, manifest, pool)` · `transactionStatus(client, hash)` | Deployment-manifest helpers and read-only transaction reconciliation (source 0.2.0) |
+| `currentRelease(manifest)` · `releaseContracts(release)` · `resolvePoolRelease(client, manifest, pool)` · `transactionStatus(client, hash)` | Deployment-manifest helpers and read-only transaction reconciliation (0.2.0+) |
 | `submitSigned(signedXdr, { attempts?, intervalMs? })` | Lower-level submit; polls 30 × 1.5 s (about 45 s) before returning `NOT_FOUND`. Submission never throws, it returns a `SubmitResult` |
 | `@kovan-protocol/sdk/experimental` | `buildYieldOp` and DeFindex helpers (inactive on live pools) |
 
@@ -745,7 +744,7 @@ Names only; copy the example files and never commit real values.
 | Website | `cd web && vercel --prod`. `prebuild` copies the manifest into the site and fails the build if the README is missing any evidence the site shows. Deploys are manual, not on push |
 | Signing page, setup page, agent files | `cd signer && npm run build:cli && npm run build:vercel`, then commit `web/public/`. CI fails if the committed copies are stale and publishes the GitHub Pages redirect |
 | Agent plugin | Served from this repository: `.claude-plugin/marketplace.json` + `skills/kovan/` |
-| SDK | `cd sdk && npm run build && npm pack`; `0.1.0` is on npm (earlier snapshot), source `0.2.0` is unpublished and installed from the tarball |
+| SDK | `cd sdk && npm test && npm run test:package && npm pack`, then publish the tarball per `sdk/RELEASING.md`; `0.2.0` is the current release on npm, `0.1.0` an earlier snapshot |
 
 ---
 

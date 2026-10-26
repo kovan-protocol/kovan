@@ -62,10 +62,10 @@ The setup page creates pools and agents, but does not automatically approve paym
 
 ## From code
 
-`@kovan-protocol/sdk` targets Node.js 22+ and browser bundlers. The deployment helpers used below (`currentRelease`, `releaseContracts`) are in source version 0.2.0, which is not on npm yet; the published 0.1.0 package does not export them. Build a local tarball from the repository's `sdk/` (`npm ci && npm pack`) and install it:
+`@kovan-protocol/sdk` is on npm for Node.js 22+ and browser bundlers. The deployment helpers used below (`currentRelease`, `releaseContracts`) need version 0.2.0 or later; the earlier 0.1.0 package does not export them.
 
 ```bash
-npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.2.0 @stellar/stellar-sdk@16.4.1
 ```
 
 ```ts
