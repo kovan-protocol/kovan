@@ -1,0 +1,1036 @@
+{
+  "network": "testnet",
+  "rpc_url": "https://soroban-testnet.stellar.org",
+  "status": "research_candidate_not_activated",
+  "signed_or_broadcast_transactions": false,
+  "scan": {
+    "checked_at": "2026-10-26T10:02:14.651Z",
+    "factory": "CDSCWE4GLNBYYTES2OCYDFQA2LLY4RBIAX6ZI32VSUXD7GO6HRPO4A32",
+    "exact_usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "registry_total": 288,
+    "readable": 286,
+    "matching_single_asset_vaults": 27,
+    "matching_vaults_with_strategy": 9,
+    "errors": [
+      {
+        "index": 248,
+        "vault": "CB7JEW25BQJ224MBMA3QE2UPWMAMNRYZKGKXTYWGSR3AJPEOZQGNR7D5",
+        "error": "HostError: Error(WasmVm, MissingValue)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CB7JEW25BQJ224MBMA3QE2UPWMAMNRYZKGKXTYWGSR3AJPEOZQGNR7D5,\u2026"
+      },
+      {
+        "index": 249,
+        "vault": "CD5236XHCRZZHHGNFC6QRI73JUVMLPFQGOAQ4UAG6PZZKNLFT6BFTVJV",
+        "error": "HostError: Error(WasmVm, MissingValue)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CD5236XHCRZZHHGNFC6QRI73JUVMLPFQGOAQ4UAG6PZZKNLFT6BFTVJV,\u2026"
+      }
+    ]
+  },
+  "candidates": {
+    "checked_at": "2026-10-26T10:04:00.860Z",
+    "rows": [
+      {
+        "index": 165,
+        "vault": "CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCTEL2I32IUB6XSUZG5UY3GZF2TNCRZXR6OVQB66TEF6WHRMJP65KDSN",
+                "name": "FixApr",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "decimals": 7,
+          "get_fee_receiver": "GCFNJA6XG75MDZT26YAUQMJPFITOAAJDUMUYORXRL6EV7NIDC7HQ2KJU",
+          "get_fees": [
+            0,
+            2000
+          ],
+          "total_supply": "103952994",
+          "symbol": "vUSDC",
+          "get_manager": "GCFNJA6XG75MDZT26YAUQMJPFITOAAJDUMUYORXRL6EV7NIDC7HQ2KJU",
+          "name": "DeFindex-Vault-Vyn USDC Vault",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "0",
+              "invested_amount": "117338806",
+              "strategy_allocations": [
+                {
+                  "amount": "117338806",
+                  "paused": false,
+                  "strategy_address": "CCTEL2I32IUB6XSUZG5UY3GZF2TNCRZXR6OVQB66TEF6WHRMJP65KDSN"
+                }
+              ],
+              "total_amount": "117338806"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CCTEL2I32IUB6XSUZG5UY3GZF2TNCRZXR6OVQB66TEF6WHRMJP65KDSN",
+            "name": "FixApr",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "55f9b58c6010895a2f1f8f4a0ffb0c391aff2bc93650985114e4320c1063f972"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 217,
+        "vault": "CBZQYHBPHXIO47RT5A4L3SU7YKDJSCWD4AXLW7VXYMIVTJXWXVXSEN73",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCFSKXMRFH46TZRIA5TCHHJO62D66STHMJHJJKINCLU23V2MU3K2564T",
+                "name": "CETES Testnet",
+                "paused": false
+              },
+              {
+                "address": "CD7SS427BJJ33CCCM36PRDCXZKAXEITTW5Y42P6RL4QWUCHYAPHBD3I7",
+                "name": "AQUA Testnet substitute",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "get_fees": [
+            100,
+            2000
+          ],
+          "decimals": 7,
+          "symbol": "VDFTEST",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "0",
+              "invested_amount": "0",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CCFSKXMRFH46TZRIA5TCHHJO62D66STHMJHJJKINCLU23V2MU3K2564T"
+                },
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CD7SS427BJJ33CCCM36PRDCXZKAXEITTW5Y42P6RL4QWUCHYAPHBD3I7"
+                }
+              ],
+              "total_amount": "0"
+            }
+          ],
+          "get_manager": "CDULKHWD674MQSDZ6VXTTQGNU4TEAJ54JDIHP5X5QF2GHMWDI5SZZDWW",
+          "name": "DeFindex-Vault-Vanity Testnet",
+          "total_supply": "0",
+          "get_fee_receiver": "GBKGF2Y3PDVLGHTY5ENWEMC3OC7YHVBV5MIFO7OAU3TL7WCLIWEB3NPC"
+        },
+        "strategies": [
+          {
+            "address": "CCFSKXMRFH46TZRIA5TCHHJO62D66STHMJHJJKINCLU23V2MU3K2564T",
+            "name": "CETES Testnet",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          },
+          {
+            "address": "CD7SS427BJJ33CCCM36PRDCXZKAXEITTW5Y42P6RL4QWUCHYAPHBD3I7",
+            "name": "AQUA Testnet substitute",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 218,
+        "vault": "CCAZGTPRR7FWNHBUCYOS2AI7ARVIGRMTI2V5HDLPCPXBTODYRTMKXX3Q",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CBMPUGQK7CJQG2QQ6DSXMD4CHSTN2GTHHCFBDWSDBPH2ZK2PFTOJS4KQ",
+                "name": "CETES Testnet",
+                "paused": false
+              },
+              {
+                "address": "CDABZQ42UOIC6FZTIX3DU3F755EH3VFEZZYAT7J4RXDJYBPMI5VWHAPB",
+                "name": "AQUA Testnet substitute",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "get_fee_receiver": "GBKGF2Y3PDVLGHTY5ENWEMC3OC7YHVBV5MIFO7OAU3TL7WCLIWEB3NPC",
+          "get_fees": [
+            100,
+            2000
+          ],
+          "decimals": 7,
+          "symbol": "VDFTEST",
+          "total_supply": "0",
+          "get_manager": "CAJT3L3KFJAHG4MKEWJXHNDMVWSUZ2Z6G5ZGDIS7NABU77NMYSCX7XIH",
+          "name": "DeFindex-Vault-Vanity Testnet",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "0",
+              "invested_amount": "0",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CBMPUGQK7CJQG2QQ6DSXMD4CHSTN2GTHHCFBDWSDBPH2ZK2PFTOJS4KQ"
+                },
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CDABZQ42UOIC6FZTIX3DU3F755EH3VFEZZYAT7J4RXDJYBPMI5VWHAPB"
+                }
+              ],
+              "total_amount": "0"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CBMPUGQK7CJQG2QQ6DSXMD4CHSTN2GTHHCFBDWSDBPH2ZK2PFTOJS4KQ",
+            "name": "CETES Testnet",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          },
+          {
+            "address": "CDABZQ42UOIC6FZTIX3DU3F755EH3VFEZZYAT7J4RXDJYBPMI5VWHAPB",
+            "name": "AQUA Testnet substitute",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 219,
+        "vault": "CAJ4X4WCQ2EQGMQNX6SUCSGAU3PZ22NKE2FQVWOPUCARDH2RGBMH3WQH",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCSVFVQL4CJDECPD3AKB3P23TK56EBWRFTAFG627SSVOLAY2NWICEBWF",
+                "name": "CETES Testnet",
+                "paused": true
+              },
+              {
+                "address": "CBE57EGEYARJVX5PXSC6SHB7YJW5UAJMNKT4V6VBQGYWOQJWDF7JPH76",
+                "name": "AQUA Testnet",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "get_manager": "CCK35H5YFCD6T72ADV47QMUHEJEVCWRIIUNRLZ7ZOIJEZQMIX5VVAULT",
+          "symbol": "VDFTEST",
+          "name": "DeFindex-Vault-Vanity Testnet",
+          "decimals": 7,
+          "get_fee_receiver": "GBKGF2Y3PDVLGHTY5ENWEMC3OC7YHVBV5MIFO7OAU3TL7WCLIWEB3NPC",
+          "get_fees": [
+            0,
+            2000
+          ],
+          "total_supply": "1000",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "0",
+              "invested_amount": "995",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": true,
+                  "strategy_address": "CCSVFVQL4CJDECPD3AKB3P23TK56EBWRFTAFG627SSVOLAY2NWICEBWF"
+                },
+                {
+                  "amount": "995",
+                  "paused": false,
+                  "strategy_address": "CBE57EGEYARJVX5PXSC6SHB7YJW5UAJMNKT4V6VBQGYWOQJWDF7JPH76"
+                }
+              ],
+              "total_amount": "995"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CCSVFVQL4CJDECPD3AKB3P23TK56EBWRFTAFG627SSVOLAY2NWICEBWF",
+            "name": "CETES Testnet",
+            "paused": true,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          },
+          {
+            "address": "CBE57EGEYARJVX5PXSC6SHB7YJW5UAJMNKT4V6VBQGYWOQJWDF7JPH76",
+            "name": "AQUA Testnet",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 225,
+        "vault": "CDVPZHG7LRJ62PXODQYSM4KC6DIMTI34IU3OCPDTMHAGQIED7OJ5ALDJ",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN",
+                "name": "Hodl USDC",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "total_supply": "10000000",
+          "symbol": "KMBRUSDC",
+          "decimals": 7,
+          "get_manager": "GDJ6ZHJD626V56FXDIXNLYKIF5I7YYE6BWKUQA5GVGAKQL5MP26KN6LU",
+          "get_fee_receiver": "GDJ6ZHJD626V56FXDIXNLYKIF5I7YYE6BWKUQA5GVGAKQL5MP26KN6LU",
+          "name": "DeFindex-Vault-Kumbara USDC",
+          "get_fees": [
+            0,
+            2000
+          ],
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "10000000",
+              "invested_amount": "0",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN"
+                }
+              ],
+              "total_amount": "10000000"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN",
+            "name": "Hodl USDC",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "5144e214aa5616bc785289a5dbae894a82801e191a7ab3a0b99211659e250b6e"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 227,
+        "vault": "CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN",
+                "name": "Hodl USDC",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "get_fee_receiver": "GDJ6ZHJD626V56FXDIXNLYKIF5I7YYE6BWKUQA5GVGAKQL5MP26KN6LU",
+          "get_manager": "GDJ6ZHJD626V56FXDIXNLYKIF5I7YYE6BWKUQA5GVGAKQL5MP26KN6LU",
+          "symbol": "KMBRUSDC",
+          "total_supply": "322829111322",
+          "decimals": 7,
+          "get_fees": [
+            0,
+            2000
+          ],
+          "name": "DeFindex-Vault-Kumbara USDC",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "0",
+              "invested_amount": "322829111322",
+              "strategy_allocations": [
+                {
+                  "amount": "322829111322",
+                  "paused": false,
+                  "strategy_address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN"
+                }
+              ],
+              "total_amount": "322829111322"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CDFLOE4HGKNV3JJQGIS3Y7BT2K2DTT4SBF2NKARMBVB4RBJZ5YJLDMQN",
+            "name": "Hodl USDC",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "5144e214aa5616bc785289a5dbae894a82801e191a7ab3a0b99211659e250b6e"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 230,
+        "vault": "CCJGCSCTXJ76VH3MPNWYYFP3OTTFBJYBB7XQ5ELBWSMD7674H7SOFEFE",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CBUOMYCQGSWYOSFEWAA4ATGDFIKG3UDVIWGOSKIGJ5HBBJCENQIGU7W7",
+                "name": "CETES",
+                "paused": true
+              },
+              {
+                "address": "CD62PPNOALN6OJ7Q26YDCQTFSCTNGN3YAFNX3P33JJ7T5T2YCPQPDT5O",
+                "name": "AQUA (USTRY stand-in)",
+                "paused": true
+              },
+              {
+                "address": "CB2DBILJTKITGICNQQJNU33RSVFMOJKHSO3HQUPPRSNXBIB2IFRRW5C2",
+                "name": "XLM (SolvBTC stand-in)",
+                "paused": true
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "decimals": 7,
+          "name": "DeFindex-Vault-Vanity Testnet",
+          "get_fees": [
+            0,
+            2000
+          ],
+          "get_manager": "CCK35H5YFCD6T72ADV47QMUHEJEVCWRIIUNRLZ7ZOIJEZQMIX5VVAULT",
+          "symbol": "VDFTEST",
+          "total_supply": "1000",
+          "get_fee_receiver": "GBKGF2Y3PDVLGHTY5ENWEMC3OC7YHVBV5MIFO7OAU3TL7WCLIWEB3NPC",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "991",
+              "invested_amount": "0",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": true,
+                  "strategy_address": "CBUOMYCQGSWYOSFEWAA4ATGDFIKG3UDVIWGOSKIGJ5HBBJCENQIGU7W7"
+                },
+                {
+                  "amount": "0",
+                  "paused": true,
+                  "strategy_address": "CD62PPNOALN6OJ7Q26YDCQTFSCTNGN3YAFNX3P33JJ7T5T2YCPQPDT5O"
+                },
+                {
+                  "amount": "0",
+                  "paused": true,
+                  "strategy_address": "CB2DBILJTKITGICNQQJNU33RSVFMOJKHSO3HQUPPRSNXBIB2IFRRW5C2"
+                }
+              ],
+              "total_amount": "991"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CBUOMYCQGSWYOSFEWAA4ATGDFIKG3UDVIWGOSKIGJ5HBBJCENQIGU7W7",
+            "name": "CETES",
+            "paused": true,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          },
+          {
+            "address": "CD62PPNOALN6OJ7Q26YDCQTFSCTNGN3YAFNX3P33JJ7T5T2YCPQPDT5O",
+            "name": "AQUA (USTRY stand-in)",
+            "paused": true,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          },
+          {
+            "address": "CB2DBILJTKITGICNQQJNU33RSVFMOJKHSO3HQUPPRSNXBIB2IFRRW5C2",
+            "name": "XLM (SolvBTC stand-in)",
+            "paused": true,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "813a813aca51550ca60f3c0de3aee49b791fdb308cf4fce179cbea74aa9cbf60"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 238,
+        "vault": "CBSHFPAW56ZRV7DBSC6GYOD7IOMTDJJY3MCVW5RONTWL33MHTXOML7LA",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCXYCWVGMXDWHMW5XYYXKUZJO4OF4CLDHWHGQEB5GBXE734JWWLGT2UU",
+                "name": "Trinqa Fixed APR",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "get_fees": [
+            0,
+            2000
+          ],
+          "symbol": "TQUSDC",
+          "total_supply": "206501001",
+          "get_manager": "GA43I4W7EWOEAWE6BFOWCP67HA22OTSET6XKY4Z5IX55FCJILS4VFQUD",
+          "get_fee_receiver": "GA43I4W7EWOEAWE6BFOWCP67HA22OTSET6XKY4Z5IX55FCJILS4VFQUD",
+          "decimals": 7,
+          "name": "DeFindex-Vault-Trinqa USDC Testnet",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "206500000",
+              "invested_amount": "1001",
+              "strategy_allocations": [
+                {
+                  "amount": "1001",
+                  "paused": false,
+                  "strategy_address": "CCXYCWVGMXDWHMW5XYYXKUZJO4OF4CLDHWHGQEB5GBXE734JWWLGT2UU"
+                }
+              ],
+              "total_amount": "206501001"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CCXYCWVGMXDWHMW5XYYXKUZJO4OF4CLDHWHGQEB5GBXE734JWWLGT2UU",
+            "name": "Trinqa Fixed APR",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "e13c0e2fa3bb74d66619ec1dc61b9cd7c6326e9efd488589a179327fbc90cd26"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      },
+      {
+        "index": 272,
+        "vault": "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ",
+        "assets": [
+          {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+                "name": "XOXNO USDC supply",
+                "paused": false
+              }
+            ]
+          }
+        ],
+        "checks": {
+          "decimals": 7,
+          "get_fee_receiver": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z",
+          "symbol": "TMCP",
+          "total_supply": "5000001000",
+          "get_manager": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z",
+          "get_fees": [
+            0,
+            2000
+          ],
+          "name": "DeFindex-Vault-TM Circle",
+          "fetch_total_managed_funds": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "idle_amount": "5000001000",
+              "invested_amount": "0",
+              "strategy_allocations": [
+                {
+                  "amount": "0",
+                  "paused": false,
+                  "strategy_address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM"
+                }
+              ],
+              "total_amount": "5000001000"
+            }
+          ]
+        },
+        "strategies": [
+          {
+            "address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+            "name": "XOXNO USDC supply",
+            "paused": false,
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "wasm_hash": "76c696dd08b0f02f47064d0a45057a80eaf424a05e4c1361b91fc61d01d4c7f4"
+          }
+        ],
+        "wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be"
+      }
+    ]
+  },
+  "xoxno_instance_snapshots": {
+    "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM": {
+      "liveUntilLedgerSeq": 5502442,
+      "storage": [
+        {
+          "key": [
+            "Config"
+          ],
+          "val": {
+            "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "lending": {
+              "controller": "CCXRWJ6SIU2WPFEGLFGJVITPL57QAYIMIO6OAM2NBGNDQSSCK2FFV3F3",
+              "pool": "CBSGF6QOQAMPFBEVSYPEQHSZRIHJ6RCGUPCRDMUX36DEKRWFAO2PZB5A",
+              "position_nft": "CDVN5JU675MEDPVRPCYC45AHFC275UH57WEU5OTFE4WFGZBNN7HTLPSY"
+            },
+            "market": {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "hub_id": 1
+            },
+            "spoke_id": 1
+          }
+        }
+      ]
+    },
+    "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ": {
+      "liveUntilLedgerSeq": 5899900,
+      "storage": [
+        {
+          "key": "METADATA",
+          "val": {
+            "decimal": 7,
+            "name": "DeFindex-Vault-TM Circle",
+            "symbol": "TMCP"
+          }
+        },
+        {
+          "key": [
+            "AssetStrategySet",
+            0
+          ],
+          "val": {
+            "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "strategies": [
+              {
+                "address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+                "name": "XOXNO USDC supply",
+                "paused": false
+              }
+            ]
+          }
+        },
+        {
+          "key": [
+            "DeFindexProtocolFeeRate"
+          ],
+          "val": 2000
+        },
+        {
+          "key": [
+            "DeFindexProtocolFeeReceiver"
+          ],
+          "val": "GDOFDSMFRPOYTOLWODK4O6BZTGDJ4GRHLHX5THXN4TIFE2SXASQYFLPJ"
+        },
+        {
+          "key": [
+            "EmergencyManager"
+          ],
+          "val": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z"
+        },
+        {
+          "key": [
+            "Manager"
+          ],
+          "val": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z"
+        },
+        {
+          "key": [
+            "RebalanceManager"
+          ],
+          "val": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z"
+        },
+        {
+          "key": [
+            "SoroswapRouter"
+          ],
+          "val": "CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD"
+        },
+        {
+          "key": [
+            "TotalAssets"
+          ],
+          "val": 1
+        },
+        {
+          "key": [
+            "TotalSupply"
+          ],
+          "val": "5000001000"
+        },
+        {
+          "key": [
+            "Upgradable"
+          ],
+          "val": false
+        },
+        {
+          "key": [
+            "VaultFee"
+          ],
+          "val": 0
+        },
+        {
+          "key": [
+            "VaultFeeReceiver"
+          ],
+          "val": "GD32J74ZOBFTAFUPALP5NWXT2AIZR7WW5D7IHOCBXX2C2Z2VUKTXWB7Z"
+        }
+      ]
+    }
+  },
+  "xoxno_invest_unwind_simulation": {
+    "resources": {
+      "instructions": 25289917,
+      "diskReadBytes": 156,
+      "writeBytes": 3024
+    },
+    "checked_at": "2026-10-26T10:05:10.327Z",
+    "latestLedger": 5397104,
+    "error": null,
+    "retval": null,
+    "minResourceFee": "449844",
+    "events": [
+      {
+        "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "topics": [
+          "transfer",
+          "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+          "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        ],
+        "data": "10000000"
+      },
+      {
+        "contract": "CDVN5JU675MEDPVRPCYC45AHFC275UH57WEU5OTFE4WFGZBNN7HTLPSY",
+        "topics": [
+          "mint",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM"
+        ],
+        "data": {
+          "token_id": 131
+        }
+      },
+      {
+        "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "topics": [
+          "transfer",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+          "CBSGF6QOQAMPFBEVSYPEQHSZRIHJ6RCGUPCRDMUX36DEKRWFAO2PZB5A",
+          "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        ],
+        "data": "10000000"
+      },
+      {
+        "contract": "CBSGF6QOQAMPFBEVSYPEQHSZRIHJ6RCGUPCRDMUX36DEKRWFAO2PZB5A",
+        "topics": [
+          "market",
+          "batch_state_update"
+        ],
+        "data": [
+          [
+            1,
+            "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "1793009107000",
+            "1001185874104112446298623171",
+            "1004726630791250290566994785",
+            "8386982644",
+            "3786443092524725687398806821500",
+            "2938346595410815759727789323953",
+            "329561541891758031642071255"
+          ]
+        ]
+      },
+      {
+        "contract": "CCXRWJ6SIU2WPFEGLFGJVITPL57QAYIMIO6OAM2NBGNDQSSCK2FFV3F3",
+        "topics": [
+          "position",
+          "batch_update"
+        ],
+        "data": [
+          "131",
+          [
+            "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+            1,
+            0
+          ],
+          [
+            [
+              0,
+              1,
+              "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "998815530527562029621403133",
+              "1001185874104112446298623171",
+              "10000000",
+              9800,
+              200,
+              9701,
+              100
+            ]
+          ],
+          []
+        ]
+      },
+      {
+        "contract": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+        "topics": [
+          "strategy_moved",
+          "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ"
+        ],
+        "data": {
+          "balance": "10000000",
+          "deposited": "10000000",
+          "withdrawn": "0"
+        }
+      },
+      {
+        "contract": "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ",
+        "topics": [
+          "DeFindexVault",
+          "rebalance"
+        ],
+        "data": {
+          "asset_investments": [
+            {
+              "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "strategy_allocations": [
+                {
+                  "amount": "10000000",
+                  "paused": false,
+                  "strategy_address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM"
+                }
+              ]
+            }
+          ],
+          "rebalance_method": "invest",
+          "report": {
+            "gains_or_losses": "0",
+            "locked_fee": "0",
+            "prev_balance": "10000000"
+          }
+        }
+      },
+      {
+        "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "topics": [
+          "transfer",
+          "CBSGF6QOQAMPFBEVSYPEQHSZRIHJ6RCGUPCRDMUX36DEKRWFAO2PZB5A",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+          "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        ],
+        "data": "9999999"
+      },
+      {
+        "contract": "CBSGF6QOQAMPFBEVSYPEQHSZRIHJ6RCGUPCRDMUX36DEKRWFAO2PZB5A",
+        "topics": [
+          "market",
+          "batch_state_update"
+        ],
+        "data": [
+          [
+            1,
+            "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+            "1793009107000",
+            "1001185874104112446298623171",
+            "1004726630791250290566994785",
+            "8376982645",
+            "3785444276994198125369185418367",
+            "2938346595410815759727789323953",
+            "329561541891758031642071255"
+          ]
+        ]
+      },
+      {
+        "contract": "CDVN5JU675MEDPVRPCYC45AHFC275UH57WEU5OTFE4WFGZBNN7HTLPSY",
+        "topics": [
+          "burn",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM"
+        ],
+        "data": {
+          "token_id": 131
+        }
+      },
+      {
+        "contract": "CCXRWJ6SIU2WPFEGLFGJVITPL57QAYIMIO6OAM2NBGNDQSSCK2FFV3F3",
+        "topics": [
+          "position",
+          "batch_update"
+        ],
+        "data": [
+          "131",
+          [
+            "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+            1,
+            0
+          ],
+          [
+            [
+              2,
+              1,
+              "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+              "0",
+              "1001185874104112446298623171",
+              "9999999",
+              9800,
+              200,
+              9701,
+              100
+            ]
+          ],
+          []
+        ]
+      },
+      {
+        "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "topics": [
+          "transfer",
+          "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+          "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ",
+          "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+        ],
+        "data": "9999999"
+      },
+      {
+        "contract": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+        "topics": [
+          "strategy_moved",
+          "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ"
+        ],
+        "data": {
+          "balance": "0",
+          "deposited": "0",
+          "withdrawn": "9999999"
+        }
+      },
+      {
+        "contract": "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ",
+        "topics": [
+          "DeFindexVault",
+          "rebalance"
+        ],
+        "data": {
+          "call_params": [
+            [
+              "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+              "10000000",
+              "CBCTPTAL7E54BCDYO54GJUNM7GLEPL3UXAF6HEGWMM2MTXLFVJ7NCNSZ"
+            ]
+          ],
+          "rebalance_method": "unwind",
+          "report": {
+            "gains_or_losses": "0",
+            "locked_fee": "0",
+            "prev_balance": "0"
+          }
+        }
+      }
+    ],
+    "market": {
+      "params": {
+        "asset_decimals": 7,
+        "asset_id": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "base_borrow_rate": "10000000000000000000000000",
+        "flashloan_fee": 9,
+        "is_flashloanable": true,
+        "max_borrow_rate": "2000000000000000000000000000",
+        "max_utilization": "950000000000000000000000000",
+        "mid_utilization": "500000000000000000000000000",
+        "optimal_utilization": "890000000000000000000000000",
+        "reserve_factor": 1000,
+        "slope1": "40000000000000000000000000",
+        "slope2": "100000000000000000000000000",
+        "slope3": "1500000000000000000000000000"
+      },
+      "state": {
+        "borrow_index": "1004716628625748386757639537",
+        "borrowed": "2938346595410815759727789323953",
+        "cash": "8376982644",
+        "last_timestamp": "1793006522000",
+        "revenue": "326626040132351631071615583",
+        "supplied": "3785441341492438718968614962695",
+        "supply_index": "1001178886584384059576530075"
+      }
+    }
+  },
+  "fixed_apr_observation": {
+    "checked_at": "2026-10-26T10:05:16.574Z",
+    "strategy_storage": [
+      {
+        "key": [
+          "Apr"
+        ],
+        "val": 50000000
+      },
+      {
+        "key": [
+          "LastHarvestTime",
+          "CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ"
+        ],
+        "val": "1782366728"
+      },
+      {
+        "key": [
+          "UnderlyingAsset"
+        ],
+        "val": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+      }
+    ],
+    "strategy_usdc_balance": "195000000",
+    "manager_shares": "0",
+    "withdraw_simulation": {
+      "latestLedger": 5397106,
+      "error": "HostError: Error(Contract, #111)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ, topics:[error, Error(Contract, #111)], data:\"escalating error to VM trap from failed host function call: fail_with_error\"\n   1: [Diagnostic Event] contract:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ, topics:[error, Error(Contract, #111)], data:[\"failing with contract error\", 111]\n   2: [Diagnostic Event] contract:CCTEL2I32IUB6XSUZG5UY3GZF2TNCRZXR6OVQB66TEF6WHRMJP65KDSN, topics:[fn_return, balance], data:117338806\n   3: [Diagnostic Event] contract:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ, topics:[fn_call, CCTEL2I32IUB6XSUZG5UY3GZF2TNCRZXR6OVQB66TEF6WHRMJP65KDSN, balance], data:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ\n   4: [Diagnostic Event] contract:CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA, topics:[fn_return, balance], data:0\n   5: [Diagnostic Event] contract:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ, topics:[fn_call, CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA, balance], data:CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ\n   6: [Diagnostic Event] topics:[fn_call, CBHF6QMXTTG7JOY5RKL7QXJ43U2SZBLNR7QHFCRULWRYRFFYOTMVB7AJ, withdraw], data:[10000000, [1], GCFNJA6XG75MDZT26YAUQMJPFITOAAJDUMUYORXRL6EV7NIDC7HQ2KJU]\n",
+      "retval": null
+    }
+  },
+  "native_source_candidate": {
+    "factory": "CDSCWE4GLNBYYTES2OCYDFQA2LLY4RBIAX6ZI32VSUXD7GO6HRPO4A32",
+    "factory_wasm_hash": "baba1e5e12e7f83b49f6f2b6b17f7bc672e38c08dca74f77d66d569c522cfec8",
+    "vault_wasm_hash": "f345228dca59c6605789620e9ec62ff4847a0927c33dac7581a955fe746016be",
+    "usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "strategy": {
+      "address": "CCRU56E3WHFFGEQ7LZ4HEEL6MWVZE7BBHB36H4F6Y27T6GGY4SCR2FMM",
+      "wasm_hash": "76c696dd08b0f02f47064d0a45057a80eaf424a05e4c1361b91fc61d01d4c7f4"
+    },
+    "router": "CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD",
+    "max_protocol_fee_bps": 2000
+  },
+  "limitations": [
+    "Read-only compatibility evidence, not a security audit or source-to-deployed-WASM equivalence proof.",
+    "Existing XOXNO reference vault has no active strategy allocation.",
+    "Full Kovan deposit, share lock and agent draw require a separate testnet rehearsal.",
+    "State and liquidity can change."
+  ]
+}

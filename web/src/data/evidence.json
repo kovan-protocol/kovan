@@ -1,16 +1,16 @@
 {
   "historicalPool": "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ",
   "firstAgent": "CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ",
-  "testCount": 547,
+  "testCount": 605,
   "testSnapshot": {
     "date": "2026-10-26",
     "suites": {
-      "contracts": 152,
-      "dashboard": 267,
-      "sdk": 79,
-      "signer": 49
+      "contracts": 157,
+      "dashboard": 280,
+      "sdk": 107,
+      "signer": 61
     },
-    "ignored": 1,
+    "ignored": 3,
     "skippedNetworkTests": 6
   },
   "fundUsdc": "5",

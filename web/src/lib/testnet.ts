@@ -13,6 +13,15 @@ export type Deployment = {
   deployed_at: string;
   pool_deploy_tx: string;
   pool_wasm_hash: string;
+  current_release?: {
+    policy: string;
+    published_at: string;
+    transactions: {
+      policy_deploy: { tx: string };
+      pool_upload: { tx: string };
+      account_upload: { tx: string };
+    };
+  };
 };
 
 export type TxRecord = {
@@ -67,16 +76,22 @@ export const testCount = evidence.testCount;
 export const fundUsdc = evidence.fundUsdc;
 export const drawLimit = evidence.drawLimit;
 
-/** Current pool/shared contracts and a clearly labeled historical agent. */
+/** Published release plus explicitly labeled retained historical instances. */
 export const sorobanContracts = [
-  { name: "kovan-pool", id: deployment.pool },
-  { name: "covenant policy", id: deployment.policy },
-  { name: "ed25519 verifier", id: deployment.verifier },
-  { name: "historical agent account (legacy pool)", id: firstAgent },
+  { key: "pool", name: "retained default pool (legacy)", id: deployment.pool },
+  ...(deployment.current_release ? [{ key: "mandate-policy", name: "covenant policy (new pools)", id: deployment.current_release.policy }] : []),
+  { key: "legacy-policy", name: "covenant policy (legacy pools)", id: deployment.policy },
+  { key: "verifier", name: "ed25519 verifier", id: deployment.verifier },
+  { key: "agent", name: "historical agent account (legacy pool)", id: firstAgent },
 ] as const;
 
 export const verifiedTransactions: TxRecord[] = [
-  { id: "deploy-pool", hash: deployment.pool_deploy_tx, group: "deploy", label: "pool v2 + permanent shutdown" },
+  ...(deployment.current_release ? [
+    { id: "deploy-mandate-policy", hash: deployment.current_release.transactions.policy_deploy.tx, group: "deploy" as const, label: "native-mandate policy" },
+    { id: "upload-mandate-pool", hash: deployment.current_release.transactions.pool_upload.tx, group: "deploy" as const, label: "mandate-capable pool code" },
+    { id: "upload-mandate-account", hash: deployment.current_release.transactions.account_upload.tx, group: "deploy" as const, label: "mandate-enforcing account code" },
+  ] : []),
+  { id: "deploy-pool", hash: deployment.pool_deploy_tx, group: "deploy", label: "historical default: pool v2 + shutdown", historical: true },
   ...evidence.transactions,
   ...(BLOCKED_PAYMENT_HASH
     ? [
@@ -90,7 +105,7 @@ export const verifiedTransactions: TxRecord[] = [
     : []),
 ];
 
-export const deployedAtLabel = formatDeployed(deployment.deployed_at);
+export const deployedAtLabel = formatDeployed(deployment.current_release?.published_at ?? deployment.deployed_at);
 
 export function txsByGroup(group: TxRecord["group"]) {
   return verifiedTransactions.filter((tx) => tx.group === group);

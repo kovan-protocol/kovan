@@ -19,43 +19,87 @@
     }
   ],
   "current_release": {
-    "name": "native-mandates-v1",
+    "name": "native-mandates-v1-recovery-v1",
     "mandate_version": 1,
+    "recovery_version": 1,
     "accounting_version": 3,
-    "policy": "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+    "max_delegation_depth": 4,
+    "max_family_agents": 17,
+    "policy": "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
     "verifier": "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
     "usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    "account_wasm_hash": "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
-    "pool_wasm_hash": "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+    "account_wasm_hash": "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+    "pool_wasm_hash": "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
     "policy_wasm_hash": "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
     "verifier_wasm_hash": "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e",
-    "published_at": "2026-10-26T09:03:09.525Z",
+    "published_at": "2026-10-26T10:22:37.729Z",
     "deployer": "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
     "transactions": {
       "account_upload": {
-        "value": "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
-        "tx": "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883",
+        "value": "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+        "tx": "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e",
         "transactions": [
-          "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883"
+          "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e"
         ]
       },
       "pool_upload": {
-        "value": "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
-        "tx": "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292",
+        "value": "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+        "tx": "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071",
         "transactions": [
-          "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292"
+          "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071"
         ]
       },
       "policy_deploy": {
-        "value": "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
-        "tx": "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a",
+        "value": "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+        "tx": "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c",
         "transactions": [
-          "e085289aa9c35ec0994ea97eec4e76646ccd472d33a623f86af481e0f1d1bdd7",
-          "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a"
+          "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c"
         ]
       }
     },
     "supports_yield": true,
     "yield_vaults": []
-  }
+  },
+  "previous_releases": [
+    {
+      "name": "native-mandates-v1",
+      "mandate_version": 1,
+      "accounting_version": 3,
+      "policy": "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+      "verifier": "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+      "usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "account_wasm_hash": "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+      "pool_wasm_hash": "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+      "policy_wasm_hash": "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
+      "verifier_wasm_hash": "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e",
+      "published_at": "2026-10-26T09:03:09.525Z",
+      "deployer": "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
+      "transactions": {
+        "account_upload": {
+          "value": "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+          "tx": "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883",
+          "transactions": [
+            "294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883"
+          ]
+        },
+        "pool_upload": {
+          "value": "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+          "tx": "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292",
+          "transactions": [
+            "5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292"
+          ]
+        },
+        "policy_deploy": {
+          "value": "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+          "tx": "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a",
+          "transactions": [
+            "e085289aa9c35ec0994ea97eec4e76646ccd472d33a623f86af481e0f1d1bdd7",
+            "d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a"
+          ]
+        }
+      },
+      "supports_yield": true,
+      "yield_vaults": []
+    }
+  ]
 }

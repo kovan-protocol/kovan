@@ -11,7 +11,7 @@ One pool funds many agents. Each agent gets its own Stellar smart account, bound
 [![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-stellar--accounts%200.8.0-4e5ee4)](https://github.com/OpenZeppelin/stellar-contracts)
 [![x402](https://img.shields.io/badge/x402-smart--account%20payer-0a7)](https://x402.org)
 [![npm](https://img.shields.io/npm/v/%40kovan-protocol%2Fsdk?label=%40kovan-protocol%2Fsdk)](https://www.npmjs.com/package/@kovan-protocol/sdk)
-[![Tests](https://img.shields.io/badge/tests-547%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-605%20passing-brightgreen)](#testing)
 [![CI](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml/badge.svg)](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
@@ -125,10 +125,10 @@ An OpenZeppelin smart-account policy checks every outgoing call from an agent ac
 The pool deploys one OpenZeppelin smart account per agent with exactly one context rule (the agent's ed25519 key + the covenant policy) and **no management rule**. Nobody, not the agent and not Kovan, can add a key or remove the policy. The owner can amend numeric limits and expiry through the pool.
 
 ### Owner kill switch and clawback
-`revoke` freezes an agent and its children. `return_funds` and `close` pull USDC back into the pool through an allowance the account grants the pool at creation, so recovery works even if the agent's key is lost or compromised. `close_pool` is an irreversible shutdown that returns the remaining USDC to the owner.
+`revoke` freezes an agent and its children. `return_funds` and `close` pull USDC back into the pool without the agent's key. Recovery v1 renews the account's fixed pool/token allowance before recovering funds, even after its old allowance expires. Earlier immutable accounts retain their original finite allowance. `close_pool` is an irreversible shutdown that returns the remaining USDC to the owner.
 
 ### Delegation
-An agent can `delegate` a child covenant carved out of its own remaining allowance. A child can't pay anyone its parent can't, can't exceed the parent's caps or expiry, and must close before its parent. Up to 16 children per agent.
+An agent can `delegate` a child covenant carved out of its own remaining allowance. A child can't pay anyone its parent can't, can't exceed the parent's caps or expiry, and must close before its parent. The current release permits up to 16 direct children, depth 4 (root at 0), and 17 lifetime agents per root family. Closed descendants still count, keeping recursive revocation bounded.
 
 ### Payment mandates (current release)
 Owner-approved grants, `exact` (one payment to one payee for one amount and reference) or `budget` (payees, per-payment and total caps), each with an intent hash, deadline and single-use payment IDs. New agent accounts require a mandate for outgoing payments; the policy stores an on-chain receipt per payment. This is native Kovan enforcement, not AP2 credentials or proof of delivery. Details: [docs/MANDATES.md](docs/MANDATES.md).
@@ -192,13 +192,13 @@ flowchart LR
 
 ### Components
 
-Two sets of bindings are live. The **historical default** pool (accounting v2) holds the earlier lifecycle evidence; the **current release** (accounting v3, mandate v1, published 2026-10-26 09:03 UTC) is what new pools use. Existing pools are immutable and keep their own code; the manifest's `current_release` supplies new-pool creation and the verifier is shared.
+The **historical default** pool (accounting v2) holds the earlier lifecycle evidence; the **current release** (accounting v3, mandate v1, recovery v1, published 2026-10-26 10:22 UTC) is what new pools use. The first native-mandate release is retained in `previous_releases`. Existing pools are immutable and keep their own code; the manifest's `current_release` supplies new-pool creation and the verifier is shared.
 
 | Component | Stellar feature | Historical default (testnet) | Current release (testnet) |
 |---|---|---|---|
-| `kovan-pool` | Soroban contract: USDC custody, `sum_limits ≤ locked`, deploys agent accounts via `deployer()`, irreversible shutdown | [`CDP6UNP5…HFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) · WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` | WASM `74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf` (new pools are created per owner) |
-| `kovan-covenant-policy` | OpenZeppelin smart-account **policy** (`stellar-accounts` 0.8.0) | [`CDEQUCR4…GWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) | [`CAQAHBSH…63OWJYB`](https://stellar.expert/explorer/testnet/contract/CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB) · WASM `40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c` |
-| `kovan-agent-account` | OpenZeppelin **smart account**, one per agent, created on demand | WASM `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7` | WASM `0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d` |
+| `kovan-pool` | Soroban contract: USDC custody, `sum_limits ≤ locked`, deploys agent accounts via `deployer()`, irreversible shutdown | [`CDP6UNP5…HFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) · WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` | WASM `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` (new pools are created per owner) |
+| `kovan-covenant-policy` | OpenZeppelin smart-account **policy** (`stellar-accounts` 0.8.0) | [`CDEQUCR4…GWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) | [`CA2NXNPD…HLVSMEN7`](https://stellar.expert/explorer/testnet/contract/CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7) · WASM `40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c` |
+| `kovan-agent-account` | OpenZeppelin **smart account**, one per agent, created on demand | WASM `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7` | WASM `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
 | `kovan-ed25519-verifier` | OpenZeppelin verifier for **External** signers | [`CAEU4VYR…MLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) | same |
 | USDC | **Stellar Asset Contract** (Circle testnet USDC) | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` | same |
 | Payments | **x402** on Stellar, facilitator-settled `transfer` from the agent account | [evidence](#testnet-transaction-evidence) | facilitator acceptance of the mandate envelope not yet rehearsed |
@@ -359,17 +359,18 @@ Mandates intersect with covenant limits; they never widen them. The operation st
 | Settlement asset | Circle testnet USDC via the Stellar Asset Contract, 7 decimals |
 | Agent account | OpenZeppelin `stellar-accounts` 0.8.0 smart account; 1 context rule (`Default`, 1 External signer + covenant policy); 0 management rules |
 | Agent signer | ed25519 public key, verified by `kovan-ed25519-verifier` |
-| Pool recovery allowance | `i128::MAX`, valid 3,000,000 ledgers from creation (about 174 days) |
+| Pool recovery allowance | `i128::MAX`, 3,000,000-ledger window; recovery v1 renews it through the fixed pool before each recovery. Legacy accounts cannot renew. |
 | Covenant storage | Persistent, TTL extended to 30 days whenever under 29 days remain |
 | Children per agent | 16 |
+| Current release delegation | Maximum depth 4; 17 lifetime agents per root family |
 | Payee lists (`kovan.mjs`) | Up to 10 providers and 10 recipients per agent, one list per address; `--expiry-hours` default 24, max 720 |
 | Agent transaction timeout | 120 s default, 1–300 s; authorization expiry ≈ timeout ÷ 5 ledgers |
 | Pool accounting | v2 (historical default), v3 (current release) |
 | Mandates | version 1; scopes `Exact` and `Budget`; single-use payment IDs; on-chain receipts |
-| Error codes | Pool `#1`–`#28`; covenant `#3900`–`#3922` ([table](#error-codes)) |
+| Error codes | Pool `#1`–`#30`; covenant `#3900`–`#3922` ([table](#error-codes)) |
 | Events | `Funded`, `AgentCreated`, `Drawn`, `Returned`, `Revoked`, `Amended`, `Closed`, `SettlementRequested`, `PoolClosed`, `Delegated`, `Withdrawn` |
 | Owner wallet | Freighter (`signTransaction`, `signMessage`) |
-| Tests | 547 on 2026-10-26: 152 contract, 267 dashboard, 79 SDK, 49 signer ([details](#testing)) |
+| Tests | 605 on 2026-10-26: 157 contract, 280 dashboard, 107 SDK, 61 signer ([details](#testing)) |
 
 ---
 
@@ -377,7 +378,21 @@ Mandates intersect with covenant limits; they never widen them. The operation st
 
 Every step below is confirmed by Stellar RPC. Runs are listed separately; they are not one continuous USDC story.
 
-**Current release rollout (native mandates v1, 2026-10-26)**
+**Current release rollout (native mandates v1 + recovery v1, 2026-10-26 10:22 UTC)**
+
+| Step | Confirmed transaction |
+|---|---|
+| Upload recovery-enabled agent account | [`c567c4…`](https://stellar.expert/explorer/testnet/tx/c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e) |
+| Upload pool with bounded delegation and renewable recovery | [`7f610c…`](https://stellar.expert/explorer/testnet/tx/7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071) |
+| Deploy policy binding for the release | [`3ed5ca…`](https://stellar.expert/explorer/testnet/tx/3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c) |
+| Fresh pool, disposable faucet XLM only | [`0b2ec4…`](https://stellar.expert/explorer/testnet/tx/0b2ec4275bf52e2a79071efdf8154775774b4fe5a3a221da92a95356ea324438) |
+| Mandate-bound payment and receipt | [`b7b056…`](https://stellar.expert/explorer/testnet/tx/b7b056d6dcce9a543c07e8201502085e6bac05689cc30d819e3c1bf60df4c02a) |
+| Owner closes agent and recovers its remaining balance | [`6335bc…`](https://stellar.expert/explorer/testnet/tx/6335bc2bfd9a8d5ede84bfba2e5b94a95553cce502dc87b82c64d80681553ef9) |
+| Final pool shutdown, zero agent/pool balances | [`1941f4…`](https://stellar.expert/explorer/testnet/tx/1941f4e8d3a6adf231972e7352f46f7564e44f76148827da0b37062057971c55) |
+
+The recovery-v1 rehearsal funded 1 testnet XLM, spent 0.1 and returned 0.9 to its disposable owner. Existing pools and user funds were untouched. It also refused unbound, over-cap, duplicate-ID and revoked-grant payments. This is a direct on-chain rehearsal, not live x402 facilitator or yield validation. [Full context](docs/MANDATES.md#recovery-v1-live-rehearsal).
+
+**Original native-mandates v1 rollout and rehearsal (2026-10-26 09:03 UTC, retained release)**
 
 | Step | What it shows | Tx |
 |---|---|---|
@@ -486,7 +501,7 @@ make test-js                         # rebuilds the SDK, then SDK + dashboard te
 cd signer && npm test                # signing page, setup links and kovan.mjs
 ```
 
-<a id="testing"></a>**Testing.** Verification snapshot (2026-10-26, current `main`): **547 tests** pass: 152 contract, 267 dashboard, 79 SDK and 49 signer tests. One optional DeFindex-bytecode integration test (`cargo test -p kovan-pool published_defindex -- --ignored`, pinned by SHA-256) and six opt-in signer network tests are excluded. Coverage includes real Ed25519 authorizations, tampered arguments, muxed payees, approve/transfer_from, self-calls, expiry boundaries, revocation paths, delegation bounds, mandate replay and forged receipts. Earlier snapshots: [docs/POOL.md](docs/POOL.md#earlier-test-snapshots).
+<a id="testing"></a>**Testing.** Verification snapshot (2026-10-26, recovery-v1 working tree): **605 tests** pass: 157 contract, 280 dashboard, 107 SDK and 61 signer tests. Three opt-in contract integrations and six opt-in signer network tests are excluded. Coverage includes real Ed25519 authorizations, tampered arguments, muxed payees, approve/transfer_from, self-calls, expiry boundaries, renewable recovery, bounded real-WASM family revocation, mandate replay, forged receipts, constructor-binding validation, transaction journals and key-backup recovery. Earlier snapshots: [docs/POOL.md](docs/POOL.md#earlier-test-snapshots).
 
 ---
 
@@ -558,14 +573,14 @@ kovan/
 
 ### Agent account (`kovan-agent-account`)
 
-`__constructor(agent_pubkey, verifier, policy, covenant, pool, usdc)` creates the single `Default` rule (one External ed25519 signer + the covenant policy) and approves the pool's USDC allowance. `__check_auth` is OpenZeppelin's `do_check_auth`; `covenant_rule_id()` is always `0`. There is no function that adds signers, rules or policies.
+`__constructor(agent_pubkey, verifier, policy, covenant, pool, usdc)` creates the single `Default` rule (one External ed25519 signer + the covenant policy) and approves the pool's USDC allowance. `__check_auth` verifies the rule and, for outgoing settlement-token transfers, the native mandate envelope; `covenant_rule_id()` is always `0`. Recovery v1 exposes pool-only `renew_recovery()` for that fixed allowance. There is no function that adds signers, rules, policies or a different recovery spender.
 
 ### Error codes
 
 | Range | Code | Meaning |
 |---|---|---|
 | Covenant | `3900` NotInstalled · `3901` AlreadyInstalled · `3902` NotAllowed · `3903` WrongAsset · **`3904` PayeeNotAllowed** · `3905` AmountNotPositive · **`3906` PerTransferCapExceeded** · **`3907` TotalCapExceeded** · **`3908` Expired** · **`3909` Revoked** · `3910` CallNotAllowed · `3911` CallCapExceeded · `3912` SelfCallForbidden · `3913` NoSigner · `3914` NotPool · `3915` MandateRequired · `3916` MandateInvalid · `3917` MandateExists · `3918` MandateMissing · `3919` MandateRevoked · `3920` MandateExceeded · **`3921` PaymentConsumed** · `3922` PaymentMismatch | Raised inside `__check_auth`, so a refused action fails in simulation and nothing is submitted |
-| Pool | `1` NotOwner · `2` NotAgent · `3` NotOwnerOrParent · **`4` ExceedsLocked** · **`5` ExceedsDrawLimit** · `6` NotActive · `7` DrawnNotZero · `8` ExceedsRemaining · `9` BelowDrawn · `10` Insufficient · `11` NotActiveOrSettle · **`12` ChildExceedsParent** · `13` AmountNotPositive · `14` UnknownAgent · `15` TooManyChildren · `16` Expired · `17` PoolClosed · `18` PoolNotEmpty · `19`–`27` Yield* · `28` UnsupportedMandate | The SDK and console decode these to names |
+| Pool | `1` NotOwner · `2` NotAgent · `3` NotOwnerOrParent · **`4` ExceedsLocked** · **`5` ExceedsDrawLimit** · `6` NotActive · `7` DrawnNotZero · `8` ExceedsRemaining · `9` BelowDrawn · `10` Insufficient · `11` NotActiveOrSettle · **`12` ChildExceedsParent** · `13` AmountNotPositive · `14` UnknownAgent · `15` TooManyChildren · `16` Expired · `17` PoolClosed · `18` PoolNotEmpty · `19`–`27` Yield* · `28` UnsupportedMandate · `29` TooManyDescendants · `30` DelegationTooDeep | The SDK and console decode these to names |
 
 ### `kovan.mjs` commands
 
@@ -676,7 +691,7 @@ Names only; copy the example files and never commit real values.
 | **Rules enforced on-chain** | The covenant runs inside the agent account's `__check_auth`. Dashboards and SDKs are conveniences; bypassing them changes nothing |
 | **Frozen accounts** | One rule, no management rule, `uninstall` always panics, self-calls forbidden. Not even the owner can add a signer or payee |
 | **Bounded worst case** | A compromised agent can pay only allowlisted payees, within per-payment and total caps, until expiry, under an owner-approved mandate |
-| **Owner recovery without the agent** | Allowance granted at creation lets the pool pull funds back (`return_funds`, `close`) for 3,000,000 ledgers |
+| **Owner recovery without the agent** | Recovery v1 renews the fixed pool allowance before `return_funds` or `close`; earlier accounts retain their original 3,000,000-ledger window |
 | **Allocation safety** | `sum_limits ≤ locked` on every allocation; spent funds are settled and never re-allocated |
 | **Refuse before submit** | Every agent action is simulated in enforce mode; refusals surface as decoded errors and no transaction is sent |
 | **Reviewed x402 quotes** | `quoteId` hashes the terms; changed terms are refused; a persistent request journal makes retries idempotent; receipts are checked against RPC |

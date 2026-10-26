@@ -4,7 +4,7 @@ Kovan now has owner-approved payment mandates in its existing contracts. This is
 
 ## Deployment status
 
-Published on **Stellar testnet, 2026-10-26**. The new policy is `CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB`, pool WASM is `74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf`, and account WASM is `0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d`. The unchanged Ed25519 verifier is reused. Mandate version 1 is independent of accounting version 3; no yield vault is enabled.
+Published on **Stellar testnet, 2026-10-26 at 10:22 UTC**. The current policy is `CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7`, pool WASM is `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1`, and account WASM is `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4`. The unchanged Ed25519 verifier is reused. Mandate version 1 is independent of accounting version 3; no yield vault is enabled. Recovery version 1 adds pool-only allowance renewal and bounded delegation (depth 4, 17 lifetime agents per root family). The original native-mandate release remains in `previous_releases`; it does not gain these changes.
 
 `deployments/testnet.json.current_release` selects these artifacts for **New pool**, the signer and CLI. Top-level bindings still describe the historical displayed default. Existing pools and agents remain immutable, with their original code and policy. Consumers resolve each selected pool's trusted code before choosing its bindings; new pools also expose immutable bindings through `get_config()`. The account checks the covenant's pool/asset and the policy's mandate version at construction. The pool only creates grants for mandate-capable member agents. An explicitly requested mandate never falls back to an unbound payment.
 
@@ -106,11 +106,34 @@ Run `make test` for contract builds and Rust tests, `make test-js` for SDK/dashb
 
 Coverage includes real Ed25519/AddressV2 authorizations, owner approval, exact and budget scopes, tampered metadata, unbound transfer rejection, revocation, deadlines, cross-mandate replay, shared covenant accounting, durable receipts, forged-receipt rejection and rollback on insufficient balance. TypeScript tests share a fixed digest vector with Rust. Live facilitator acceptance and existing-fund migration are separate steps.
 
-Release verification on 2026-10-26: 152 Rust tests passed (one optional external DeFindex fixture ignored), 79 SDK tests passed, and 49 signer tests passed. Builds and dashboard tests/lint are checked separately. Browser checks cover native mandate signing and stable x402 retry IDs; package checks validate exports and declarations outside the repository.
+Original native-mandate release verification on 2026-10-26: **548 tests passed** — 152 Rust (one optional external DeFindex fixture ignored), 79 SDK, 268 dashboard and 49 signer (six opt-in network tests excluded). Builds and dashboard lint passed. Browser checks cover native mandate signing, stable x402 retry IDs, recovery and responsive layouts; package checks validate exports and declarations outside the repository. Four additional read-only signer tests passed against live testnet.
 
-### Live native-payment rehearsal
+Recovery-v1 working-tree verification: **605 tests passed** — 157 Rust, 107 SDK, 280 dashboard and 61 signer. Three external contract integrations and six signer network tests are excluded. Added regressions cover expired-allowance recovery, bounded family revocation with real pool/policy WASM, constructor bindings, persisted transaction resumption and generated-key backup/import.
 
-`sdk/examples/testnet-lifecycle.mjs --execute` completed using disposable in-memory keys and faucet **testnet XLM**, not USDC or existing user funds. Pool `CA3UJGOTLFZG46SL565IDQTYFAPD7ZU6P7C63MTBSUOY7FDWCHFPGXWP` and agent `CDDW3HYSKEJGTB7T62MUMCFMMBSDWMFZMFJE3BETIMCC3NMUAVQAWCEU` used the new code/policy. It funded 1 XLM, drew 0.5, paid 0.1 under an owner grant, recovered 0.9, and closed both with zero balances. Unbound, over-cap, repeated-ID and revoked-grant payments were refused.
+### Recovery-v1 live rehearsal
+
+The updated standalone SDK completed `testnet-lifecycle.mjs --execute` against the 10:22 release using fresh in-memory keys and faucet **testnet XLM**. No existing owner credentials, pools or USDC were used. Pool `CC4CBCZ6MDBWBHXDG2CJV6QDRBLRE6GM3V5EWKY27E7X7UKXXRRL76XM` and agent `CD5YMLG7TC6KFOSGWVB2XHAFIAGY5AV6PUVQPDTGLD4YFPRDA7L5DVW3` were created with the current pool/account hashes and policy.
+
+It funded 1 XLM, drew 0.5, paid 0.1 under an owner-approved mandate, returned 0.9 in total, and closed the agent and pool with zero balances. Unbound, above-cap, repeated payment-ID, revoked-grant and revoked-agent payments were refused. Expired allowance renewal is covered by the ledger-advanced contract regression, not by waiting for expiry on the live network.
+
+| Step | Confirmed transaction |
+| --- | --- |
+| Create pool | [0b2ec427…](https://stellar.expert/explorer/testnet/tx/0b2ec4275bf52e2a79071efdf8154775774b4fe5a3a221da92a95356ea324438) |
+| Fund | [d8240183…](https://stellar.expert/explorer/testnet/tx/d8240183bbeb6c63c45b1adf2e1d69504590eac69822ac116e74f2fb1907728f) |
+| Create agent | [56d39153…](https://stellar.expert/explorer/testnet/tx/56d39153d2608aac34069e5fb551617e82e67e7f55ada4a346ebd120c0322e25) |
+| Draw | [4a3c281c…](https://stellar.expert/explorer/testnet/tx/4a3c281cc464c3982e7602ee88ffaf0e4b7730b4611058332fd14b6321886c8b) |
+| Approve mandate | [4add12b5…](https://stellar.expert/explorer/testnet/tx/4add12b53ac396f9f5a7ab3d1712ccdbaf6e47f1bb0d474dff6b3d2bba0bd9b1) |
+| Pay | [b7b056d6…](https://stellar.expert/explorer/testnet/tx/b7b056d6dcce9a543c07e8201502085e6bac05689cc30d819e3c1bf60df4c02a) |
+| Revoke mandate | [7279b109…](https://stellar.expert/explorer/testnet/tx/7279b1099e8c8b43ee27411c76625964d733c96f2fa888cf16c100c41fde9fc1) |
+| Return funds | [72a63afe…](https://stellar.expert/explorer/testnet/tx/72a63afea82c29b859b3f604011fb7f68dadfe49d68b357753565aaeb83d4990) |
+| Revoke agent | [1f1a9a0b…](https://stellar.expert/explorer/testnet/tx/1f1a9a0baab3b1c73f5449831e0a7dc58fea5b62cc7874ed319c78e197661d01) |
+| Close agent and recover balance | [6335bc2b…](https://stellar.expert/explorer/testnet/tx/6335bc2bfd9a8d5ede84bfba2e5b94a95553cce502dc87b82c64d80681553ef9) |
+| Withdraw | [2c212822…](https://stellar.expert/explorer/testnet/tx/2c2128222b10ff421061e20809faf3ad8817eec23f8a12bcfa6bde9b09fe0364) |
+| Close pool | [1941f4e8…](https://stellar.expert/explorer/testnet/tx/1941f4e8d3a6adf231972e7352f46f7564e44f76148827da0b37062057971c55) |
+
+### Original native-payment rehearsal (09:03 release)
+
+`sdk/examples/testnet-lifecycle.mjs --execute` completed using disposable in-memory keys and faucet **testnet XLM**, not USDC or existing user funds. Pool `CA3UJGOTLFZG46SL565IDQTYFAPD7ZU6P7C63MTBSUOY7FDWCHFPGXWP` and agent `CDDW3HYSKEJGTB7T62MUMCFMMBSDWMFZMFJE3BETIMCC3NMUAVQAWCEU` used the original native-mandate release, not recovery v1. It funded 1 XLM, drew 0.5, paid 0.1 under an owner grant, recovered 0.9, and closed both with zero balances. Unbound, over-cap, repeated-ID and revoked-grant payments were refused.
 
 | Evidence | Confirmed transaction |
 | --- | --- |

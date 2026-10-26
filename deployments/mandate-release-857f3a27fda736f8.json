@@ -1,0 +1,32 @@
+{
+  "deployer": "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
+  "hashes": {
+    "pool": "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+    "agent_account": "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+    "covenant_policy": "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
+    "ed25519_verifier": "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e"
+  },
+  "steps": {
+    "account_upload": {
+      "value": "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+      "tx": "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e",
+      "transactions": [
+        "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e"
+      ]
+    },
+    "pool_upload": {
+      "value": "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+      "tx": "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071",
+      "transactions": [
+        "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071"
+      ]
+    },
+    "policy_deploy": {
+      "value": "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+      "tx": "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c",
+      "transactions": [
+        "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c"
+      ]
+    }
+  }
+}

@@ -12,6 +12,8 @@ sha512-YhEdqcYvynUQ+0J7jmCYWxiJ1L2U+0ms7y8ymAapU0NJJvOP4yC3z5cF84YAgt4Ejx87fptLM
 
 This release used a fixed source snapshot. Later working-tree changes, including deployment helpers and the standalone mandate-payment example, are not included in v0.1.0; they require a subsequent release. Package publication does not deploy or upgrade contracts.
 
+Source version **0.2.0** is now built and tested locally, not published to npm. It validates pool constructor bindings, retains earlier releases, adds read-only transaction reconciliation, and includes the current recovery-v1 testnet configuration. Install its local tarball following the SDK README. The signer/CLI bundles use this updated source.
+
 The dashboard consumes SDK builders, covenant serialization, custom authorization, reads, error decoding, owner preparation, agent execution and submission. Deployment discovery, local keys, Freighter UI, x402 HTTP handling, yield-provider activation gates and recovery UI remain application-side. Unfinished yield operations have an explicitly experimental export, not a stable client API.
 
 The existing x402 console flow now also uses `PoolClient.prepareAgent`, with an optional `timeoutSeconds` (integer 1–300, default 120) controlling transaction bounds and authorization lifetime. It adds reviewed quotes, persistent request IDs, restricted HTTP transport and RPC-confirmed payment evidence; see [agentic payment safety and API migration](AGENTIC_SAFETY.md). The HTTP checks alone do not change contracts. The optional native mandate profile uses new contract enforcement; neither profile claims AP2 credential/MCP/A2A support.
