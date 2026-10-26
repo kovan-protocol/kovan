@@ -10,7 +10,7 @@ Stellar testnet only. Not audited.
 - [Quickstart](https://kovan-protocol.vercel.app/docs/quickstart): From zero to a funded pool and an agent that pays inside its limits.
 - [Concepts](https://kovan-protocol.vercel.app/docs/concepts): Pools, agent wallets, covenants, the lifecycle, delegation and the guarantees.
 - [Agent tool](https://kovan-protocol.vercel.app/docs/agent-tool): kovan.mjs, the one-file tool agents use to set up pools and agents and to spend.
-- [SDK](https://kovan-protocol.vercel.app/docs/sdk): @kovan/sdk: create pools and agents, and sign agent payments from TypeScript.
+- [SDK](https://kovan-protocol.vercel.app/docs/sdk): @kovan-protocol/sdk: create pools and agents, and sign agent payments from TypeScript.
 - [Contracts](https://kovan-protocol.vercel.app/docs/contracts): Deployed testnet IDs, pool functions, events and every error code.
 - [Paying with x402](https://kovan-protocol.vercel.app/docs/x402): How a covenant-bound smart account pays per call over x402.
 - [Security model](https://kovan-protocol.vercel.app/docs/security): What Kovan enforces on-chain, what you trust, and what it does not cover.

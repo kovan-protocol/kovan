@@ -22,7 +22,7 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 ## Two ways to use Kovan
 
 - **Through an agent.** Install Kovan into your agent and ask in plain words: *"Set me up a $100 pool with 2 agents."* The agent prepares every transaction with [`kovan.mjs`](/docs/agent-tool); you approve each owner action in Freighter. → [Quickstart](/docs/quickstart)
-- **From your own code.** Use [`@kovan/sdk`](/docs/sdk) to create pools and agents, and to sign agent payments from your runtime.
+- **From your own code.** Use [`@kovan-protocol/sdk`](/docs/sdk) to create pools and agents, and to sign agent payments from your runtime.
 
 ## What runs where
 
@@ -35,7 +35,7 @@ The owner can revoke an agent at any time and pull its funds back into the pool 
 - [Quickstart](/docs/quickstart): from zero to a funded pool and a working agent
 - [Concepts](/docs/concepts): pools, wallets, covenants, lifecycle, guarantees
 - [Agent tool](/docs/agent-tool): every `kovan.mjs` command
-- [SDK](/docs/sdk): `@kovan/sdk` for TypeScript
+- [SDK](/docs/sdk): `@kovan-protocol/sdk` for TypeScript
 - [Contracts](/docs/contracts): deployed IDs, functions, events, error codes
 - [Paying with x402](/docs/x402): per-call payments from a smart account
 - [Security model](/docs/security): what is enforced, what you trust, what's not covered

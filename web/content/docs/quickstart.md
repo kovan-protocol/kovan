@@ -53,17 +53,15 @@ Every command prints one JSON line. See [Agent tool](/docs/agent-tool) for all c
 
 ## From code
 
-`@kovan/sdk` is a TypeScript package (Node.js 22+ and browser bundlers). It isn't on npm yet; build it from the repository:
+`@kovan-protocol/sdk` is available on npm for Node.js 22+ and browser bundlers:
 
 ```bash
-git clone https://github.com/kovan-protocol/kovan && cd kovan/sdk
-npm ci && npm pack                      # → kovan-sdk-0.1.0.tgz
-cd /your/app && npm install /path/to/kovan-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
 ```
 
 ```ts
 import { Networks } from "@stellar/stellar-sdk";
-import { KovanClient } from "@kovan/sdk";
+import { KovanClient } from "@kovan-protocol/sdk";
 
 const d = await (await fetch("https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json")).json();
 const kovan = new KovanClient({

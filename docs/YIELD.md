@@ -1,9 +1,11 @@
 # Optional yield backing — pool v3
 
-Status: **implemented and locally tested; not activated or deployed to testnet**.
-The deployment manifest still points to the cash-only v2 pool. `New pool` uses
-that deployed v2 WASM until an explicit v3 rollout. No existing balances, agents,
-allowances, vault positions, or deployed contracts were changed for this feature.
+Status: **v3 code published on testnet; yield remains inactive**.
+The mandate release in `current_release` now supplies v3 WASM for `New pool`,
+cash-only until a vault is configured. The displayed default remains historical
+v2. No matching vault is allowlisted, and no existing balances, agents,
+allowances or vault positions were migrated or invested. The live mandate
+rehearsal validates cash operations, not vault integration or liquidity.
 This is an unaudited testnet prototype, not production investment infrastructure.
 
 ## Two entry points, one custody model

@@ -1,31 +1,30 @@
 ---
 title: SDK
-description: "@kovan/sdk: create pools and agents, and sign agent payments from TypeScript."
+description: "@kovan-protocol/sdk: create pools and agents, and sign agent payments from TypeScript."
 ---
 
-# SDK: `@kovan/sdk`
+# SDK: `@kovan-protocol/sdk`
 
 A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
 
-> Local package, **not on npm yet**. Testnet prototype, not audited.
+> Available on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk). Testnet prototype, not audited.
 
 ## Install
 
 ```bash
-git clone https://github.com/kovan-protocol/kovan && cd kovan/sdk
-npm ci && npm pack                       # → kovan-sdk-0.1.0.tgz (npm pack does not publish)
-cd /your/app
-npm install /path/to/kovan-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
 ```
 
 `@stellar/stellar-sdk` is a peer dependency, shared with your app.
+
+To develop against the latest repository code, build a local tarball with `npm ci && npm pack` from `sdk/`. The repository may contain changes newer than the published release.
 
 ## Configure
 
 The SDK doesn't load deployment files or pick a pool for you. Pass reviewed public IDs, e.g. from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json):
 
 ```ts
-import { KovanClient } from "@kovan/sdk";
+import { KovanClient } from "@kovan-protocol/sdk";
 import { Networks } from "@stellar/stellar-sdk";
 
 const kovan = new KovanClient({
@@ -33,16 +32,16 @@ const kovan = new KovanClient({
   networkPassphrase: Networks.TESTNET,
   contracts: {
     usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
+    policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
     verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
-    poolWasmHash: "cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464",
-    accountWasmHash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
+    poolWasmHash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+    accountWasmHash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
   },
   maxFeeStroops: "10000000", // fee ceiling: 1 XLM
 });
 ```
 
-The client refuses pools that don't run a trusted Kovan code hash. `legacyPoolWasmHashes` allows older code for recovering existing pools only.
+This configuration uses the new native-mandate release. Build the latest source for deployment helpers: `releaseContracts(currentRelease(manifest))` selects new creation; `releaseContracts(await resolvePoolRelease(kovan, manifest, address))` selects an existing pool's verified generation for a separate client. Old code hashes alone do not reconcile different policies or account code. Do not point an old pool at the new policy.
 
 **Amounts are integer base-unit strings.** USDC has 7 decimals: `"10000000"` is 1 USDC.
 
@@ -52,7 +51,7 @@ Supply a `TransactionSigner`, for example a Freighter adapter:
 
 ```ts
 import { signTransaction } from "@stellar/freighter-api";
-import type { TransactionSigner } from "@kovan/sdk";
+import type { TransactionSigner } from "@kovan-protocol/sdk";
 
 const signOwner: TransactionSigner = async (xdr, { networkPassphrase, address }) => {
   const r = await signTransaction(xdr, { networkPassphrase, address });
@@ -87,13 +86,23 @@ const r = await kovan.signAndSend(await pool.prepareOwner("create_agent", {
 const agent = r.returnValue as string;
 ```
 
-Creating an agent reserves its draw limit; it doesn't move funds. **Draw before paying.** The signer, allowlists and policy are fixed; numeric limits and expiry can be amended.
+Check `r.status === "SUCCESS"` before using its return value. Creating an agent reserves its draw limit; it doesn't move funds. **Draw before paying.** The signer, allowlists and policy are fixed; numeric limits and expiry can be amended. New agents additionally require an owner-approved grant:
+
+```ts
+// Application-persisted, nonzero 32-byte hex commitments; never regenerate on retry.
+const approval = await kovan.signAndSend(await pool.prepareOwner("create_mandate", {
+  agent, params: { id: mandateId, intent_hash: intentHash, expiry: latest.sequence + 720,
+    scope: { kind: "exact", asset: kovan.contracts.usdc, payee: provider,
+      amount: "5000000", reference: purchaseReference } },
+}, owner), signOwner);
+if (approval.status !== "SUCCESS") throw new Error(`${approval.status}: ${approval.hash}`);
+```
 
 ## Agent: sign with the agent key, pay fees with any account
 
 ```ts
 import { Keypair } from "@stellar/stellar-sdk";
-import { keypairTransactionSigner, type DigestSigner } from "@kovan/sdk";
+import { keypairTransactionSigner, type DigestSigner } from "@kovan-protocol/sdk";
 
 const key = Keypair.fromSecret(process.env.KOVAN_AGENT_SECRET!);
 const agentSigner: DigestSigner = {
@@ -104,7 +113,10 @@ const agentSigner: DigestSigner = {
 const draw = await pool.prepareAgent("draw", { agent, amount: "50000000" }, { source: key.publicKey(), signer: agentSigner });
 await kovan.signAndSend(draw, keypairTransactionSigner(key));
 
-const pay = await pool.prepareAgent("pay", { agent, to: provider, amount: "5000000" }, { source: key.publicKey(), signer: agentSigner });
+const pay = await pool.prepareAgent("pay", {
+  agent, to: provider, amount: "5000000",
+  payment: { mandateId, paymentId, reference: purchaseReference },
+}, { source: key.publicKey(), signer: agentSigner });
 await kovan.signAndSend(pay, keypairTransactionSigner(key));
 ```
 
@@ -116,12 +128,15 @@ The agent signs the contract authorization; the `source` account signs the envel
 |---|---|
 | New pool | `kovan.prepareCreatePool(owner, salt?)` |
 | Read | `pool.getPool()`, `pool.listAgents()`, `pool.getAgent(agent)`, `pool.balance(address?)` |
+| Grants / receipts | `pool.getMandate(agent, id)`, `pool.getPayment(agent, paymentId)` |
 | Owner actions | `pool.prepareOwner(fn, args, owner)`: `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute` |
 | Agent actions | `pool.prepareAgent("draw" \| "pay" \| "return", request, { source, signer })` |
 | Sign and send | `kovan.signAndSend(prepared, signer)` |
 | Signers | `keypairTransactionSigner(keypair)`, or your own `TransactionSigner` / `DigestSigner` |
 
 `revoke` and `close` take `{ agent, by: owner }`; owner `return_funds` also takes `amount`; `close_pool` takes `{}`. Close children before parents, then close the pool.
+
+New owner methods: `create_mandate` (above) and `revoke_mandate` with `{agent, id: mandateId}`. `paymentIdForRequest(persistedRequestId)` derives a stable payment ID. Keep IDs and exact inputs across retries; reconcile receipts and unknown transaction outcomes before paying again. Grants intersect with the covenant, never expand it. Intent hashes and receipts are not proof of useful work or AP2 credential conformance.
 
 Lower-level builders (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are exported too. They **don't** run all the safety checks above; prefer `KovanClient`.
 

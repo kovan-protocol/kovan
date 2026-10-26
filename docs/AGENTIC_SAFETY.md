@@ -1,6 +1,6 @@
 # Agentic payment safety: supported integration only
 
-Kovan currently integrates **x402 v2 HTTP `exact` payments on Stellar testnet** with the configured USDC contract. The console supports fee-sponsored HTTPS GET resources. Direct SDK payments use the same covenant enforcement. This work does not implement AP2 credentials/mandates, MCP, A2A, MPP, escrow, task-result verification, or reputation.
+Kovan currently integrates **x402 v2 HTTP `exact` payments on Stellar testnet** with the configured USDC contract. The console supports fee-sponsored HTTPS GET resources. Direct SDK payments use the same covenant enforcement. The new testnet release additionally implements [native Kovan on-chain mandates](MANDATES.md); existing pools are unchanged. Direct mandate settlement has been rehearsed on testnet; the new envelope has not yet been rehearsed through the live x402 facilitator. This does not implement AP2 signed credentials, MCP, A2A, MPP, escrow, task-result verification, or reputation.
 
 ## What is enforced where
 
@@ -13,7 +13,7 @@ Kovan currently integrates **x402 v2 HTTP `exact` payments on Stellar testnet** 
 | Payment evidence | Confirmed token transfer | Receipt must match the network, payer if present, transaction hash, transfer and exact signed authorization returned by Stellar RPC |
 | Work result | No correctness verification | HTTP success is not payment confirmation; payment confirmation is not proof of useful work or a refund entitlement |
 
-The quote ID is a comparison hash, **not** a user signature or a mandate. The URL and request ID are not bound/enforced by the contracts. The agent key can bypass these HTTP checks, but cannot bypass the on-chain covenant. We continue to trust the configured Stellar RPC for chain observations.
+The quote ID alone is a comparison hash, **not** a user signature or a mandate. Legacy contracts do not bind it or the request ID. With the native mandate profile, the owner approves a grant and the agent signature binds the quote hash and a request-ID-derived payment ID; the chain enforces that grant and consumes the ID. It still cannot fetch or verify an HTTP URL or response. The agent key can bypass HTTP checks, but not its on-chain covenant or the new account's required mandate. We continue to trust the configured Stellar RPC for chain observations. The table above describes the original integration; [the mandate guide](MANDATES.md) details the additional enforcement and deployment requirements.
 
 ## Safe request flow
 
@@ -32,7 +32,7 @@ The quote ID is a comparison hash, **not** a user signature or a mandate. The UR
 }
 ```
 
-`pool` is optional (defaults to the configured pool); the console now passes the selected pool. Both `quoteId` and `requestId` are required. Older callers sending only `{agent,url}` fail closed and must adopt discovery first. The website's copyable agent example follows this flow.
+`pool` is optional (defaults to the configured pool); the console now passes the selected pool. Both `quoteId` and `requestId` are required. Older callers sending only `{agent,url}` fail closed and must adopt discovery first. The website's copyable agent example follows this flow. For a new mandate-capable agent, also pass `mandateId` (a nonzero 64-character lowercase hex string) for its owner-approved grant. Explicit mandate requests fail on unsupported deployments, without legacy fallback.
 
 5. Retry only with **identical saved inputs and the same requestId**. Completed requests return their stored result; pending/interrupted requests return HTTP 409. A request ID reused with different inputs is rejected. The console's Pay button reuses its request ID until Read terms is explicitly selected again. Reloading the UI does not restore a previous request: inspect the local journal and on-chain activity before authorizing another attempt after an interrupted payment.
 
@@ -57,6 +57,8 @@ Requests are recorded in `x402-requests/` beside the local keystore (normally `d
 
 Regression tests cover malformed terms, unsupported profiles, quote changes, URL/SSRF and DNS rebinding, SDK invocation checks and expiry, false/missing receipts, substituted transfers/nonces, pending/failed RPC outcomes, fee-bumped settlement, interrupted/repeated requests and local API access. Tests use mocked network/chain responses; they do not move funds or constitute a security audit.
 
-Run `make test-js`, then `npm --prefix dashboard run lint`. Contracts are unchanged; no deployment, existing-agent migration, or new on-chain mandate semantics are required.
+Run `make test-js`, then `npm --prefix dashboard run lint`. These HTTP checks still work with legacy deployments. Native mandate enforcement requires a newly created pool/agents using the published release; run `make test` and follow [the activation notes](MANDATES.md). Publication did not migrate any existing agents or user funds.
+
+For the browser/API regression check, run `cd dashboard && npm run build && node scripts/x402-smoke.mjs` with Chromium installed (`CHROMIUM_PATH` can override its location). This checks local access restrictions, quote review, selected-pool propagation, duplicate clicks, stable retry IDs and URL changes. Payment APIs are intercepted in the browser; it never signs or submits a payment.
 
 References: [Stellar exact scheme](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_stellar.md), [x402 v2](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md).

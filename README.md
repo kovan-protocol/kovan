@@ -12,9 +12,10 @@ HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that s
 | Website | <https://kovan-protocol.vercel.app> |
 | Agent install / guide | `/plugin install kovan --marketplace kovan-protocol/kovan` (Claude Code) · <https://kovan-protocol.vercel.app/agent.md> (any agent) |
 | Signing page (for cloud agents) | <https://kovan-protocol.vercel.app/sign> |
+| TypeScript SDK | [`@kovan-protocol/sdk`](https://www.npmjs.com/package/@kovan-protocol/sdk) |
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
-| Deck | TBD |
+| Deck | [PDF](docs/pitch/kovan-pitch-deck.pdf) · [HTML](docs/pitch/kovan-pitch-deck.html) |
 
 ## One-liner
 
@@ -63,6 +64,23 @@ Earlier Stellar hackathon projects put spending limits on a single agent wallet.
 
 Pool accounting, permanent shutdown, the optional DeFindex yield source (built and tested against DeFindex's real vault code, not yet activated) and signer choices are documented in [docs/POOL.md](docs/POOL.md). Design: [covenant design](docs/superpowers/specs/2026-10-25-kovan-covenant-design.md) · [implementation plan](docs/superpowers/plans/2026-10-25-kovan-contracts.md).
 
+### Native mandates — new testnet release
+
+Published on 2026-10-26. Owner-approved exact or budget grants bind payments to intent/purchase hashes, deadlines and single-use IDs. New accounts require a signed grant envelope for outgoing settlement-token transfers; pool returns and recovery remain available. This is native Kovan enforcement, not AP2 signed credentials or proof of work delivery.
+
+| Artifact | Published value |
+| --- | --- |
+| Covenant policy | `CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB` |
+| Pool WASM (accounting v3, mandate v1) | `74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf` |
+| Agent-account WASM | `0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d` |
+| Policy deployment transaction | [d992200…](https://stellar.expert/explorer/testnet/tx/d99220004f7dfe630e271f50231a161b7a4c33c718e6cbb1374eea07a4f0692a) |
+| Pool upload transaction | [5038c79…](https://stellar.expert/explorer/testnet/tx/5038c7928e3b52508ca721ad3f718a7901c0299e12712b982c8ec5ee51ef7292) |
+| Account upload transaction | [294b843…](https://stellar.expert/explorer/testnet/tx/294b8435337f4f92ebbb0cde1107becda70f8bf69f7f7286bd04bd67b3a20883) |
+
+`current_release` in the manifest supplies new-pool creation. Existing pools resolve their own reviewed code and bindings; switching the selected pool never mixes old accounts with the new policy. The verifier is unchanged. Owner approval in Freighter is required to create/fund a new pool; publication does not move existing funds. The updated SDK helpers and application bundles must be built from this source; npm v0.1.0 is a separate snapshot.
+
+A fresh disposable-XLM pool passed grant creation, direct payment, unbound/replay/revocation refusal and complete recovery/shutdown on testnet. See [mandate behavior, transaction evidence and migration instructions](docs/MANDATES.md). Live x402 facilitator acceptance for the new envelope remains unverified.
+
 ## Architecture: how Stellar is used
 
 | Component | Stellar feature | Contract ID (testnet) |
@@ -78,7 +96,9 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ### Testnet transaction evidence
 
-Current pool rollout (confirmed by Stellar RPC):
+The table below records the retained historical default; new deployments use the mandate release above.
+
+Historical default-pool rollout (confirmed by Stellar RPC):
 
 | Step | What it shows | Tx |
 |---|---|---|
@@ -125,7 +145,7 @@ The agent prepares every transaction itself with [`kovan.mjs`](skills/kovan/scri
 
 ### Developer SDK
 
-[`@kovan/sdk`](sdk/README.md) is a standalone local TypeScript/ESM package for deploying/funding pools, creating agents, authorized payments and recovery/closure. The dashboard uses the same SDK. Applications supply their own configuration and owner/agent/fee-payer signers; no Kovan backend or keystore is required. It is **not yet published to npm**. Yield remains experimental and inactive on the default v2 deployment.
+[`@kovan-protocol/sdk`](sdk/README.md) is a standalone TypeScript/ESM package for deploying/funding pools, creating agents, authorized payments and recovery/closure, available on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk). Install with `npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1`. The dashboard uses the same SDK. Applications supply their own configuration and owner/agent/fee-payer signers; no Kovan backend or keystore is required. Yield remains experimental and inactive on the default v2 deployment.
 
 ```bash
 cd sdk
@@ -143,11 +163,11 @@ Verification snapshot (2026-10-26, current `main`): **460 tests** pass: 132 cont
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
 make test                            # builds WASM and runs the contract tests
-node dashboard/scripts/deploy-pool.mjs --check --source <identity> # read-only preflight (after build)
-OWNER=<identity> make deploy         # testnet only; pool-only rollout when manifest exists
+DEPLOYER=<dedicated-testnet-identity> bash scripts/deploy.sh --check # read-only preflight
+DEPLOYER=<dedicated-testnet-identity> make deploy # publish code/policy, never owner actions
 ```
 
-Run `make setup-js` to install/build the SDK and install the dashboard's local package dependency. `make test-js` rebuilds the SDK, refreshes that installed copy and checks both packages. The console runs locally (`cd dashboard && npm run dev`); see [dashboard/README.md](dashboard/README.md). With an existing manifest, deployment verifies the owner and unchanged shared code, archives the old manifest, deploys and verifies the new pool, and atomically updates the record while retaining legacy access. It does not move funds. Update the README's deployment evidence after a rollout, then run `cd web && npm run build` to synchronize the website snapshot.
+Run `make setup-js` to install/build the SDK and install the dashboard's local package dependency. `make test-js` rebuilds the SDK, refreshes that installed copy and checks both packages. Publication verifies code, archives the manifest, uploads the new pool/account code, deploys the policy and records `current_release`. It never uses the original owner's key or changes existing pools. Create a new pool through Freighter; optional default-pool adoption uses `dashboard/scripts/activate-pool.mjs` after the wallet-approved transaction. Rebuild signer/CLI and website snapshots after changing the manifest. See [rollout instructions](docs/MANDATES.md).
 
 ## Env vars
 
@@ -177,7 +197,7 @@ B2B and non-custodial: owners sign in their own wallets and agents hold their ow
 
 ## Roadmap
 
-- x402 payments built into the agent tool, and the SDK published to npm.
+- x402 payments built into the agent tool.
 - An MCP server, so any MCP-capable agent can use Kovan without running a script.
 - Live DeFindex yield on idle pool funds, once a vault accepts Circle's testnet USDC.
 - On-chain payment mandates, and co-signing for large or unusual payments.

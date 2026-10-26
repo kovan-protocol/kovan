@@ -1,10 +1,20 @@
 # SDK extraction and end-to-end verification
 
-`sdk/` is a standalone TypeScript/ESM package, `@kovan/sdk` v0.1.0. It is local and packable, **not published to npm**. See [integration instructions](../sdk/README.md).
+Subsequent work adds [native on-chain payment mandates](MANDATES.md) to the contracts, SDK, dashboard and signer. New artifacts were published on testnet on 2026-10-26 and passed a separate disposable-XLM mandate lifecycle (evidence in that guide). The historical execution below used legacy contracts. New-pool creation selects `current_release`; existing pools retain their original bindings and funds.
+
+`sdk/` is a standalone TypeScript/ESM package. [`@kovan-protocol/sdk` v0.1.0](https://www.npmjs.com/package/@kovan-protocol/sdk/v/0.1.0) was published to npm on 2026-10-26. See [integration instructions](../sdk/README.md).
+
+The published tarball passed 73 tests, the Chromium compatibility check, and an isolated installation/TypeScript consumer check. Its registry integrity matches the validated artifact:
+
+```text
+sha512-YhEdqcYvynUQ+0J7jmCYWxiJ1L2U+0ms7y8ymAapU0NJJvOP4yC3z5cF84YAgt4Ejx87fptLM11/TDxGxqVPKw==
+```
+
+This release used a fixed source snapshot. Later working-tree changes, including deployment helpers and the standalone mandate-payment example, are not included in v0.1.0; they require a subsequent release. Package publication does not deploy or upgrade contracts.
 
 The dashboard consumes SDK builders, covenant serialization, custom authorization, reads, error decoding, owner preparation, agent execution and submission. Deployment discovery, local keys, Freighter UI, x402 HTTP handling, yield-provider activation gates and recovery UI remain application-side. Unfinished yield operations have an explicitly experimental export, not a stable client API.
 
-The existing x402 console flow now also uses `PoolClient.prepareAgent`, with an optional `timeoutSeconds` (integer 1–300, default 120) controlling transaction bounds and authorization lifetime. It adds reviewed quotes, persistent request IDs, restricted HTTP transport and RPC-confirmed payment evidence; see [agentic payment safety and API migration](AGENTIC_SAFETY.md). These checks do not add AP2/MCP/A2A support or change the contracts.
+The existing x402 console flow now also uses `PoolClient.prepareAgent`, with an optional `timeoutSeconds` (integer 1–300, default 120) controlling transaction bounds and authorization lifetime. It adds reviewed quotes, persistent request IDs, restricted HTTP transport and RPC-confirmed payment evidence; see [agentic payment safety and API migration](AGENTIC_SAFETY.md). The HTTP checks alone do not change contracts. The optional native mandate profile uses new contract enforcement; neither profile claims AP2 credential/MCP/A2A support.
 
 Explicit operation construction preserves custom-account authorization and deployed ABI behavior. Stellar's SDK handles XDR, credential-aware preimages, simulation assembly and RPC transport. The Stellar dApp skill guided configuration/signer separation and client/server boundaries.
 
@@ -43,4 +53,4 @@ This proves the cash lifecycle through the standalone SDK with disposable testne
 - Package smoke: packed tarball installed in a fresh temporary application outside the repository; public ESM exports and TypeScript declarations/type restrictions passed.
 - Dashboard browser smoke: recovery/closure, rejection/retry, late refunds, experimental yield controls and responsive layouts passed with mocked APIs/wallet signatures; no chain writes.
 
-The Stellar SDK peer dependency is deduplicated in the dashboard. No Rust contract edits, new WASM upload, yield activation or default-deployment change were made during SDK extraction. Existing uncommitted contract/deployment work was preserved. No commit, push, npm publication or website deployment was performed.
+The Stellar SDK peer dependency is deduplicated in the dashboard. No Rust contract edits, new WASM upload, yield activation or default-deployment change were made during SDK extraction. Existing uncommitted contract/deployment work was preserved. No commit, push, npm publication or website deployment was performed during that extraction; the subsequent npm release is recorded above.

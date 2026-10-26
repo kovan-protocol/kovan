@@ -4,7 +4,7 @@ Details moved from the README. The README keeps the overview; this page keeps th
 
 ## Deployed cash-pool accounting v2
 
-The deployed v2 pool implements the complete draw → spend → recover → close → withdraw lifecycle. AP2 mandates, intent records, and escrow are deferred; this keeps the existing pool, policy, and agent accounts.
+The historical v2 pool implements the complete draw → spend → recover → close → withdraw lifecycle. The new release adds native owner-approved payment mandates and intent-hash commitments in the existing contract types. AP2 credential conformance, task verification and escrow remain deferred.
 
 - `locked` = the pool's actual USDC balance + outstanding agent advances. It is an accounting total, **not** the pool's cash balance. An advance includes money already spent until it is settled at closure.
 - `sum_limits` = draw limits of all non-closed agents. Available funds are `locked - sum_limits`, always backed by cash in the pool.
@@ -20,15 +20,15 @@ The console's **Close pool** replaces **Free pool**: revoke agents, recover and 
 
 This is irreversible deactivation, not deletion of the contract or its history. There is no reopen/upgrade function. The pool rejects new funding, agents, draws, delegation, amendments, and other operational changes. `return_funds`, owner-only `withdraw`, and reads remain available so late USDC deposits can be recovered without reopening it. Closing agents and closing their pool are distinct operations; draining cash alone does not close a pool.
 
-**Deployment:** accounting v2 and permanent shutdown are deployed on testnet (2026-10-25, 22:30:42 UTC). The default pool and the dashboard's **New pool** flow use pool WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464`. The policy, verifier, and agent-account WASM are unchanged and were checked byte-for-byte against the current build. The new pool was deployed empty; no old balances or agents were moved. The full spending/recovery lifecycle is covered by tests and was replayed end to end on an isolated pool with the SDK ([evidence](SDK.md)); it has not yet been replayed with USDC on the new default pool.
+**Historical default:** accounting v2 and permanent shutdown were deployed on testnet (2026-10-25, 22:30:42 UTC), using pool WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464`. That displayed pool keeps its original policy/account bindings. **New pool now uses the mandate-capable release below.** No old balances or agents were moved.
 
 Existing pools are immutable and cannot be upgraded in place. The [previous deployment record](../deployments/history/testnet-2026-10-25-legacy.json) is preserved, and the dashboard keeps its old default plus browser-saved pools selectable. Explicit legacy WASM hashes remain allowed for access and recovery, never for new deployments. Old pools retain **Recover funds** and **Return to wallet**; the console only offers permanent closure when `get_pool` includes the boolean `closed` field. Create a new pool owned by your connected wallet, fund it, and create new agents to use the new lifecycle. Moving funds from an old pool still requires its owner's separate signatures.
 
-## Optional yield — v3 source, not yet activated
+## Optional yield — v3 published, not activated
 
 The new pool source supports both **investing pool USDC into a DeFindex vault** and **locking an existing transferable vault-share position**. It uses actual share custody, discounts estimated backing by 10%, redeems only missing cash during an agent draw, and returns shares in kind during closure. The console separates cash from estimated vault backing and requires owner-signed opt-in and bounded quotes. This buffer is not insurance; investment losses and unavailable liquidity can stop draws.
 
-**The manifest and New pool flow still deploy cash-only v2.** The published DeFindex testnet vault uses a different USDC contract, so it is deliberately not enabled. Existing funds are untouched. See [yield design, trust boundaries, tests and activation requirements](YIELD.md). A compatible reviewed vault and fresh v3 rollout are required before using yield on chain.
+**New pool deploys v3 in cash-only mode.** No vault is allowlisted. The published DeFindex testnet vault uses a different USDC contract, so it is deliberately not enabled. Existing funds are untouched. See [yield design, trust boundaries, tests and activation requirements](docs/YIELD.md). A compatible reviewed vault and owner-signed configuration are required before using yield on chain.
 
 ## Agent signer choice
 
