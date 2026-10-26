@@ -15,7 +15,7 @@ One pool funds many agents. Each agent gets its own Stellar smart account, bound
 [![CI](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml/badge.svg)](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-[Website](https://kovan-protocol.vercel.app) · [Try it with your agent](#use-with-your-agent) · [Demo video](#live-url-video-and-deck) · [Deck](docs/kovan-pitch-deck.pdf) · [Evidence](#testnet-transaction-evidence) · [API reference](#api-reference) · [Security model](#security-model)
+[Website](https://kovan-protocol.vercel.app) · [Try it with your agent](#use-with-your-agent) · [Live demo](https://kovan-protocol.vercel.app/playground) · [Deck](docs/kovan-pitch-deck.pdf) · [Evidence](#testnet-transaction-evidence) · [API reference](#api-reference) · [Security model](#security-model)
 
 HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that spend")
 
@@ -32,7 +32,7 @@ HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that s
   - [The user](#the-user)
   - [One-liner](#one-liner)
   - [What's different](#whats-different)
-- [Live URL, video and deck](#live-url-video-and-deck)
+- [Live URL and deck](#live-url-and-deck)
 - [Core features](#core-features)
 - [Architecture: how Stellar is used](#architecture-how-stellar-is-used)
 - [How it works](#how-it-works)
@@ -97,7 +97,7 @@ Earlier Stellar hackathon projects put spending limits on a single agent wallet.
 
 ---
 
-## Live URL, video and deck
+## Live URL and deck
 
 | Item | Link |
 |---|---|
@@ -106,8 +106,7 @@ Earlier Stellar hackathon projects put spending limits on a single agent wallet.
 | One-link setup (chat assistants) | <https://kovan-protocol.vercel.app/setup> |
 | Signing page (cloud agents) | <https://kovan-protocol.vercel.app/sign> |
 | TypeScript SDK | [`@kovan-protocol/sdk`](https://www.npmjs.com/package/@kovan-protocol/sdk) on npm |
-| Demo video (2–4 min) | TBD |
-| Backup video (unlisted) | TBD |
+| Live demo | <https://kovan-protocol.vercel.app/playground> (wallet-free simulation of caps, payees and revocation) |
 | Deck | [Kovan pitch deck (PDF)](docs/kovan-pitch-deck.pdf) · generated version with speaker notes: [PDF](docs/pitch/kovan-pitch-deck.pdf) · [PPTX](docs/pitch/kovan-pitch-deck.pptx) · [HTML](docs/pitch/kovan-pitch-deck.html) · [pitch script](docs/pitch/PITCH.md) |
 | Deployment record | [deployments/testnet.json](deployments/testnet.json) |
 
@@ -750,7 +749,7 @@ Names only; copy the example files and never commit real values.
 
 ## Demo
 
-The video walks through the same flow you can run yourself on testnet:
+The demo walks through the same flow you can run yourself on testnet:
 
 1. **Set up by an agent.** In Claude Code with the plugin installed: *"Set me up a $100 Kovan pool with 2 agents."* The agent runs `kovan.mjs` (`connect`, `owner create_pool`, `owner fund`, `owner create_agent`) and the owner approves each step in Freighter.
 2. **Approve a mandate.** The owner signs `create_mandate` for the agent's first purchase.
