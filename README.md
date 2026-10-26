@@ -15,7 +15,7 @@ One pool funds many agents. Each agent gets its own Stellar smart account, bound
 [![CI](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml/badge.svg)](https://github.com/kovan-protocol/kovan/actions/workflows/signer-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-[Website](https://kovan-protocol.vercel.app) · [Try it with your agent](#use-with-your-agent) · [Demo video](#live-url-video-and-deck) · [Deck](docs/pitch/kovan-pitch-deck.pdf) · [Evidence](#testnet-transaction-evidence) · [API reference](#api-reference) · [Security model](#security-model)
+[Website](https://kovan-protocol.vercel.app) · [Try it with your agent](#use-with-your-agent) · [Demo video](#live-url-video-and-deck) · [Deck](docs/kovan-pitch-deck.pdf) · [Evidence](#testnet-transaction-evidence) · [API reference](#api-reference) · [Security model](#security-model)
 
 HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that spend")
 
@@ -108,7 +108,7 @@ Earlier Stellar hackathon projects put spending limits on a single agent wallet.
 | TypeScript SDK | [`@kovan-protocol/sdk`](https://www.npmjs.com/package/@kovan-protocol/sdk) on npm |
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
-| Deck | [PDF](docs/pitch/kovan-pitch-deck.pdf) · [PPTX](docs/pitch/kovan-pitch-deck.pptx) · [HTML with notes](docs/pitch/kovan-pitch-deck.html) · [pitch script](docs/pitch/PITCH.md) |
+| Deck | [Kovan pitch deck (PDF)](docs/kovan-pitch-deck.pdf) · generated version with speaker notes: [PDF](docs/pitch/kovan-pitch-deck.pdf) · [PPTX](docs/pitch/kovan-pitch-deck.pptx) · [HTML](docs/pitch/kovan-pitch-deck.html) · [pitch script](docs/pitch/PITCH.md) |
 | Deployment record | [deployments/testnet.json](deployments/testnet.json) |
 
 ---
