@@ -6,13 +6,13 @@ Standalone TypeScript/ESM SDK for Kovan's pool → agent → spending → recove
 
 Native mandate v1 provides owner-approved exact/budget grants, signed purchase bindings, replay protection and payment receipts. The configuration below creates matching new pools/agents. See [the mandate guide and live rehearsal](../docs/MANDATES.md) and [direct-payment example](examples/mandate-payment.mjs). This is not AP2 credential conformance. Build this source for the latest deployment helpers; npm v0.1.0 is a separate, earlier snapshot.
 
-## Install
+## Install the earlier npm snapshot
 
 ```bash
-npm install @kovan-protocol/sdk @stellar/stellar-sdk@16.4.1
+npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
 ```
 
-Stellar's SDK is a peer dependency, shared with the application. The package includes compiled JavaScript, TypeScript declarations, source files for debugging, documentation and standalone examples.
+Stellar's SDK is a peer dependency, shared with the application. For the **0.2.0 fixes and current-release examples below**, build this source using the next section; 0.2.0 has not been published to npm. The package includes compiled JavaScript, TypeScript declarations, source files for debugging, documentation and standalone examples.
 
 ## Build from source
 
@@ -28,12 +28,25 @@ npm pack
 In another application:
 
 ```bash
-npm install /absolute/path/to/kovan-protocol-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
 
 `npm pack` builds a local tarball; it does not publish to npm.
 
 ## Configure explicitly
+
+Source/package version **0.2.0** verifies immutable pool bindings (policy,
+verifier, settlement token and account WASM), not just pool bytecode, before
+preparing owner or agent operations. An unavailable `get_config` fails closed.
+Use `releaseContracts` with a reviewed deployment manifest: it explicitly marks
+pre-mandate releases with `legacyBindings: true` because those contracts cannot
+report their constructor bindings. Never enable that exception for arbitrary
+untrusted pools. `previous_releases` preserves access to older immutable native
+mandate releases after a rollout. This source update does not publish to npm.
+
+`transactionStatus(client, hash)` reconciles a saved submission without signing
+or sending anything. Persist the signed envelope and hash before broadcast;
+retry the identical envelope, not a newly prepared payment, while status is unknown.
 
 The SDK does not load deployment files or select an existing pool for you. Supply reviewed public IDs from your application's configuration:
 
@@ -46,10 +59,10 @@ const kovan = new KovanClient({
   networkPassphrase: Networks.TESTNET,
   contracts: {
     usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+    policy: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
     verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
-    poolWasmHash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
-    accountWasmHash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+    poolWasmHash: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+    accountWasmHash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
   },
   maxFeeStroops: "10000000", // total transaction fee ceiling: 1 XLM
 });
@@ -187,6 +200,26 @@ node examples/testnet-lifecycle.mjs --execute   # explicit isolated testnet life
 The example uses disposable in-memory accounts, Friendbot XLM and a **new pool**. No USDC, existing keys, dashboard endpoints or repository deployment files. It checks cap refusal, revocation, payment, returns, recovery and shutdown. Only public addresses/hashes are printed. Secrets are not saved; interruption can strand worthless testnet XLM. Do not fund these disposable accounts or use this example to recover existing pools.
 
 The repository's `docs/SDK.md` records an executed run. Mainnet, real-USDC funding/trustlines, wallet extensions, remote HSMs, x402 facilitators and live yield liquidity are not claimed as covered by that run.
+
+## Native yield and external positions
+
+The experimental DeFindex integration supports a Kovan-managed lending vault and
+locking existing single-USDC vault shares. Import provisioning helpers from
+`@kovan-protocol/sdk/experimental`: `prepareNativeVault` atomically creates and
+seeds an immutable vault; `prepareActivateNativeVault` invests its seed into the
+reviewed strategy; `inspectYieldVault` checks the actual allocation.
+`nativeVaultFromReceipt` recovers the committed vault from a successful factory
+transaction and verifies the constructor, live roles, fees and pinned code. Transactions
+are unsigned and testnet-only. The manager supplies a reviewed
+`NativeYieldSource`; its underlying token must match the pool exactly.
+
+`buildYieldOp` builds owner-signed pool investment, share-locking, redemption and
+recovery operations. Shares remain in pool custody and can continue earning until
+redeemed for agent draws. One vault per pool. Yield is variable, investment is
+opt-in. The selected XOXNO testnet strategy matches Kovan's exact USDC; the
+dashboard's `/yield/setup` page prepares creation and activation for Freighter.
+It is not enabled for pool funding until an invested vault is registered.
+See [yield setup and verification](../docs/YIELD.md) before activation.
 
 ## License
 

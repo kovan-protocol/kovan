@@ -31,6 +31,8 @@ export const POOL_ERRORS: Record<number, string> = {
   26: "YieldUnderfunded",
   27: "YieldArithmetic",
   28: "UnsupportedMandate",
+  29: "TooManyDescendants",
+  30: "DelegationTooDeep",
 };
 
 export const COVENANT_ERRORS: Record<number, string> = {

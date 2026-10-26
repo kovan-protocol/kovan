@@ -14,6 +14,16 @@ export type SubmitResult = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Reconcile a persisted hash without constructing, signing or sending anything. */
+export async function transactionStatus(t: Transport, hash: string): Promise<SubmitResult> {
+  if (!/^[a-f0-9]{64}$/i.test(hash)) throw new Error("Invalid transaction hash");
+  await assertNetwork(t);
+  const r = await t.rpc.getTransaction(hash);
+  if (r.status === "SUCCESS") return { hash, status: "SUCCESS", returnValue: r.returnValue ? scValToNative(r.returnValue) : undefined };
+  if (r.status === "FAILED") return { hash, status: "FAILED", error: r.resultXdr ? txResultCode(r.resultXdr) : "Transaction failed" };
+  return { hash, status: "NOT_FOUND" };
+}
+
 export async function submitSigned(t: Transport, signedXdr: string, opts: { context?: ErrorContext; attempts?: number; intervalMs?: number } = {}): Promise<SubmitResult> {
   const attempts = opts.attempts ?? 30;
   const intervalMs = opts.intervalMs ?? 1500;

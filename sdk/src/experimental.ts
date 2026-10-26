@@ -1,6 +1,7 @@
 /** Unstable v3 DeFindex ABI. NOT generic yield support; NOT enabled by the stable client. */
 import { Contract, xdr } from "@stellar/stellar-sdk";
 import { addrVal, bytes32Val, positiveAmount, u32Val } from "./scval.js";
+export * from "./defindex.js";
 
 export const yieldFns = ["configure_yield", "invest", "lock_shares", "redeem_shares", "release_shares"] as const;
 export type YieldFn = (typeof yieldFns)[number];

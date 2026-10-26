@@ -58,6 +58,20 @@ describe("preparing and signing", () => {
     await expect(pool.prepareOwner("fund", { amount: "1" }, owner.publicKey())).rejects.toThrow(/asset/);
     await expect(pool.prepareOwner("fund", { amount: "1" }, Keypair.random().publicKey())).rejects.toThrow(/original pool owner/);
   });
+  it.each(["policy", "verifier", "account_wasm_hash", "mandate_version"])("rejects forged constructor %s even with trusted pool code", async field => {
+    const { client, pool, rpc } = setup();
+    const bindings = { policy: POLICY, verifier: VERIFIER, usdc: TOKEN, account_wasm_hash: Buffer.from(config.accountWasmHash, "hex"), mandate_version: 1 };
+    vi.mocked(client.read).mockResolvedValue({ ...bindings, [field]: field === "account_wasm_hash" ? Buffer.alloc(32) : field === "mandate_version" ? 0 : POOL });
+    await expect(pool.prepareOwner("fund", { amount: "1" }, owner.publicKey())).rejects.toThrow(/constructor bindings/);
+    expect(rpc.simulateTransaction).not.toHaveBeenCalled();
+    expect(rpc.sendTransaction).not.toHaveBeenCalled();
+  });
+  it("fails closed when constructor bindings cannot be read", async () => {
+    const { client, pool, rpc } = setup();
+    vi.mocked(client.read).mockRejectedValue(new Error("get_config unavailable"));
+    await expect(pool.prepareOwner("fund", { amount: "1" }, owner.publicKey())).rejects.toThrow(/unavailable/);
+    expect(rpc.sendTransaction).not.toHaveBeenCalled();
+  });
   it("checks closure capability rather than assuming accounting v2 is enough", async () => {
     const { pool } = setup();
     vi.spyOn(pool, "getPool").mockResolvedValue({ ...poolInfo, closed: undefined });

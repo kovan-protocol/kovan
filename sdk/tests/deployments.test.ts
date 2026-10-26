@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { hash, Networks } from "@stellar/stellar-sdk";
 import { currentRelease, releaseForHash, releaseContracts, resolvePoolRelease, structVal, addrVal, bytes32Val, u32Val, type DeploymentManifest } from "../src/index.js";
 import { POOL, TOKEN, VERIFIER, owner, setup, simulation } from "./fixtures.js";
@@ -16,6 +16,13 @@ describe("multi-generation contract releases", () => {
   it("rejects unknown code and non-testnet manifests", () => {
     expect(() => releaseForHash(manifest, "0".repeat(64))).toThrow(/untrusted/);
     expect(() => currentRelease({ ...manifest, network: "mainnet" })).toThrow(/testnet/);
+  });
+  it("retains previous native releases for arbitrary existing pool addresses", () => {
+    const previous = manifest.current_release!;
+    const rolled = { ...manifest, previous_releases: [previous], current_release: { ...previous, pool_wasm_hash: "f".repeat(64), account_wasm_hash: "e".repeat(64) } };
+    expect(releaseForHash(rolled, previous.pool_wasm_hash)).toBe(previous);
+    expect(releaseContracts(previous).legacyBindings).toBeUndefined();
+    expect(releaseContracts(manifest).legacyBindings).toBe(true);
   });
   it("refuses conflicting bindings for the same code", () => {
     expect(() => releaseForHash({ ...manifest, legacy_pools: [{ pool: TOKEN, pool_wasm_hash: manifest.pool_wasm_hash, policy: TOKEN }] }, manifest.pool_wasm_hash)).toThrow(/Ambiguous/);

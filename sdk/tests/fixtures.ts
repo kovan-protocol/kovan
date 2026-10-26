@@ -32,5 +32,9 @@ export function setup() {
     getTransaction: vi.fn().mockResolvedValue({ status: "SUCCESS", returnValue: xdr.ScVal.scvVoid() }),
   };
   const client = new KovanClient({ rpcUrl: "https://rpc.example", networkPassphrase: Networks.TESTNET, contracts: config, rpc });
+  const read = client.read.bind(client);
+  vi.spyOn(client, "read").mockImplementation((address, fn, args) => fn === "get_config"
+    ? Promise.resolve({ policy: POLICY, verifier: VERIFIER, usdc: TOKEN, account_wasm_hash: Buffer.from(config.accountWasmHash, "hex"), mandate_version: 1 }) as never
+    : read(address, fn, args));
   return { rpc, client, pool: client.pool(POOL) };
 }

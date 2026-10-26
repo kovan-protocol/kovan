@@ -1,6 +1,6 @@
 {
   "name": "@kovan-protocol/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Non-custodial TypeScript client for Kovan pools and agent accounts on Stellar",
   "license": "MIT",
   "homepage": "https://kovan-protocol.vercel.app/docs/sdk",

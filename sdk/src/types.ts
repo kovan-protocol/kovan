@@ -16,7 +16,12 @@ export type PoolInfo = {
   owner: string; usdc: string; locked: bigint; sum_limits: bigint; agent_count: number;
   accounting_version?: number; settled_spent?: bigint; balance?: bigint; closed?: boolean; outstanding?: bigint;
 };
-export type ContractConfig = { usdc: string; policy: string; verifier: string; poolWasmHash: string; accountWasmHash: string };
+export type ContractConfig = {
+  usdc: string; policy: string; verifier: string; poolWasmHash: string; accountWasmHash: string;
+  /** Explicit opt-in for reviewed pre-mandate deployments without get_config.
+   * Never infer this from an RPC failure or use it for newly deployed pools. */
+  legacyBindings?: boolean;
+};
 export type TransactionSigner = (transactionXdr: string, context: { networkPassphrase: string; address: string }) => Promise<string>;
 export type DigestSigner = {
   /** Raw Ed25519 public key, 64 hex characters; never a secret. */

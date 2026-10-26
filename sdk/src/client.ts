@@ -6,6 +6,7 @@ import { addrVal, bytes32Val } from "./scval.js";
 import { nonzeroBytes32, paymentBindingToScVal, type MandateState, type PaymentBinding, type PaymentReceipt } from "./mandates.js";
 import { assemblePrepared, assertNetwork, checkedSimulation, KovanError, prepareOperation, signPrepared, simulateRead } from "./transport.js";
 import { submitSigned, type SubmitResult } from "./submit.js";
+import { assertPoolBindings, type PoolBindings } from "./deployments.js";
 import type { AgentRecord, ContractConfig, CovenantState, DigestSigner, PoolInfo, PreparedTransaction, RpcClient, TransactionSigner } from "./types.js";
 
 export type KovanConfig = {
@@ -43,6 +44,9 @@ export class KovanClient {
   async assertPool(address: string): Promise<void> {
     const code = await this.rpc.getContractWasmByContractId(address);
     if (!this.poolHashes.has(hash(Buffer.from(code)).toString("hex"))) throw new KovanError("guard", "Pool does not run an explicitly trusted Kovan code hash");
+    if (!this.contracts.legacyBindings) {
+      assertPoolBindings(await this.read<PoolBindings>(address, "get_config"), this.contracts);
+    }
   }
   async prepareCreatePool(owner: string, salt: Uint8Array = Keypair.random().rawPublicKey()): Promise<PreparedTransaction> {
     return prepareOperation(this, { source: owner, maxFeeStroops: this.maxFeeStroops, operation: buildCreatePoolOp({ owner, salt, ...this.contracts }) });
