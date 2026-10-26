@@ -35,7 +35,7 @@ const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
 // Snapshot of completed test runs, not a count of test declarations: parameterized
 // tests expand at runtime, and ignored tests must not count as passing.
 const suites = evidence.testSnapshot?.suites;
-const counts = [suites?.contracts, suites?.dashboard, suites?.sdk];
+const counts = [suites?.contracts, suites?.dashboard, suites?.sdk, suites?.signer ?? 0];
 if (counts.some((count) => !Number.isSafeInteger(count) || count < 0)
     || evidence.testCount !== counts.reduce((sum, count) => sum + count, 0)) {
   console.error("evidence.json testCount must equal the verified suite totals");
