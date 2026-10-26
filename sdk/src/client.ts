@@ -94,7 +94,9 @@ export class PoolClient {
     return prepareOperation(this.client, { source, operation: buildOwnerOp(this.address, fn, args, p.usdc), maxFeeStroops: this.client.maxFeeStroops });
   }
   /** Signs only agent auth entries; the fee payer's envelope remains unsigned until signAndSend. */
-  async prepareAgent(action: AgentAction, request: AgentRequest, options: { source: string; signer: DigestSigner }): Promise<PreparedTransaction> {
+  async prepareAgent(action: AgentAction, request: AgentRequest, options: { source: string; signer: DigestSigner; timeoutSeconds?: number }): Promise<PreparedTransaction> {
+    const timeout = options.timeoutSeconds ?? 120;
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 300) throw new KovanError("guard", "Agent timeout must be between 1 and 300 seconds");
     await this.checkedPool();
     const rec = await this.getAgent(request.agent);
     if (rec.covenant.pool !== this.address || rec.covenant.usdc !== this.client.contracts.usdc) throw new KovanError("guard", "Agent is not bound to this pool and asset");
@@ -103,7 +105,7 @@ export class PoolClient {
     const operation = buildAgentOp(this.address, this.client.contracts.usdc, action, request);
     const latest = await this.client.rpc.getLatestLedger();
     const source = await this.client.rpc.getAccount(options.source);
-    const tx = new TransactionBuilder(source, { fee: "1000", networkPassphrase: this.client.networkPassphrase }).addOperation(operation).setTimeout(120).build();
+    const tx = new TransactionBuilder(source, { fee: "1000", networkPassphrase: this.client.networkPassphrase }).addOperation(operation).setTimeout(timeout).build();
     const context = { pool: this.address, usdc: this.client.contracts.usdc };
     const sim = checkedSimulation(await this.client.rpc.simulateTransaction(tx), context);
     const entries = sim.result?.auth ?? [];
@@ -115,10 +117,10 @@ export class PoolClient {
         throw new KovanError("guard", "Simulation requested an unexpected authorization invocation");
       }
     }
-    const signed = await Promise.all(entries.map((entry) => signAgentAuthorization(entry, { agent: request.agent, verifier: expected.verifier, networkPassphrase: this.client.networkPassphrase, expirationLedger: latest.sequence + 60, signer: options.signer })));
+    const signed = await Promise.all(entries.map((entry) => signAgentAuthorization(entry, { agent: request.agent, verifier: expected.verifier, networkPassphrase: this.client.networkPassphrase, expirationLedger: latest.sequence + Math.ceil(timeout / 5), signer: options.signer })));
     const source2 = await this.client.rpc.getAccount(options.source);
     const tx2 = new TransactionBuilder(source2, { fee: "1000", networkPassphrase: this.client.networkPassphrase })
-      .addOperation(Operation.invokeHostFunction({ func: operation.body().invokeHostFunctionOp().hostFunction(), auth: signed })).setTimeout(120).build();
+      .addOperation(Operation.invokeHostFunction({ func: operation.body().invokeHostFunctionOp().hostFunction(), auth: signed })).setTimeout(timeout).build();
     // Enforce custom auth and covenant constraints before returning a fee-payer transaction.
     const verified = checkedSimulation(await this.client.rpc.simulateTransaction(tx2, undefined, "enforce"), context);
     return assemblePrepared(tx2, verified, this.client.maxFeeStroops);

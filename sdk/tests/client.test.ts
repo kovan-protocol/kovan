@@ -129,6 +129,20 @@ describe("agent execution guards", () => {
     expect(TransactionBuilder.fromXDR(prepared.xdr, Networks.TESTNET).signatures).toHaveLength(0);
     expect(rpc.sendTransaction).not.toHaveBeenCalled();
   });
+  it("bounds agent authorization lifetime to the requested payment timeout", async () => {
+    const { pool, rpc, options } = ready();
+    await pool.prepareAgent("draw", { agent: AGENT, amount: "1" }, { ...options, timeoutSeconds: 30 });
+    const signedTx = rpc.simulateTransaction.mock.calls[1][0];
+    const auth = signedTx.operations[0].auth[0];
+    expect(auth.credentials().addressV2().signatureExpirationLedger()).toBe(106);
+    expect(Number(signedTx.timeBounds.maxTime)).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 30);
+  });
+  it.each([0, -1, 0.5, 301, Infinity, NaN])("rejects invalid agent timeout %s before signing or RPC calls", async (timeoutSeconds) => {
+    const { pool, rpc, options, sign } = ready();
+    await expect(pool.prepareAgent("draw", { agent: AGENT, amount: "1" }, { ...options, timeoutSeconds })).rejects.toThrow(/timeout/);
+    expect(sign).not.toHaveBeenCalled();
+    expect(rpc.getNetwork).not.toHaveBeenCalled();
+  });
   it("rejects a signer mismatch before invoking the signing callback", async () => {
     const { pool, options, sign } = ready();
     options.signer.publicKey = "a".repeat(64);
