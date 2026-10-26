@@ -98,7 +98,9 @@ export function DevelopersContent() {
   const { locale } = usePreferences();
   const deployed = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(deployment.current_release?.published_at ?? deployment.deployed_at));
   const contractDescriptions: Record<string, [string, string]> = {
-    pool: [t("Retained pool · v2", "Fondo conservado · v2"), t("Historical default; not upgraded", "Fondo anterior; no actualizado")],
+    pool: deployment.mandate_version === 1
+      ? [t("Default pool · v3", "Fondo predeterminado · v3"), t("Native mandates and renewable recovery", "Mandatos nativos y recuperación renovable")]
+      : [t("Retained pool · v2", "Fondo conservado · v2"), t("Historical default; not upgraded", "Fondo anterior; no actualizado")],
     "mandate-policy": [t("Native mandate policy · new pools", "Política de mandatos · nuevos fondos"), t("Owner grants, payment limits and receipts", "Autorizaciones, límites de pago y recibos")],
     "legacy-policy": [t("Legacy covenant policy", "Política de gasto anterior"), t("Original bindings retained for old pools", "Configuración original de los fondos anteriores")],
     verifier: [t("Signature verifier", "Verificador de firmas"), "ed25519"],
@@ -108,7 +110,9 @@ export function DevelopersContent() {
     const labels: Record<string, string> = {
       "deploy-verifier": t("Deploy signature verifier", "Desplegar verificador de firmas"),
       "deploy-policy": t("Deploy covenant policy", "Desplegar política de gasto"),
-      "deploy-pool": t("Deploy pool v2 · permanent shutdown", "Desplegar fondo v2 · cierre permanente"),
+      "deploy-pool": deployment.mandate_version === 1
+        ? t("Deploy default pool · mandates and recovery", "Desplegar fondo predeterminado · mandatos y recuperación")
+        : t("Deploy pool v2 · permanent shutdown", "Desplegar fondo v2 · cierre permanente"),
       "deploy-legacy-pool": t("Deploy legacy pool", "Desplegar fondo anterior"),
       fund: t(`Fund legacy pool · ${fundUsdc} testnet USDC`, `Fondear el fondo anterior · ${fundUsdc} USDC de testnet`),
       "create-agent": t(`Legacy agent · ${drawLimit} USDC limit`, `Agente anterior · límite de ${drawLimit} USDC`),

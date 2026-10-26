@@ -1,0 +1,24 @@
+{
+  "network": "testnet",
+  "status": "confirmed and activated as local default",
+  "pool": "CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON6",
+  "transaction": "df2e7860fa1c6fee39625563ae3c51a22e5ec2c0bd52e9fa719788b1a0c8e28a",
+  "ledger": 5397472,
+  "deployed_at": "2026-10-26T10:35:47.000Z",
+  "verified": { "accounting_version": 3, "mandate_version": 1, "recovery_version": 1, "balance": "0", "agent_count": 0, "closed": false },
+  "mode": "fresh empty pool, user-requested replacement",
+  "source_identity": "kovan-mandates-20261026",
+  "deployer": "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
+  "owner": "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC",
+  "previous_pool": "CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR",
+  "salt": "f8e57d8969f7758880961377336f62c20bf024607e6dc8696de19c4989f7ba36",
+  "pool_wasm_hash": "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+  "account_wasm_hash": "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+  "policy": "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+  "verifier": "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+  "usdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  "superseded_wallet_request": {
+    "hash": "9becfb9363e1c72dc1cf234c16cc97f77c28ea64a9ebc7febaca4303f66167fa",
+    "status": "expired, RPC NOT_FOUND; approval server stopped"
+  }
+}

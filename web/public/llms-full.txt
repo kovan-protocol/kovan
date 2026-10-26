@@ -135,7 +135,7 @@ await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }
 
 SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
 
-Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the retained historical default. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
+Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the current default pool. `legacy_pools` and `previous_releases` retain earlier bindings. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
 
 ## Check what happened
 
@@ -544,7 +544,9 @@ Four Soroban contracts, written in Rust with `soroban-sdk` 28 and OpenZeppelin `
 
 ## Deployed on testnet
 
-Latest release, published 2026-10-26: native mandate v1, recovery v1, accounting v3. `New pool` uses these artifacts; a pool instance still needs owner wallet approval. No existing agents or funds are migrated.
+Latest release, published 2026-10-26: native mandate v1, recovery v1, accounting v3. `New pool` uses these artifacts through the owner's wallet. No existing agents or funds are migrated.
+
+The current default is [`CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON6`](https://stellar.expert/explorer/testnet/contract/CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON6), deployed empty on 2026-10-26 at 10:35:47 UTC ([transaction](https://stellar.expert/explorer/testnet/tx/df2e7860fa1c6fee39625563ae3c51a22e5ec2c0bd52e9fa719788b1a0c8e28a)). The original `GCNN…HBOC` wallet is still its owner. At the user's request, the dedicated testnet deployer paid its creation fee; no owner key was used and no old funds were moved. The previous default had 0 USDC and no agents.
 
 | New artifact | ID / hash |
 | --- | --- |
@@ -552,11 +554,11 @@ Latest release, published 2026-10-26: native mandate v1, recovery v1, accounting
 | Pool WASM | `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` |
 | Agent-account WASM | `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
 
-The verifier and USDC below are reused. The following bindings describe the **historical displayed default**, not new creation:
+The verifier and USDC below are reused. The following bindings describe the **previous default**, retained for history, not the current default or new creation:
 
 | Contract | ID / hash |
 |---|---|
-| Pool (v2, retained default) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
+| Pool (v2, previous default) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
 | Pool code (wasm hash) | `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` |
 | Covenant policy | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
 | ed25519 verifier | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |

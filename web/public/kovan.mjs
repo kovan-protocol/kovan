@@ -37893,21 +37893,35 @@ var PoolClient = class {
 var testnet_default = {
   network: "testnet",
   verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
-  policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
-  account_wasm_hash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
-  pool: "CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR",
+  policy: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+  account_wasm_hash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+  pool: "CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON6",
   usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
   owner: "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC",
-  deployed_at: "2026-10-25T22:30:42+00:00",
-  pool_wasm_hash: "cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464",
-  accounting_version: 2,
+  deployed_at: "2026-10-26T10:35:47.000Z",
+  pool_wasm_hash: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+  accounting_version: 3,
   supports_close_pool: true,
-  pool_deploy_tx: "b2b2f1f8fd3911504f91a5d9f959ffdb61a24e1b9a9fa9c29b56965eb26074f5",
-  pool_upload_tx: "74ca13c5799421ec314cf5fa3fd946e4f0cb91be4f990849592ed6338ac4186f",
+  pool_deploy_tx: "df2e7860fa1c6fee39625563ae3c51a22e5ec2c0bd52e9fa719788b1a0c8e28a",
+  pool_upload_tx: "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071",
   legacy_pools: [
     {
       pool: "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ",
-      pool_wasm_hash: "5b109988479d4dd9ad430944b890edfdb3445139a9a2f9a76593a77ad673745a"
+      pool_wasm_hash: "5b109988479d4dd9ad430944b890edfdb3445139a9a2f9a76593a77ad673745a",
+      policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
+      verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+      usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      account_wasm_hash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
+      mandate_version: 0
+    },
+    {
+      pool: "CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR",
+      pool_wasm_hash: "cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464",
+      policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
+      verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+      usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      account_wasm_hash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
+      mandate_version: 0
     }
   ],
   current_release: {
@@ -37993,7 +38007,42 @@ var testnet_default = {
       supports_yield: true,
       yield_vaults: []
     }
-  ]
+  ],
+  name: "native-mandates-v1-recovery-v1",
+  mandate_version: 1,
+  recovery_version: 1,
+  max_delegation_depth: 4,
+  max_family_agents: 17,
+  policy_wasm_hash: "40e94659788fb6c6af4cc97230572af99058465b02bb9bf5976040eddb6d345c",
+  verifier_wasm_hash: "d46fe7b66cfe60dfe5274622bfcf36789a0cec04ceb97f95195479b7e7984f2e",
+  published_at: "2026-10-26T10:22:37.729Z",
+  deployer: "GCLKOJQR3YC66E3OYB7JEWGDX4VOK6AFOJ3PTO67KPPCTPJTLDZHR5YP",
+  transactions: {
+    account_upload: {
+      value: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
+      tx: "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e",
+      transactions: [
+        "c567c4c1788327ab1b7598b0ed530c04170c562b156d30fdf7d102e4eed0a21e"
+      ]
+    },
+    pool_upload: {
+      value: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+      tx: "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071",
+      transactions: [
+        "7f610c5a6da31ed1938ad029410dcaac809863a740de4f64cec06bd01e171071"
+      ]
+    },
+    policy_deploy: {
+      value: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
+      tx: "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c",
+      transactions: [
+        "3ed5ca85ebeff7c002d0fa0c524e3b4426dd78d20b002641cbe73ff39ae00e9c"
+      ]
+    }
+  },
+  supports_yield: true,
+  yield_vaults: [],
+  activation_mode: "fresh-testnet-pool-user-requested"
 };
 
 // src/request.ts

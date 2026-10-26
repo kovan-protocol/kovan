@@ -87,7 +87,7 @@ await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }
 
 SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
 
-Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the retained historical default. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
+Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the current default pool. `legacy_pools` and `previous_releases` retain earlier bindings. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
 
 ## Check what happened
 

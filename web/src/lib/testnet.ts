@@ -13,6 +13,8 @@ export type Deployment = {
   deployed_at: string;
   pool_deploy_tx: string;
   pool_wasm_hash: string;
+  mandate_version?: number;
+  legacy_pools?: { pool: string; policy?: string }[];
   current_release?: {
     policy: string;
     published_at: string;
@@ -77,10 +79,13 @@ export const fundUsdc = evidence.fundUsdc;
 export const drawLimit = evidence.drawLimit;
 
 /** Published release plus explicitly labeled retained historical instances. */
+const nativeDefault = deployment.mandate_version === 1;
+const retainedPolicies = [...new Set([deployment.policy, ...(deployment.legacy_pools ?? []).map(p => p.policy ?? deployment.policy)])]
+  .filter(policy => policy !== deployment.current_release?.policy);
 export const sorobanContracts = [
-  { key: "pool", name: "retained default pool (legacy)", id: deployment.pool },
+  { key: "pool", name: nativeDefault ? "default pool (native mandates)" : "default pool (legacy)", id: deployment.pool },
   ...(deployment.current_release ? [{ key: "mandate-policy", name: "covenant policy (new pools)", id: deployment.current_release.policy }] : []),
-  { key: "legacy-policy", name: "covenant policy (legacy pools)", id: deployment.policy },
+  ...retainedPolicies.map((policy, i) => ({ key: i === 0 ? "legacy-policy" : `legacy-policy-${i}`, name: "covenant policy (retained pools)", id: policy })),
   { key: "verifier", name: "ed25519 verifier", id: deployment.verifier },
   { key: "agent", name: "historical agent account (legacy pool)", id: firstAgent },
 ] as const;
@@ -91,7 +96,7 @@ export const verifiedTransactions: TxRecord[] = [
     { id: "upload-mandate-pool", hash: deployment.current_release.transactions.pool_upload.tx, group: "deploy" as const, label: "mandate-capable pool code" },
     { id: "upload-mandate-account", hash: deployment.current_release.transactions.account_upload.tx, group: "deploy" as const, label: "mandate-enforcing account code" },
   ] : []),
-  { id: "deploy-pool", hash: deployment.pool_deploy_tx, group: "deploy", label: "historical default: pool v2 + shutdown", historical: true },
+  { id: "deploy-pool", hash: deployment.pool_deploy_tx, group: "deploy", label: nativeDefault ? "default pool: native mandates + recovery" : "historical default: pool v2 + shutdown", historical: !nativeDefault },
   ...evidence.transactions,
   ...(BLOCKED_PAYMENT_HASH
     ? [
