@@ -1,6 +1,6 @@
-import { submitSigned as sdkSubmit, type ErrorContext, type SubmitResult } from "@kovan/sdk";
+import { submitSigned as sdkSubmit, type ErrorContext, type SubmitResult } from "@kovan-protocol/sdk";
 import { NETWORK_PASSPHRASE, rpcServer, ids } from "./stellar";
-export type { SubmitResult } from "@kovan/sdk";
+export type { SubmitResult } from "@kovan-protocol/sdk";
 
 export async function submitSigned(signedXdr: string): Promise<SubmitResult> {
   let context: ErrorContext = {};

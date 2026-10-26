@@ -3,8 +3,8 @@
 //   re-simulate with the signed entry (covenant runs here; a refusal is decoded
 //   before anything is submitted) → assemble → fee payer signs → submit.
 import { Keypair } from "@stellar/stellar-sdk";
-import { KovanError, keypairTransactionSigner } from "@kovan/sdk";
-export { onlyAgentEntry } from "@kovan/sdk";
+import { KovanError, keypairTransactionSigner, type PaymentRequest } from "@kovan-protocol/sdk";
+export { onlyAgentEntry } from "@kovan-protocol/sdk";
 import { kovanClient } from "./kovan";
 import { agentPubkeyHex } from "./authpayload";
 import { simulateRead } from "./contracts";
@@ -14,7 +14,7 @@ import type { SubmitResult } from "./submit";
 import { defaultKeystore } from "./keystore";
 
 export type AgentAction = "draw" | "pay" | "return";
-export type AgentRequest = { agent: string; amount: string; to?: string; pool?: string };
+export type AgentRequest = { agent: string; amount: string; to?: string; pool?: string; payment?: PaymentRequest };
 
 const FEE_PAYER_LABEL = "fee-payer";
 
@@ -83,9 +83,9 @@ export type AgentRunResult = SubmitResult & { stage: "guard" | "simulate" | "sub
 
 export async function runAgentAction(action: AgentAction, r: AgentRequest): Promise<AgentRunResult> {
   const feePayer = await feePayerKeypair();
+  const client = await kovanClient(r.pool);
   const { verifier, pool } = ids(r.pool);
   const key = Keypair.fromSecret(await resolveAgentSecret(r.agent, verifier));
-  const client = kovanClient(r.pool);
   try {
     const prepared = await client.pool(pool).prepareAgent(action, r, {
       source: feePayer.publicKey(),

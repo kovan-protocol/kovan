@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Bot, LayoutGrid, RefreshCw, ShieldCheck } from "lucide-react";
 import { ConsoleHeader } from "@/components/ConsoleHeader";
 import { AgentActions } from "@/components/AgentActions";
+import { MandatePanel } from "@/components/MandatePanel";
+import type { PaymentRequest } from "@kovan-protocol/sdk";
 import { AgentCard } from "@/components/AgentCard";
 import { AgentSigner } from "@/components/AgentSigner";
 import { CreateAgentForm } from "@/components/CreateAgentForm";
@@ -106,7 +108,7 @@ export default function Page() {
 
   async function owner<F extends OwnerFn>(fn: F, args: OwnerArgs[F], label: string) {
     if (!address || !isOwner || !state) throw new Error("Connect the pool owner's wallet first");
-    if (poolClosed && !["withdraw", "return_funds", "release_shares", "redeem_shares"].includes(fn)) throw new Error("This pool is permanently closed. Create a new pool to continue.");
+    if (poolClosed && !["withdraw", "return_funds", "release_shares", "redeem_shares", "revoke_mandate"].includes(fn)) throw new Error("This pool is permanently closed. Create a new pool to continue.");
     if (ownerInFlight.current) throw new Error("Wait for the current owner transaction to finish");
     ownerInFlight.current = true;
     try {
@@ -160,7 +162,7 @@ export default function Page() {
     await owner("create_agent", { agent_pubkey: a.agent_pubkey, draw_limit: a.draw_limit.toString(), covenant }, `create_agent · limit ${usdc(a.draw_limit)}`);
   }
 
-  async function agentRun(action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) {
+  async function agentRun(action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string; payment?: PaymentRequest }, label: string) {
     if (ownerInFlight.current) throw new Error("Wait for the owner transaction or pool recovery to finish");
     const at = Date.now();
     setLog((l) => [{ at, kind: "agent", label: `${label} (${body.agent.slice(0, 6)})`, ok: null }, ...l]);
@@ -172,7 +174,7 @@ export default function Page() {
     else throw new Error(j.error ?? j.status ?? "failed");
   }
 
-  async function payX402(agent: string, url: string, label: string, approval: { quoteId: string; requestId: string }) {
+  async function payX402(agent: string, url: string, label: string, approval: { quoteId: string; requestId: string; mandateId?: string }) {
     if (ownerInFlight.current) throw new Error("Wait for the owner transaction or pool recovery to finish");
     const at = Date.now();
     setLog((l) => [{ at, kind: "agent", label: `${label} (${agent.slice(0, 6)}) ${url}`, ok: null }, ...l]);
@@ -231,6 +233,7 @@ export default function Page() {
         </nav>
         <div className="console-tools">
           <PoolSelector pools={pools} current={pool} onSelect={selectPool} onCreate={createPool} canCreate={!!address && !pendingOwner} creating={creatingPool} disabled={!!pendingOwner} />
+          {state?.ids.mandateVersion === 0 ? <p className="text-xs text-muted-foreground">Legacy pool: its original contracts remain active. New pool uses the latest published contracts; existing funds and agents are not migrated.</p> : state?.ids.mandateVersion === 1 ? <p className="text-xs text-muted-foreground">Mandate v1: agents need an owner-approved payment mandate as well as their covenant and wallet funding.</p> : null}
           <Button variant="outline" size="sm" onClick={refresh}>
             <RefreshCw size={14} aria-hidden="true" /> Refresh
           </Button>
@@ -299,6 +302,7 @@ export default function Page() {
                 actions={
                   <>
                   <AgentSigner agent={a} owner={address} pool={state.ids.pool} isOwner={isOwner} />
+                  <MandatePanel agent={a} pool={state.ids.pool} asset={state.ids.usdc} latestLedger={state.latestLedger} isOwner={isOwner} busy={!!pendingOwner} onRun={owner} />
                   {a.signing?.mode !== "external" ? <AgentActions agent={a} run={agentRun} payX402={payX402} latestLedger={state.latestLedger} disabled={!!pendingOwner} /> : null}
                   <div className="flex flex-wrap gap-2 border-t pt-3">
                     <Button
@@ -353,7 +357,7 @@ export default function Page() {
       </div>
       <footer className="console-footer">
         <div><p>Agent autonomy. Human control.</p><p className="mt-1">Stellar testnet demo · Not audited.</p></div>
-        <a href="https://kovan-indol.vercel.app">Back to Kovan <ArrowUpRight size={15} className="ml-2" aria-hidden="true" /></a>
+        <a href="https://kovan-protocol.vercel.app">Back to Kovan <ArrowUpRight size={15} className="ml-2" aria-hidden="true" /></a>
       </footer>
     </main>
     </>

@@ -43,8 +43,9 @@ describe("pool rollout trust and bindings", () => {
     await expect(assertKovanPool(CURRENT)).rejects.toThrow("not a Kovan pool");
   });
   it("never uses the legacy wasm to create a new pool, even while viewing an old pool", async () => {
-    const { ids } = await import("@/lib/stellar");
-    expect(ids(LEGACY)).toMatchObject({ pool: LEGACY, poolWasmHash: hash(currentWasm), policy: "policy", verifier: "verifier" });
+    const { ids, creationIds } = await import("@/lib/stellar");
+    expect(ids(LEGACY)).toMatchObject({ pool: LEGACY, poolWasmHash: hash(legacyWasm), policy: "policy", verifier: "verifier" });
+    expect(creationIds().poolWasmHash).toBe(hash(currentWasm));
   });
   it("does not trust a cached pool after its code is removed from the allowlist", async () => {
     const read = vi.spyOn(rpc.Server.prototype, "getContractWasmByContractId").mockResolvedValue(legacyWasm);
@@ -53,6 +54,15 @@ describe("pool rollout trust and bindings", () => {
     config.current.legacy_pools = [];
     await expect(assertKovanPool(LEGACY)).rejects.toThrow("not a Kovan pool");
     expect(read).toHaveBeenCalledTimes(2);
+  });
+  it("separates current release creation from legacy reads and unknown legacy pools", async () => {
+    config.current.current_release = { policy: "new-policy", verifier: "new-verifier", usdc: "usdc", account_wasm_hash: "b".repeat(64), pool_wasm_hash: "c".repeat(64), mandate_version: 1 };
+    vi.spyOn(rpc.Server.prototype, "getContractWasmByContractId").mockResolvedValue(legacyWasm);
+    const { ids, creationIds, assertKovanPool } = await import("@/lib/stellar");
+    expect(creationIds()).toMatchObject({ policy: "new-policy", accountWasmHash: "b".repeat(64), mandateVersion: 1 });
+    expect(ids(CURRENT).policy).toBe("policy");
+    await assertKovanPool(SAVED);
+    expect(ids(SAVED)).toMatchObject({ policy: "policy", poolWasmHash: hash(legacyWasm), accountWasmHash: "a".repeat(64) });
   });
   it("lists current and historical defaults, keeping an explicit environment selection", async () => {
     const { knownPools } = await import("@/lib/stellar");

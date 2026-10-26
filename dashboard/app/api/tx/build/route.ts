@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { rejectCrossSite } from "@/lib/stellar";
-import { KovanError, prepareOperation } from "@kovan/sdk";
+import { KovanError, prepareOperation } from "@kovan-protocol/sdk";
 import { buildCreatePoolOp, buildOwnerOp, ownerFns, yieldFns, type OwnerArgs, type OwnerFn } from "@/lib/owner";
 import { readPool, readYield } from "@/lib/contracts";
 import { requireListedVault } from "@/lib/yield";
 import { randomBytes } from "node:crypto";
-import { assertKovanPool, ids, NETWORK_PASSPHRASE, rpcServer } from "@/lib/stellar";
+import { assertKovanPool, creationIds, ids, NETWORK_PASSPHRASE, rpcServer } from "@/lib/stellar";
 import { explainError } from "@/lib/errors";
+import { kovanClient } from "@/lib/kovan";
 
 type Body = { fn: OwnerFn | "create_pool"; args: OwnerArgs[OwnerFn] | Record<string, never>; source: string; pool?: string };
 
@@ -19,9 +20,13 @@ export async function POST(req: Request) {
     const { fn, args, source, pool: poolOverride } = (await req.json()) as Body;
     if (fn !== "create_pool" && !ownerFns.includes(fn)) return NextResponse.json({ error: `unknown function ${fn}` }, { status: 400 });
     const server = rpcServer();
-    const id = ids(poolOverride);
+    if (fn !== "create_pool") await assertKovanPool(ids(poolOverride).pool);
+    const id = fn === "create_pool" ? creationIds() : ids(poolOverride);
     context = { usdc: id.usdc, pool: id.pool };
-    if (fn !== "create_pool") await assertKovanPool(id.pool);
+    if (fn === "create_mandate" || fn === "revoke_mandate") {
+      const prepared = await (await kovanClient(poolOverride)).pool(id.pool).prepareOwner(fn, args as OwnerArgs[typeof fn], source);
+      return NextResponse.json({ xdr: prepared.xdr });
+    }
     if ((yieldFns as readonly string[]).includes(fn)) {
       await assertKovanPool(id.pool);
       const p = await readPool(id.pool);
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
     const op =
       fn === "create_pool"
         ? buildCreatePoolOp({ owner: source, usdc: id.usdc, poolWasmHash: id.poolWasmHash, accountWasmHash: id.accountWasmHash, policy: id.policy, verifier: id.verifier, salt: randomBytes(32) })
-        : buildOwnerOp(id.pool, fn, args as OwnerArgs[OwnerFn], id.usdc);
+        : buildOwnerOp(id.pool, fn, args as OwnerArgs[typeof fn], id.usdc);
     const prepared = await prepareOperation({ rpc: server, networkPassphrase: NETWORK_PASSPHRASE }, { source, operation: op });
     return NextResponse.json({ xdr: prepared.xdr });
   } catch (e) {

@@ -10,7 +10,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 export async function GET(req: Request) {
   try {
     const poolId = new URL(req.url).searchParams.get("pool");
-    if (poolId) await assertKovanPool(ids(poolId).pool);
+    await assertKovanPool(ids(poolId).pool);
     const [pool, agentIds, latest] = await Promise.all([readPool(poolId), listAgents(poolId), withRetry(() => rpcServer().getLatestLedger())]);
     const keys = defaultKeystore().list();
     let fallbackPubkeyHex: string | undefined;

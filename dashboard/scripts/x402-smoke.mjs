@@ -40,7 +40,7 @@ try {
   const unsafe = await fetch(`${origin}/api/x402?url=${encodeURIComponent("https://127.0.0.1/private")}`);
   assert.equal(unsafe.status, 422);
   const unreviewed = await fetch(`${origin}/api/x402`, { method: "POST", headers: { "content-type": "application/json", origin }, body: JSON.stringify({ agent, url: "https://example.com" }) });
-  assert.equal(unreviewed.status, 400);
+  assert.equal(unreviewed.status, 400, await unreviewed.text());
   const crossSite = await fetch(`${origin}/api/x402`, { method: "POST", headers: { "content-type": "application/json", origin: "https://evil.example" }, body: "{}" });
   assert.equal(crossSite.status, 403);
 
@@ -105,16 +105,33 @@ try {
   assert.deepEqual(payments[1], payments[0], "retry must preserve quote, pool and request ID");
   assert.equal(quoteReads, 1, "retry must not silently refresh terms");
   await evaluate(`{
+    const input=document.querySelector('input[id$="-mandate"]');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'${"b".repeat(64)}');
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+  }`);
+  await until(async () => !await enabled("Pay endpoint"), "mandate edit invalidates quote");
+  await click("Read terms");
+  await until(() => enabled("Pay endpoint"), "mandate quote reviewed");
+  assert.match(await evaluate("document.body.innerText"), /On-chain payment ID: [a-f0-9]{64}/);
+  await click("Pay endpoint");
+  await until(async () => payments.length === 3 && await enabled("Pay endpoint"), "bound mandate request");
+  assert.equal(payments[2].mandateId, "b".repeat(64));
+  assert.notEqual(payments[2].requestId, payments[0].requestId);
+  await click("Pay endpoint");
+  await until(async () => payments.length === 4 && await enabled("Pay endpoint"), "bound mandate retry");
+  assert.deepEqual(payments[3], payments[2], "mandate retry must retain its chain payment ID inputs");
+  await evaluate(`{
     const input=document.querySelector('input[id$="-url"]');
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'https://example.com/new');
     input.dispatchEvent(new Event('input',{bubbles:true}));
   }`);
   await until(async () => !await enabled("Pay endpoint"), "URL edit invalidates quote");
   assert.deepEqual(failures, []);
-  console.log("PASS local API guards, reviewed terms, selected pool, double-click prevention, stable retry ID, uncertain outcome, URL invalidation; no chain writes");
+  console.log("PASS local API guards, reviewed terms, selected pool, double-click prevention, stable legacy/mandate retry IDs, uncertain outcome, URL/mandate invalidation; no chain writes");
 } finally {
   ws?.close();
   const stop = child => child && new Promise(resolve => { child.once("exit", resolve); child.kill(); if (child.exitCode !== null) resolve(); });
   await Promise.all([stop(browser), stop(server)]);
-  if (profile) await rm(profile, { recursive: true, force: true });
+  // Chromium helpers can briefly flush profile files after the main process exits.
+  if (profile) await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }

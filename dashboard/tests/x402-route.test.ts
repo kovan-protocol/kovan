@@ -17,6 +17,18 @@ beforeEach(() => {
   mocks.pay.mockResolvedValue({ ok: false, paymentStatus: "unknown", stage: "settle", error: "reconcile first" });
 });
 describe("local x402 API", () => {
+  it("includes the mandate in the journal fingerprint and passes the stable request ID", async () => {
+    await post();
+    const original = mocks.run.mock.calls[0][1];
+    const mandateId = "1".repeat(64);
+    expect((await post({ ...body, mandateId })).status).toBe(422);
+    expect(mocks.run.mock.calls[1][1]).not.toBe(original);
+    expect(mocks.pay).toHaveBeenLastCalledWith(agent, body.url, { pool, quoteId: body.quoteId, requestId: body.requestId, mandateId });
+  });
+  it.each(["bad", "0".repeat(64), 1, null])("rejects invalid mandate ID %j", async mandateId => {
+    expect((await post({ ...body, mandateId })).status).toBe(400);
+    expect(mocks.pay).not.toHaveBeenCalled();
+  });
   it("requires an explicit reviewed quote and request ID", async () => {
     expect((await post({ agent, url: body.url })).status).toBe(400);
     expect(mocks.pay).not.toHaveBeenCalled();
@@ -33,6 +45,10 @@ describe("local x402 API", () => {
     const first = mocks.run.mock.calls[0][1];
     await post({ ...body, pool: agent });
     expect(mocks.run.mock.calls[1][1]).not.toBe(first);
+  });
+  it("accepts a same-origin loopback request when Next reconstructs an internal localhost URL", async () => {
+    expect((await post(body, { host: "127.0.0.1:3001", origin: "http://127.0.0.1:3001" })).status).toBe(422);
+    expect(mocks.pay).toHaveBeenCalledTimes(1);
   });
   it("returns 409 for pending/changed idempotency requests", async () => {
     mocks.run.mockRejectedValue(new Error("Payment request is pending"));

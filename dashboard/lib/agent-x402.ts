@@ -1,6 +1,6 @@
 // Server-only x402 v2 exact payments. The SDK owns authorization and covenant checks.
 import { Keypair, TransactionBuilder, type Transaction, type xdr } from "@stellar/stellar-sdk";
-import { KovanError } from "@kovan/sdk";
+import { KovanError, paymentIdForRequest } from "@kovan-protocol/sdk";
 import { feePayerKeypair, resolveAgentSecret } from "./agent";
 import { kovanClient } from "./kovan";
 import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
@@ -49,7 +49,7 @@ export function assertSettlementMatches(preparedXdr: string, envelope: xdr.Trans
   }
 }
 
-export async function payEndpoint(agent: string, url: string, options: { quoteId: string; pool?: string }): Promise<X402Result> {
+export async function payEndpoint(agent: string, url: string, options: { quoteId: string; pool?: string; mandateId?: string; requestId?: string }): Promise<X402Result> {
   let terms: Terms;
   try {
     terms = await discoverTerms(url);
@@ -60,11 +60,12 @@ export async function payEndpoint(agent: string, url: string, options: { quoteId
 
   let preparedXdr: string;
   try {
+    const payment = options.mandateId ? { mandateId: options.mandateId, paymentId: paymentIdForRequest(options.requestId ?? ""), reference: terms.quoteId } : undefined;
+    const client = await kovanClient(options.pool);
     const { pool, verifier } = ids(options.pool);
-    const client = kovanClient(options.pool);
     const key = Keypair.fromSecret(await resolveAgentSecret(agent, verifier));
     const source = (await feePayerKeypair()).publicKey();
-    const prepared = await client.pool(pool).prepareAgent("pay", { agent, to: terms.payTo, amount: terms.amount }, {
+    const prepared = await client.pool(pool).prepareAgent("pay", { agent, to: terms.payTo, amount: terms.amount, ...(payment ? { payment } : {}) }, {
       source, timeoutSeconds: terms.maxTimeoutSeconds,
       signer: { publicKey: key.rawPublicKey().toString("hex"), sign: (digest) => key.sign(Buffer.from(digest)) },
     });

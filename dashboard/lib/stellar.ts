@@ -1,6 +1,7 @@
 // Network, RPC and contract IDs. Testnet only.
 import { Networks, rpc } from "@stellar/stellar-sdk";
 import { deployments } from "./deployments";
+import { currentRelease, resolvePoolRelease, type ContractRelease, type DeploymentManifest } from "@kovan-protocol/sdk";
 
 // Node sometimes picks an unreachable IPv6 path to the RPC host; prefer IPv4.
 if (typeof window === "undefined") {
@@ -11,7 +12,7 @@ export const NETWORK_PASSPHRASE = Networks.TESTNET;
 export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://soroban-testnet.stellar.org";
 export const EXPLORER = "https://stellar.expert/explorer/testnet";
 
-export type Ids = { pool: string; policy: string; verifier: string; usdc: string; owner: string; poolWasmHash: string; accountWasmHash: string };
+export type Ids = { pool: string; policy: string; verifier: string; usdc: string; owner: string; poolWasmHash: string; accountWasmHash: string; mandateVersion?: number };
 
 /** Server-only. Env overrides win over the deployment record. */
 /** Env values are strings; an empty `KEY=` in .env must not override the record. */
@@ -20,15 +21,29 @@ export const envOr = (v: string | undefined, fallback: string) => (v && v.trim()
 export function ids(poolOverride?: string | null): Ids {
   const d = deployments();
   if (poolOverride && !/^C[A-Z2-7]{55}$/.test(poolOverride)) throw new Error("pool must be a C… contract id");
+  const pool = poolOverride || envOr(process.env.POOL_ID, d.pool);
+  const cached = verifiedPools.get(pool);
+  const release = cached?.manifest === JSON.stringify(d) ? cached.release
+    : pool === d.pool ? d
+    : d.legacy_pools?.some(p => p.pool === pool) ? { ...d, ...d.legacy_pools.find(p => p.pool === pool)! }
+    : currentRelease(d as DeploymentManifest);
   return {
-    pool: poolOverride || envOr(process.env.POOL_ID, d.pool),
-    poolWasmHash: d.pool_wasm_hash ?? "",
-    accountWasmHash: d.account_wasm_hash,
-    policy: envOr(process.env.POLICY_ID, d.policy),
-    verifier: envOr(process.env.VERIFIER_ID, d.verifier),
-    usdc: envOr(process.env.USDC_SAC_ID, d.usdc),
+    pool,
+    poolWasmHash: release.pool_wasm_hash ?? "",
+    accountWasmHash: release.account_wasm_hash,
+    policy: envOr(process.env.POLICY_ID, release.policy),
+    verifier: envOr(process.env.VERIFIER_ID, release.verifier),
+    usdc: envOr(process.env.USDC_SAC_ID, release.usdc),
+    mandateVersion: "mandate_version" in release ? release.mandate_version : 0,
     owner: d.owner,
   };
+}
+
+/** New deployments ALWAYS use the latest release, never the selected old pool. */
+export function creationIds(): Ids {
+  const d = deployments(); const release = currentRelease(d as DeploymentManifest);
+  return { pool: d.pool, owner: d.owner, poolWasmHash: release.pool_wasm_hash, accountWasmHash: release.account_wasm_hash,
+    policy: release.policy, verifier: release.verifier, usdc: release.usdc, mandateVersion: release.mandate_version ?? 0 };
 }
 
 export function knownPools(): string[] {
@@ -36,7 +51,7 @@ export function knownPools(): string[] {
   return [...new Set([ids().pool, d.pool, ...(d.legacy_pools ?? []).map((p) => p.pool)])];
 }
 
-const verifiedPools = new Map<string, string>();
+const verifiedPools = new Map<string, { manifest: string; release: ContractRelease }>();
 /**
  * A pool override must run current or explicitly retained legacy Kovan code.
  * Legacy code is accepted for access/recovery, never used for new deployments.
@@ -44,13 +59,11 @@ const verifiedPools = new Map<string, string>();
  */
 export async function assertKovanPool(pool: string): Promise<void> {
   const d = deployments();
-  const allowed = new Set([d.pool_wasm_hash, ...(d.legacy_pools ?? []).map((p) => p.pool_wasm_hash)].filter(Boolean));
   const cached = verifiedPools.get(pool);
-  if (cached && allowed.has(cached)) return;
-  const wasm = await withRetry(() => rpcServer().getContractWasmByContractId(pool));
-  const h = (await import("node:crypto")).createHash("sha256").update(wasm).digest("hex");
-  if (!allowed.has(h)) throw new Error(`pool ${pool.slice(0, 8)}… is not a Kovan pool (wasm ${h.slice(0, 8)}…)`);
-  verifiedPools.set(pool, h);
+  const manifest = JSON.stringify(d);
+  if (cached?.manifest === manifest) return;
+  const release = await withRetry(() => resolvePoolRelease({ rpc: rpcServer(), networkPassphrase: NETWORK_PASSPHRASE }, d as DeploymentManifest, pool));
+  verifiedPools.set(pool, { manifest, release });
 }
 
 /** POST handlers are local tools; refuse cross-site and non-JSON requests. */

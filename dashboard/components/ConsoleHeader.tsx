@@ -37,13 +37,13 @@ export function ConsoleHeader({ children }: { children: ReactNode }) {
     <header className="console-header">
       <a href="#main" className="skip-link">Skip to dashboard</a>
       <div className="console-container console-header-inner">
-        <a href="https://kovan-indol.vercel.app" className="console-brand" aria-label="Kovan home">
+        <a href="https://kovan-protocol.vercel.app" className="console-brand" aria-label="Kovan home">
           <svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg>
           <span>kovan</span>
         </a>
         <span className="console-product">Demo console</span>
         <div className="console-header-actions">
-          <a href="https://kovan-indol.vercel.app/docs" className="console-docs">Docs <ArrowUpRight size={15} aria-hidden="true" /></a>
+          <a href="https://kovan-protocol.vercel.app/docs" className="console-docs">Docs <ArrowUpRight size={15} aria-hidden="true" /></a>
           <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
             {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
           </button>

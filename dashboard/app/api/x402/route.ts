@@ -14,7 +14,9 @@ function localOnly(req: Request): string | null {
     const hosts = [target.hostname, ...(host ? [new URL(`http://${host}`).hostname] : [])];
     if (hosts.some((h) => !["localhost", "127.0.0.1", "[::1]"].includes(h))) return "x402 signing is available only through the local console";
     const origin = req.headers.get("origin");
-    if (origin && new URL(origin).origin !== target.origin) return "Cross-origin x402 request refused";
+    // Next can reconstruct req.url with its internal localhost hostname. Compare
+    // the browser's origin with the validated incoming Host, not that alias.
+    if (origin && (new URL(origin).host !== (host ?? target.host) || new URL(origin).protocol !== target.protocol)) return "Cross-origin x402 request refused";
     const site = req.headers.get("sec-fetch-site");
     if (site && site !== "same-origin" && site !== "none") return "Cross-site x402 request refused";
     return null;
@@ -38,7 +40,7 @@ async function readBody(req: Request): Promise<unknown> {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
 }
 
-/** GET ?url= → reviewed quote. POST {agent,url,pool?,quoteId,requestId} → pay once. */
+/** GET ?url= → reviewed quote. POST adds mandateId for mandate-enabled accounts. */
 export async function GET(req: Request) {
   const refused = localOnly(req);
   if (refused) return NextResponse.json({ error: refused }, { status: 403 });
@@ -58,17 +60,19 @@ export async function POST(req: Request) {
   try {
     const body = await readBody(req);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid payment request");
-    const { agent, url: rawUrl, pool, quoteId, requestId } = body as Record<string, unknown>;
-    if (Object.keys(body).some((key) => !["agent", "url", "pool", "quoteId", "requestId"].includes(key))) throw new Error("Unsupported payment request field");
+    const { agent, url: rawUrl, pool, quoteId, requestId, mandateId } = body as Record<string, unknown>;
+    if (Object.keys(body).some((key) => !["agent", "url", "pool", "quoteId", "requestId", "mandateId"].includes(key))) throw new Error("Unsupported payment request field");
     if (typeof agent !== "string" || !StrKey.isValidContract(agent) || typeof rawUrl !== "string"
         || (pool !== undefined && (typeof pool !== "string" || !StrKey.isValidContract(pool)))
+        || (mandateId !== undefined && (typeof mandateId !== "string" || !/^[a-f0-9]{64}$/.test(mandateId) || /^0{64}$/.test(mandateId)))
         || typeof quoteId !== "string" || !/^[a-f0-9]{64}$/.test(quoteId) || typeof requestId !== "string") {
       return NextResponse.json({ error: "Valid agent, url, quoteId and requestId are required; read terms first" }, { status: 400 });
     }
     const url = paymentUrl(rawUrl);
     const selectedPool = ids(pool).pool;
-    const fingerprint = createHash("sha256").update(JSON.stringify(["kovan:x402:request:v1", agent, url, selectedPool, quoteId])).digest("hex");
-    const r = await paymentJournal().run(requestId, fingerprint, () => payEndpoint(agent, url, { pool: selectedPool, quoteId }));
+    // Keep legacy fingerprints; a mandate selection is an additional bound input.
+    const fingerprint = createHash("sha256").update(JSON.stringify(["kovan:x402:request:v1", agent, url, selectedPool, quoteId, ...(mandateId ? [mandateId] : [])])).digest("hex");
+    const r = await paymentJournal().run(requestId, fingerprint, () => payEndpoint(agent, url, { pool: selectedPool, quoteId, ...(mandateId ? { mandateId, requestId } : {}) }));
     return NextResponse.json(r, { status: r.ok ? 200 : 422 });
   } catch (e) {
     const msg = (e as Error).message;

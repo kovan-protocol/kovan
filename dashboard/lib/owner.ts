@@ -1,7 +1,7 @@
 // Compatibility facade: stable SDK operations plus explicitly experimental v3 yield.
-import { buildOwnerOp as buildCoreOp, ownerFns as coreFns, type OwnerFn as CoreFn, type OwnerArgs as CoreArgs } from "@kovan/sdk";
-import { buildYieldOp, yieldFns, type YieldArgs, type YieldFn } from "@kovan/sdk/experimental";
-export { buildCreatePoolOp, type CreatePoolParams } from "@kovan/sdk";
+import { buildOwnerOp as buildCoreOp, ownerFns as coreFns, type OwnerFn as CoreFn, type OwnerArgs as CoreArgs } from "@kovan-protocol/sdk";
+import { buildYieldOp, yieldFns, type YieldArgs, type YieldFn } from "@kovan-protocol/sdk/experimental";
+export { buildCreatePoolOp, type CreatePoolParams } from "@kovan-protocol/sdk";
 export { yieldFns };
 export const ownerFns = [...coreFns, ...yieldFns] as const;
 export type OwnerFn = CoreFn | YieldFn;

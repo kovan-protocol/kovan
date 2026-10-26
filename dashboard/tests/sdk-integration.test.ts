@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Account, Address, Contract, Keypair, Networks, SorobanDataBuilder, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { buildOwnerOp as sdkOwnerOp, covenantToScVal as sdkCovenant, signAgentEntry as sdkSign } from "@kovan/sdk";
+import { buildOwnerOp as sdkOwnerOp, covenantToScVal as sdkCovenant, signAgentEntry as sdkSign } from "@kovan-protocol/sdk";
 import { buildOwnerOp } from "@/lib/owner";
 import { covenantToScVal } from "@/lib/scval";
 import { signAgentEntry } from "@/lib/authpayload";

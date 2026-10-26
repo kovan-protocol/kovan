@@ -1,5 +1,5 @@
 // Testnet-only pool rollout. Never funds, closes, or migrates an existing pool.
-// Run via `OWNER=<identity> make deploy`; use --check for read-only preflight.
+// Historical v2-only utility. Current releases use publish-contracts.mjs and wallet-approved creation.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -20,6 +20,7 @@ const source = sourceIndex >= 0 ? args[sourceIndex + 1] : "kova-deployer";
 assert(source && !source.startsWith("--"), "--source needs a Stellar CLI identity name");
 const previousText = readFileSync(file, "utf8");
 const previous = JSON.parse(previousText);
+assert(!previous.current_release, "This historical pool-only deployer cannot publish a multi-generation release; use publish-contracts.mjs and owner wallet approval");
 assert.equal(previous.network, "testnet", "Testnet only");
 assert.match(previous.pool, /^C[A-Z2-7]{55}$/);
 const endpoint = "https://soroban-testnet.stellar.org";

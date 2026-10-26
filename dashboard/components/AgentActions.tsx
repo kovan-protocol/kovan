@@ -7,17 +7,23 @@ import { Label } from "@/components/ui/label";
 import type { StateAgent } from "@/lib/client";
 import { unitsFromUsdc, usdc } from "@/lib/format";
 import { X402_TESTNET_EXAMPLE } from "@/lib/covenant-examples";
+import { paymentIdForRequest, type PaymentRequest } from "@kovan-protocol/sdk";
 
-export type AgentRun = (action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) => Promise<void>;
+export type AgentRun = (action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string; payment?: PaymentRequest }, label: string) => Promise<void>;
 export type X402Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number; quoteId: string };
-export type X402Pay = (agent: string, url: string, label: string, approval: { quoteId: string; requestId: string }) => Promise<{ ok: boolean; body?: string; txHash?: string; error?: string; terms?: X402Terms }>;
+export type X402Pay = (agent: string, url: string, label: string, approval: { quoteId: string; requestId: string; mandateId?: string }) => Promise<{ ok: boolean; body?: string; txHash?: string; error?: string; terms?: X402Terms }>;
 
 /** Agent-side buttons: these are signed by the server with AGENT_SECRET, never by Freighter. */
 export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { agent: StateAgent; run: AgentRun; payX402: X402Pay; latestLedger: number; disabled?: boolean }) {
   const [amount, setAmount] = useState("0.1");
   const [url, setUrl] = useState<string>(X402_TESTNET_EXAMPLE.url);
   const [terms, setTerms] = useState<X402Terms | null>(null);
+  const [mandateId, setMandateId] = useState("");
+  const [reference, setReference] = useState("");
+  const directRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const [directPaymentId, setDirectPaymentId] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
+  const [onchainPaymentId, setOnchainPaymentId] = useState<string | null>(null);
   const paymentInFlight = useRef(false);
   const [response, setResponse] = useState<string | null>(null);
   const [to, setTo] = useState(agent.covenant.providers[0] ?? "");
@@ -26,6 +32,7 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
   const uid = `a-${agent.id.slice(0, 6)}`;
 
   async function go(action: "draw" | "pay" | "return", label: string, payee?: string) {
+    if (paymentInFlight.current) return;
     setErr(null);
     let units: bigint;
     try {
@@ -34,12 +41,21 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
       setErr((e as Error).message);
       return;
     }
+    paymentInFlight.current = true;
     setBusy(label);
     try {
-      await run(action, { agent: agent.id, amount: units.toString(), to: payee }, `${label} · ${usdc(units)}`);
+      let payment: PaymentRequest | undefined;
+      if (action === "pay" && mandateId) {
+        const fingerprint = JSON.stringify([mandateId, payee, units.toString(), reference]);
+        if (directRequest.current?.fingerprint !== fingerprint) directRequest.current = { fingerprint, id: crypto.randomUUID() };
+        payment = { mandateId, paymentId: paymentIdForRequest(directRequest.current.id), reference };
+        setDirectPaymentId(payment.paymentId);
+      }
+      await run(action, { agent: agent.id, amount: units.toString(), to: payee, ...(payment ? { payment } : {}) }, `${label} · ${usdc(units)}`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
+      paymentInFlight.current = false;
       setBusy(null);
     }
   }
@@ -56,6 +72,7 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "could not read terms");
       requestId.current = crypto.randomUUID();
+      setOnchainPaymentId(paymentIdForRequest(requestId.current));
       setTerms(j);
     } catch (e) {
       setErr((e as Error).message);
@@ -71,7 +88,7 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
     setResponse(null);
     setBusy("x402");
     try {
-      const r = await payX402(agent.id, terms.url, "x402 pay", { quoteId: terms.quoteId, requestId: requestId.current });
+      const r = await payX402(agent.id, terms.url, "x402 pay", { quoteId: terms.quoteId, requestId: requestId.current, ...(mandateId ? { mandateId } : {}) });
       if (r.ok) setResponse(r.body ?? "(empty body)");
       else setErr(r.error ?? "payment failed");
     } catch (e) {
@@ -87,6 +104,9 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
   return (
     <div className="flex flex-col gap-3 border-t pt-3">
       <p className="text-xs text-muted-foreground">Agent actions · signed by the agent key on the server</p>
+      <Label htmlFor={`${uid}-mandate`}>Mandate ID · required for new agents</Label>
+      <Input id={`${uid}-mandate`} value={mandateId} disabled={!!busy} onChange={e => { setMandateId(e.target.value.trim().toLowerCase()); setTerms(null); requestId.current = null; }} className="font-mono text-xs" placeholder="64 hex characters; leave empty only for legacy agents" />
+      {mandateId ? <><Label htmlFor={`${uid}-reference`}>Direct-payment purchase reference hash</Label><Input id={`${uid}-reference`} value={reference} disabled={!!busy} onChange={e => setReference(e.target.value.trim().toLowerCase())} className="font-mono text-xs" /><p className="text-xs text-muted-foreground">Direct Pay requires this hash. x402 uses its reviewed quote ID instead. Repeating the same direct payment reuses its on-chain payment ID. Save this ID before reloading; reconcile unknown outcomes before starting another purchase.</p>{directPaymentId ? <p className="break-all font-mono text-xs">Last direct payment ID: {directPaymentId}</p> : null}<Button size="sm" variant="outline" disabled={disabled || !!busy} onClick={() => { directRequest.current = null; setResponse(null); }}>Start a new direct payment</Button></> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${uid}-amt`}>Amount (USDC)</Label>
@@ -121,10 +141,12 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
         </div>
         <p className="text-xs text-muted-foreground">Read and review terms before paying. Repeating Pay checks the same request; Read terms starts a new one. If settlement is unknown, reconcile it before starting another payment.</p>
         {terms ? (
-          <p className="font-mono text-xs text-muted-foreground">
+          <div className="font-mono text-xs text-muted-foreground">
             wants {usdc(terms.amount)} → {terms.payTo.slice(0, 6)}…{terms.payTo.slice(-4)} ·{" "}
             {payeeAllowed ? <span className="text-foreground">payee is allowlisted</span> : <span className="text-destructive">payee is NOT on this covenant; the policy will refuse</span>}
-          </p>
+            <p className="break-all pt-2">Purchase reference / quote ID: {terms.quoteId}</p>
+            {mandateId && onchainPaymentId ? <p className="break-all pt-2">On-chain payment ID: {onchainPaymentId}</p> : null}
+          </div>
         ) : null}
         {response ? <pre className="max-h-40 overflow-auto rounded bg-muted p-2 font-mono text-xs">{response}</pre> : null}
       </div>

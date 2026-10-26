@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Account, Address, Contract, Keypair, nativeToScVal, Networks, Operation, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { KovanError } from "@kovan/sdk";
+import { KovanError, paymentIdForRequest } from "@kovan-protocol/sdk";
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), prepare: vi.fn(), pool: vi.fn(), key: vi.fn(), fee: vi.fn(), rpc: { getNetwork: vi.fn(), getTransaction: vi.fn() }, ids: {} as Record<string, string> }));
 vi.mock("@/lib/x402-http", () => ({ fetchPaymentResource: mocks.fetch }));
@@ -52,6 +52,18 @@ beforeEach(() => {
 });
 
 describe("x402 payment boundary", () => {
+  it("binds the reviewed quote and persistent request ID into the on-chain mandate authorization", async () => {
+    const mandateId = "1".repeat(64), requestId = "request_1234567890";
+    expect(await payEndpoint(agent, url, { ...options, mandateId, requestId })).toMatchObject({ ok: true });
+    expect(mocks.prepare).toHaveBeenCalledWith("pay", expect.objectContaining({ payment: { mandateId, paymentId: paymentIdForRequest(requestId), reference: options.quoteId } }), expect.any(Object));
+    const payload = JSON.parse(Buffer.from(mocks.fetch.mock.calls[1][1]["payment-signature"], "base64").toString());
+    expect(payload.accepted).toEqual(requirement); // No nonstandard x402 extensions or payment wrapper.
+  });
+  it("never silently drops a mandate if the request ID is missing", async () => {
+    expect(await payEndpoint(agent, url, { ...options, mandateId: "1".repeat(64) })).toMatchObject({ ok: false, paymentStatus: "not_sent", stage: "guard" });
+    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
   it("discovers without accessing keys or signing", async () => {
     expect(await discoverTerms(url)).toMatchObject({ quoteId: options.quoteId, amount: "100000" });
     expect(mocks.key).not.toHaveBeenCalled();

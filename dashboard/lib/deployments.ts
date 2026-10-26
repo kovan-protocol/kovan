@@ -2,6 +2,7 @@
 // files outside the app root, so this is a runtime read, not an import.
 import fs from "node:fs";
 import path from "node:path";
+import type { ContractRelease } from "@kovan-protocol/sdk";
 
 export type Deployments = {
   network: string;
@@ -13,8 +14,9 @@ export type Deployments = {
   owner: string;
   first_agent?: string;
   pool_wasm_hash?: string;
-  // Same policy/verifier/account/token bindings; retained for recovery after a pool-only rollout.
-  legacy_pools?: { pool: string; pool_wasm_hash: string }[];
+  current_release?: ContractRelease;
+  // Explicit old bindings survive a shared-policy/account rollout.
+  legacy_pools?: ({ pool: string; pool_wasm_hash: string } & Partial<ContractRelease>)[];
   /** Explicitly reviewed single-USDC DeFindex integrations. Empty = no activation. */
   yield_vaults?: { name: string; vault: string; wasm_hash: string; usdc: string }[];
 };

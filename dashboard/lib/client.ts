@@ -24,7 +24,7 @@ export type StateAgent = {
 
 export type State = {
   knownPools?: string[];
-  ids: { pool: string; policy: string; verifier: string; usdc: string; owner: string };
+  ids: { pool: string; policy: string; verifier: string; usdc: string; owner: string; mandateVersion?: number };
   latestLedger: number;
   pool: { owner: string; usdc: string; locked: string; sum_limits: string; agent_count: number; accounting_version?: number; settled_spent?: string; balance?: string; closed?: boolean; outstanding?: string };
   yield?: { vault?: string | null; shares: string; share_balance_ok: boolean; share_decimals: number; estimated_assets: string; budget_backing: string; backing_bps: number; valuation_ok: boolean };
