@@ -30,6 +30,16 @@ if (deployment.network !== "testnet") {
   process.exit(1);
 }
 
+if (deployment.current_release) {
+  const release = deployment.current_release;
+  for (const key of ["policy", "verifier", "usdc", "account_wasm_hash", "pool_wasm_hash", "published_at"]) {
+    if (!release[key]) throw new Error(`current_release missing ${key}`);
+  }
+  for (const kind of ["policy_deploy", "pool_upload", "account_upload"]) {
+    if (!/^[a-f0-9]{64}$/.test(release.transactions?.[kind]?.tx ?? "")) throw new Error(`current_release missing confirmed ${kind} transaction`);
+  }
+}
+
 const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
 
 // Snapshot of completed test runs, not a count of test declarations: parameterized
@@ -54,6 +64,9 @@ if (existsSync(readmePath)) {
     evidence.firstAgent,
     `${evidence.testCount} tests`,
     ...evidence.transactions.map((tx) => tx.hash),
+    ...(deployment.current_release ? [deployment.current_release.policy,
+      deployment.current_release.pool_wasm_hash, deployment.current_release.account_wasm_hash,
+      ...Object.values(deployment.current_release.transactions).map(value => value.tx)] : []),
   ];
   for (const needle of needles) {
     if (!readme.includes(needle)) {
