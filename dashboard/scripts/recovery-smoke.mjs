@@ -337,8 +337,11 @@ try {
   state.yieldVaults = [];
   submitted.length = 0;
   await load();
-  assert.match(await text(), /No compatible testnet vault is enabled/);
-  state.yieldVaults = [{ name: "Mocked test vault", vault: agent, usdc: pool, wasm_hash: "a".repeat(64) }];
+  assert.match(await text(), /No testnet vault is enabled yet/);
+  state.yieldVaults = [
+    { name: "Mocked external vault", kind: "external", vault: agent, usdc: pool, wasm_hash: "a".repeat(64) },
+    { name: "Mocked Kovan vault", kind: "native", vault: pool, usdc: pool, wasm_hash: "b".repeat(64) },
+  ];
   await click("Refresh");
   await until(async () => (await text()).includes("Sign to enable vault"), "yield activation renders");
   assert.equal(await enabled("Sign to enable vault"), false);
@@ -346,10 +349,15 @@ try {
   await until(() => enabled("New pool"), "yield owner connected");
   const acknowledgeRisk = () => evaluate(`document.querySelector('section[aria-labelledby="yield-title"] input[type="checkbox"]').click()`);
   assert.equal(await enabled("Sign to enable vault"), false, "risk acknowledgement required");
+  assert.equal(await evaluate("document.querySelector('#yield-vault').value"), pool, "prefer native yield when available");
+  await acknowledgeRisk();
+  await evaluate(`document.querySelector('#yield-vault').value=${JSON.stringify(agent)}; document.querySelector('#yield-vault').dispatchEvent(new Event('change',{bubbles:true}))`);
+  assert.equal(await enabled("Sign to enable vault"), false, "changing vault clears consent");
   await acknowledgeRisk();
   await click("Sign to enable vault");
   await until(() => enabled("Preview transaction"), "configured yield controls");
   assert.equal(submitted.at(-1).fn, "configure_yield");
+  assert.equal(submitted.at(-1).args.vault, agent, "binds the selected external vault");
   await click("Preview transaction");
   await until(async () => (await text()).includes("Minimum received"), "investment preview");
   assert.equal(await enabled("Sign invest pool usdc"), false);

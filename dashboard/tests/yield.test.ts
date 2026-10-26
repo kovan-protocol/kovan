@@ -8,6 +8,7 @@ import type { State } from "@/lib/client";
 const POOL = "CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR";
 const VAULT = "CBMVK2JK6NTOT2O4HNQAIQFJY232BHKGLIMXDVQVHIIZKDACXDFZDWHN";
 const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+const OWNER = "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC";
 const wasm = Buffer.from("test-only provider bytes");
 const hash = createHash("sha256").update(wasm).digest("hex");
 const mocks = vi.hoisted(() => ({ deployment: {} as Record<string, unknown>, pool: vi.fn(), yield: vi.fn(), read: vi.fn(), wasm: vi.fn(), ledger: vi.fn() }));
@@ -19,12 +20,14 @@ import { configuredVaults, minimumOutput, positiveUnits, quoteYield, requireList
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.deployment = { network: "testnet", yield_vaults: [{ name: "Test vault", vault: VAULT, usdc: USDC, wasm_hash: hash }] };
-  mocks.pool.mockResolvedValue({ owner: "owner", usdc: USDC, accounting_version: 3, closed: false, balance: 100_000_000n });
+  mocks.pool.mockResolvedValue({ owner: OWNER, usdc: USDC, accounting_version: 3, closed: false, balance: 100_000_000n });
   mocks.yield.mockResolvedValue({ vault: VAULT, shares: 50_000_000n, valuation_ok: true });
   mocks.wasm.mockResolvedValue(wasm);
   mocks.ledger.mockResolvedValue({ sequence: 1000 });
   mocks.read.mockImplementation(async (_id, fn, args) => {
-    if (fn === "get_assets") return [{ address: USDC }];
+    if (fn === "get_assets") return [{ address: USDC, strategies: [{ address: POOL, paused: false }] }];
+    if (fn === "fetch_total_managed_funds") return [{ asset: USDC, invested_amount: 100_000_000n, strategy_allocations: [{ strategy_address: POOL, amount: 100_000_000n, paused: false }] }];
+    if (fn === "balance") return 100_000_000n;
     if (fn === "decimals") return 7;
     if (fn === "total_supply") return 100_000_000n;
     if (fn === "get_asset_amounts_per_shares") return [(scValToNative(args[0]) as bigint) * 2n];
@@ -33,6 +36,13 @@ beforeEach(() => {
 });
 
 describe("reviewed vault activation", () => {
+  it("uses the current release registry and respects an explicit delisting", () => {
+    const entry = { name: "Native", kind: "native", vault: VAULT, usdc: USDC, wasm_hash: hash, strategies: [{ address: POOL, wasm_hash: hash }] };
+    mocks.deployment = { network: "testnet", current_release: { yield_vaults: [entry] } };
+    expect(configuredVaults(USDC)).toEqual([entry]);
+    mocks.deployment = { network: "testnet", yield_vaults: [entry], current_release: { yield_vaults: [] } };
+    expect(configuredVaults(USDC)).toEqual([]);
+  });
   it("is disabled by default and on a non-testnet deployment", async () => {
     mocks.deployment = { network: "testnet" };
     expect(configuredVaults(USDC)).toEqual([]);
@@ -55,6 +65,17 @@ describe("reviewed vault activation", () => {
     await expect(verifyVault(VAULT, USDC, hash)).rejects.toThrow("code changed");
     expect(mocks.read).not.toHaveBeenCalled();
   });
+  it("pins native strategy code and its underlying asset", async () => {
+    mocks.deployment = { network: "testnet", current_release: { yield_vaults: [{ name: "Native", kind: "native", vault: VAULT, usdc: USDC, wasm_hash: hash, strategies: [{ address: POOL, wasm_hash: hash }] }] } };
+    const original = mocks.read.getMockImplementation()!;
+    mocks.read.mockImplementation((...args) => args[1] === "asset" ? USDC : original(...args));
+    await expect(requireListedVault(VAULT, USDC)).resolves.toMatchObject({ kind: "native" });
+    mocks.wasm.mockImplementation(async id => id === POOL ? Buffer.from("changed strategy") : wasm);
+    await expect(requireListedVault(VAULT, USDC)).rejects.toThrow("Strategy code changed");
+    mocks.wasm.mockResolvedValue(wasm);
+    mocks.read.mockImplementation((...args) => args[1] === "asset" ? VAULT : original(...args));
+    await expect(requireListedVault(VAULT, USDC)).rejects.toThrow("exact USDC");
+  });
   it.each([[{ address: VAULT }], [{ address: USDC }, { address: VAULT }], []])("rejects wrong/multiple/missing assets: %j", async (...assets) => {
     mocks.read.mockImplementation(async (_id, fn) => fn === "decimals" ? 7 : assets);
     await expect(verifyVault(VAULT, USDC, hash)).rejects.toThrow("exactly this pool");
@@ -66,6 +87,19 @@ describe("reviewed vault activation", () => {
 });
 
 describe("protected read-only yield quotes", () => {
+  it("rejects investing into idle or paused strategies instead of implying yield", async () => {
+    const original = mocks.read.getMockImplementation()!;
+    mocks.read.mockImplementation((...args) => args[1] === "fetch_total_managed_funds" ? [{ asset: USDC, invested_amount: 0n, strategy_allocations: [] }] : original(...args));
+    await expect(quoteYield(POOL, "invest", "10000000")).rejects.toThrow("no active investment allocation");
+    expect(await quoteYield(POOL, "redeem_shares", "10000000")).toMatchObject({ fn: "redeem_shares" });
+  });
+  it("checks existing shares belong to the owner before quoting a lock", async () => {
+    const original = mocks.read.getMockImplementation()!;
+    mocks.read.mockImplementation((...args) => args[1] === "balance" ? 0n : original(...args));
+    await expect(quoteYield(POOL, "lock_shares", "10000000")).rejects.toThrow("held by the pool owner");
+    const balanceRead = mocks.read.mock.calls.find(c => c[1] === "balance")!;
+    expect(scValToNative(balanceRead[2][0])).toBe(OWNER);
+  });
   it("quotes USDC to shares at the vault exchange rate, not one-to-one", async () => {
     const q = await quoteYield(POOL, "invest", "10000000");
     expect(q).toMatchObject({ fn: "invest", unit: "shares", expected: "5000000", minimum: "4975000", validUntil: 1060,

@@ -7,6 +7,7 @@ export async function kovanClient(pool?: string | null): Promise<KovanClient> {
   const id = ids(pool);
   return new KovanClient({
     rpcUrl: RPC_URL, networkPassphrase: NETWORK_PASSPHRASE, rpc: rpcServer(),
-    contracts: { usdc: id.usdc, policy: id.policy, verifier: id.verifier, poolWasmHash: id.poolWasmHash, accountWasmHash: id.accountWasmHash },
+    contracts: { usdc: id.usdc, policy: id.policy, verifier: id.verifier, poolWasmHash: id.poolWasmHash, accountWasmHash: id.accountWasmHash,
+      legacyBindings: id.mandateVersion !== 1 },
   });
 }

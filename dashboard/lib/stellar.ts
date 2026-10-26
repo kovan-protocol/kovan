@@ -14,9 +14,14 @@ export const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 export type Ids = { pool: string; policy: string; verifier: string; usdc: string; owner: string; poolWasmHash: string; accountWasmHash: string; mandateVersion?: number };
 
-/** Server-only. Env overrides win over the deployment record. */
 /** Env values are strings; an empty `KEY=` in .env must not override the record. */
 export const envOr = (v: string | undefined, fallback: string) => (v && v.trim() ? v.trim() : fallback);
+
+function binding(v: string | undefined, expected: string, name: string, multipleReleases: boolean): string {
+  const selected = envOr(v, expected);
+  if (multipleReleases && selected !== expected) throw new Error(`${name} conflicts with the selected pool's reviewed release; remove the global override`);
+  return selected;
+}
 
 export function ids(poolOverride?: string | null): Ids {
   const d = deployments();
@@ -31,9 +36,9 @@ export function ids(poolOverride?: string | null): Ids {
     pool,
     poolWasmHash: release.pool_wasm_hash ?? "",
     accountWasmHash: release.account_wasm_hash,
-    policy: envOr(process.env.POLICY_ID, release.policy),
-    verifier: envOr(process.env.VERIFIER_ID, release.verifier),
-    usdc: envOr(process.env.USDC_SAC_ID, release.usdc),
+    policy: binding(process.env.POLICY_ID, release.policy, "POLICY_ID", !!d.current_release),
+    verifier: binding(process.env.VERIFIER_ID, release.verifier, "VERIFIER_ID", !!d.current_release),
+    usdc: binding(process.env.USDC_SAC_ID, release.usdc, "USDC_SAC_ID", !!d.current_release),
     mandateVersion: "mandate_version" in release ? release.mandate_version : 0,
     owner: d.owner,
   };

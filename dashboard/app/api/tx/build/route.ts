@@ -3,7 +3,7 @@ import { rejectCrossSite } from "@/lib/stellar";
 import { KovanError, prepareOperation } from "@kovan-protocol/sdk";
 import { buildCreatePoolOp, buildOwnerOp, ownerFns, yieldFns, type OwnerArgs, type OwnerFn } from "@/lib/owner";
 import { readPool, readYield } from "@/lib/contracts";
-import { requireListedVault } from "@/lib/yield";
+import { requireActiveAllocation, requireListedVault } from "@/lib/yield";
 import { randomBytes } from "node:crypto";
 import { assertKovanPool, creationIds, ids, NETWORK_PASSPHRASE, rpcServer } from "@/lib/stellar";
 import { explainError } from "@/lib/errors";
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         const y = await readYield(id.pool);
         if (!y.vault) throw new Error("Configure a reviewed vault first");
         await requireListedVault(y.vault, p.usdc);
+        if (fn === "invest") await requireActiveAllocation(y.vault, p.usdc);
       }
       // Exits remain available after delisting; the contract enforces remaining commitments.
     }

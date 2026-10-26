@@ -16,10 +16,12 @@ const labels: Record<YieldAction, string> = { invest: "Invest pool USDC", lock_s
 
 export function YieldPanel({ state, isOwner, busy, onRun }: Props) {
   const [action, setAction] = useState<YieldAction>("invest");
+  const [selectedVault, setSelectedVault] = useState("");
   const [amount, setAmount] = useState("1");
   const [recoveryAmount, setRecoveryAmount] = useState("");
   const [quote, setQuote] = useState<YieldQuote | null>(null);
   const [ack, setAck] = useState(false);
+  const [acknowledgedVault, setAcknowledgedVault] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -27,7 +29,10 @@ export function YieldPanel({ state, isOwner, busy, onRun }: Props) {
   const y = state.yield;
   const supported = (state.pool.accounting_version ?? 1) >= 3;
   const vaults = state.yieldVaults ?? [];
-  const candidate = vaults[0];
+  const candidate = vaults.find(v => v.vault === selectedVault) ?? vaults.find(v => v.kind === "native") ?? vaults[0];
+  const configured = vaults.find(v => v.vault === y?.vault);
+  const candidateKey = candidate ? `${candidate.vault}:${candidate.wasm_hash}` : null;
+  const configurationAcknowledged = ack && acknowledgedVault === candidateKey;
   const listed = vaults.some((v) => v.vault === y?.vault);
   const openAgents = state.agents.some((a) => statusOf(a.status) !== "Closed");
   const disabled = busy || running || !isOwner;
@@ -66,29 +71,36 @@ export function YieldPanel({ state, isOwner, busy, onRun }: Props) {
 
   return (
     <section aria-labelledby="yield-title" aria-busy={running} className="flex min-w-0 flex-col gap-3 border-t pt-4">
-      <h3 id="yield-title" className="text-sm font-medium">Optional yield · DeFindex adapter</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="yield-title" className="text-sm font-medium">Earn while your agents work</h3><a href="/yield/setup" className="text-xs underline">Native vault setup</a></div>
       <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
-        <p><strong className="text-foreground">1. Invest from Kovan.</strong> Fund the pool with USDC, then choose how much to invest. Leave a cash buffer for payments.</p>
-        <p><strong className="text-foreground">2. Bring a position.</strong> Lock supported vault shares in Kovan. The underlying stays in its external vault; control of the shares moves to this pool.</p>
+        <p><strong className="text-foreground">Kovan yield.</strong> Put pool USDC into a lending vault. Undrawn funds can earn yield while backing agent budgets. Leave a cash buffer for payments.</p>
+        <p><strong className="text-foreground">Bring an earning position.</strong> Choose a supported vault and lock its shares in Kovan. The underlying stays invested; the shares back your agents.</p>
       </div>
       {!supported ? <p className="rounded-md border p-3 text-sm">This deployed pool is cash-only. Both yield paths require the new v3 contract and a reviewed vault using the same USDC. Existing funds will not be migrated automatically.</p> : null}
-      {supported && !candidate && !y?.vault ? <p className="rounded-md border p-3 text-sm">No compatible testnet vault is enabled. Cash funding still works. A matching vault must be verified before either yield path can be activated.</p> : null}
+      {supported && !candidate && !y?.vault ? <p className="rounded-md border p-3 text-sm">No testnet vault is enabled yet. <a href="/yield/setup" className="underline">Set up a Kovan USDC vault with XOXNO</a>, then register its active allocation for this console.</p> : null}
       {state.yieldError ? <p role="alert" className="text-sm text-destructive">{state.yieldError}</p> : null}
       {supported && y && !y.vault && candidate ? (
         <div className="flex flex-col gap-3 rounded-md border p-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="yield-vault">Yield vault</Label>
+            <select id="yield-vault" className="min-h-10 rounded-md border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring" value={candidate.vault} disabled={disabled} onChange={e => { setSelectedVault(e.target.value); setAck(false); setQuote(null); }}>
+              {vaults.map(v => <option key={v.vault} value={v.vault}>{v.name} · {v.kind === "native" ? "Kovan yield" : "External vault"}</option>)}
+            </select>
+          </div>
           <p className="text-sm">Enable {candidate.name} for this pool? This one-time binding cannot be replaced. Configure it before opening agents.</p>
+          <p className="text-xs text-muted-foreground">One vault per Kovan pool. To use a different earning position, create another pool. Yield comes from the selected vault’s strategy; rates vary.</p>
           <a className="break-all font-mono text-xs underline focus-visible:ring-2 focus-visible:ring-ring" href={`https://stellar.expert/explorer/testnet/contract/${candidate.vault}`} target="_blank" rel="noreferrer">{candidate.vault}</a>
-          <RiskAcknowledgement checked={ack} onChange={setAck} disabled={disabled} />
-          <Button className="min-h-10 self-start" disabled={disabled || !ack || openAgents || state.pool.closed} onClick={() => run("configure_yield", { vault: candidate.vault, wasm_hash: candidate.wasm_hash }, "Enable yield vault")}>Sign to enable vault</Button>
+          <RiskAcknowledgement checked={configurationAcknowledged} onChange={value => { setAck(value); setAcknowledgedVault(value ? candidateKey : null); }} disabled={disabled} />
+          <Button className="min-h-10 self-start" disabled={disabled || !configurationAcknowledged || openAgents || state.pool.closed} onClick={() => run("configure_yield", { vault: candidate.vault, wasm_hash: candidate.wasm_hash }, "Enable yield vault")}>Sign to enable vault</Button>
           {openAgents ? <p className="text-xs text-muted-foreground">Close existing agents first, or use a new pool.</p> : null}
         </div>
       ) : null}
       {supported && y?.vault ? (
         <>
-          <a className="self-start font-mono text-xs underline focus-visible:ring-2 focus-visible:ring-ring" href={`https://stellar.expert/explorer/testnet/contract/${y.vault}`} target="_blank" rel="noreferrer">Vault {shortId(y.vault, 10)}</a>
+          <a className="self-start font-mono text-xs underline focus-visible:ring-2 focus-visible:ring-ring" href={`https://stellar.expert/explorer/testnet/contract/${y.vault}`} target="_blank" rel="noreferrer">{configured?.name ?? "Vault"} · {shortId(y.vault, 10)}</a>
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <div><dt className="text-xs text-muted-foreground">Shares held by this pool</dt><dd className="font-mono">{y.share_balance_ok ? shares(y.shares) : "Unavailable"}</dd></div>
-            <div><dt className="text-xs text-muted-foreground">Estimated external assets</dt><dd className="font-mono">{y.valuation_ok ? usdc(y.estimated_assets) : "Unavailable"}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Estimated vault value</dt><dd className="font-mono">{y.valuation_ok ? usdc(y.estimated_assets) : "Unavailable"}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Counted toward budgets · {y.backing_bps / 100}%</dt><dd className="font-mono">{usdc(y.budget_backing)}</dd></div>
           </dl>
           <p className="text-xs text-muted-foreground">Estimated assets are not cash. Agent draws use liquid USDC first, then attempt redemption. If liquidity or backing is insufficient, the draw fails without consuming its limit. Yield and principal are not guaranteed.</p>

@@ -75,13 +75,19 @@ assert.equal(digest(await server.getContractWasmByContractId(policy)), hashes.co
 assert.equal(await simulateRead(context, policy, "mandate_version"), 1);
 for (const h of [accountHash, poolHash]) assert.equal(digest(await server.getContractWasmByHash(Buffer.from(h, "hex"))), h);
 assert.equal(readFileSync(path, "utf8"), previousText, "Manifest changed concurrently; published code preserved in journal, no overwrite");
-const release = { name: "native-mandates-v1", mandate_version: 1, accounting_version: 3,
+const release = { name: "native-mandates-v1-recovery-v1", mandate_version: 1, recovery_version: 1, accounting_version: 3,
+  max_delegation_depth: 4, max_family_agents: 17,
   policy, verifier: previous.verifier, usdc: previous.usdc, account_wasm_hash: accountHash, pool_wasm_hash: poolHash,
   policy_wasm_hash: hashes.covenant_policy, verifier_wasm_hash: hashes.ed25519_verifier,
   published_at: new Date().toISOString(), deployer, transactions: journal.steps,
   supports_yield: true, yield_vaults: [],
 };
-const next = { ...previous, current_release: release };
+// Do not orphan pools created under a previous immutable release, including
+// browser-created pools that have never appeared in the default address list.
+const retained = [previous.current_release, ...(previous.previous_releases ?? [])].filter(Boolean)
+  .filter(r => r.pool_wasm_hash !== poolHash);
+const previous_releases = [...new Map(retained.map(r => [r.pool_wasm_hash, r])).values()];
+const next = { ...previous, previous_releases, current_release: release };
 const temp = `${path}.${process.pid}.tmp`;
 writeFileSync(temp, JSON.stringify(next, null, 2) + "\n", { flag: "wx" }); renameSync(temp, path);
 console.log(JSON.stringify({ published: release, defaultPoolUnchanged: previous.pool, next: "Owner creates a new pool in Freighter. No existing pools, agents or funds were modified." }, null, 2));

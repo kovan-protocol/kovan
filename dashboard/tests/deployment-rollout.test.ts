@@ -70,6 +70,12 @@ describe("pool rollout trust and bindings", () => {
     vi.stubEnv("POOL_ID", SAVED);
     expect(knownPools()).toEqual([SAVED, CURRENT, LEGACY]);
   });
+  it("refuses a stale global policy override instead of mixing contract generations", async () => {
+    config.current.current_release = { policy: "new-policy", verifier: "verifier", usdc: "usdc", account_wasm_hash: "b".repeat(64), pool_wasm_hash: "c".repeat(64), mandate_version: 1 };
+    vi.stubEnv("POLICY_ID", "new-policy");
+    const { ids } = await import("@/lib/stellar");
+    expect(() => ids(CURRENT)).toThrow("POLICY_ID conflicts");
+  });
 });
 
 describe("saved pool discovery", () => {

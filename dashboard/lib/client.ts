@@ -29,7 +29,7 @@ export type State = {
   pool: { owner: string; usdc: string; locked: string; sum_limits: string; agent_count: number; accounting_version?: number; settled_spent?: string; balance?: string; closed?: boolean; outstanding?: string };
   yield?: { vault?: string | null; shares: string; share_balance_ok: boolean; share_decimals: number; estimated_assets: string; budget_backing: string; backing_bps: number; valuation_ok: boolean };
   yieldError?: string;
-  yieldVaults?: { name: string; vault: string; wasm_hash: string; usdc: string }[];
+  yieldVaults?: import("@kovan-protocol/sdk/experimental").YieldVault[];
   agents: StateAgent[];
 };
 
