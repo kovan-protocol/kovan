@@ -46,10 +46,18 @@ node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
   --agent-key "$(stellar keys public-key kovan-agent-1)" --draw-limit 40 \
   --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
 node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
-node kovan.mjs agent pay  --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1
+# Persist these nonzero 32-byte hex commitments; choose a future ledger
+# no later than the agent's expiry, read from `status`.
+node kovan.mjs owner create_mandate --owner G…OWNER --pool C…POOL --agent C…AGENT \
+  --mandate-id $MANDATE_ID --intent-hash $INTENT_HASH --expiry-ledger $EXPIRY_LEDGER \
+  --scope budget --payees G…PROVIDER --per-payment-cap 0.5 --total-cap 40
+node kovan.mjs agent pay --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1 \
+  --mandate-id $MANDATE_ID --request-id $PERSISTED_REQUEST_ID --reference $PURCHASE_HASH
 ```
 
 Every command prints one JSON line. See [Agent tool](/docs/agent-tool) for all commands.
+
+The setup page creates pools and agents, but does not automatically approve payment grants. Approve one separately in the console or signing page. Keep each purchase's ID and exact inputs across retries; a receipt proves payment, not delivery.
 
 ## From code
 
@@ -61,22 +69,25 @@ npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
 
 ```ts
 import { Networks } from "@stellar/stellar-sdk";
-import { KovanClient } from "@kovan-protocol/sdk";
+import { KovanClient, currentRelease, releaseContracts } from "@kovan-protocol/sdk";
 
 const d = await (await fetch("https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json")).json();
 const kovan = new KovanClient({
   rpcUrl: "https://soroban-testnet.stellar.org",
   networkPassphrase: Networks.TESTNET,
-  contracts: { usdc: d.usdc, policy: d.policy, verifier: d.verifier, poolWasmHash: d.pool_wasm_hash, accountWasmHash: d.account_wasm_hash },
+  contracts: releaseContracts(currentRelease(d)),
 });
 
 // Owner: prepare → show the owner → sign (e.g. Freighter) → submit.
 const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), signOwner);
+if (created.status !== "SUCCESS") throw new Error(`${created.status}: ${created.hash}`);
 const pool = kovan.pool(created.returnValue as string);
 await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signOwner); // 100 USDC
 ```
 
 SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
+
+Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the retained historical default. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
 
 ## Check what happened
 

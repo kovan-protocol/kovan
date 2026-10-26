@@ -9,9 +9,19 @@ Four Soroban contracts, written in Rust with `soroban-sdk` 28 and OpenZeppelin `
 
 ## Deployed on testnet
 
+Latest release, published 2026-10-26: native mandate v1, recovery v1, accounting v3. `New pool` uses these artifacts; a pool instance still needs owner wallet approval. No existing agents or funds are migrated.
+
+| New artifact | ID / hash |
+| --- | --- |
+| Covenant policy | `CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7` |
+| Pool WASM | `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` |
+| Agent-account WASM | `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
+
+The verifier and USDC below are reused. The following bindings describe the **historical displayed default**, not new creation:
+
 | Contract | ID / hash |
 |---|---|
-| Pool (v2, current) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
+| Pool (v2, retained default) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
 | Pool code (wasm hash) | `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` |
 | Covenant policy | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
 | ed25519 verifier | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
@@ -31,7 +41,7 @@ Anyone can deploy their own pool from the published pool code (`kovan.mjs owner 
 
 The policy is a separate contract from the pool on purpose: Soroban forbids re-entering a contract. When an agent calls the pool, the pool asks the wallet to authorize, and the wallet asks its policy. If the policy were the pool, that would re-enter the pool.
 
-## Pool functions (v2)
+## Pool functions
 
 | Function | Caller | Effect |
 |---|---|---|
@@ -48,8 +58,16 @@ The policy is a separate contract from the pool on purpose: Soroban forbids re-e
 | `dispute(agent, by, evidence)` / `resolve_dispute(agent, outcome)` | agent or owner / owner | Record an objection / the owner's ruling |
 | `delegate(parent, child_pubkey, child_draw_limit, child_covenant) → Address` | agent | Create a narrower child agent |
 | `get_pool()`, `get_agent(agent)`, `list_agents()` | anyone | Read state |
+| `get_config()`, `mandate_version()` | anyone | New release: immutable constructor bindings / native mandate capability |
+| `create_mandate(agent, params)` | original owner | New release: approve immutable exact or budget grant |
+| `revoke_mandate(agent, id)` | original owner | New release: terminal grant revocation |
+| `get_mandate(agent, id)`, `get_payment(agent, payment_id)` | anyone | New release: read grant / durable payment receipt |
 
-The repository also contains experimental v3 functions for optional yield on idle pool funds. They are **not deployed** and not part of the current pool.
+The published v3 code includes experimental optional-yield functions, but no matching vault is enabled. Pools start cash-only; publication does not activate yield.
+
+Recovery v1 renews the fixed pool/token allowance before recovering an agent's balance, including after its previous 3,000,000-ledger allowance has expired. Only the bound pool can renew it; no signer, policy or arbitrary spender can be added. The new delegation limits are 16 direct children, depth 4 (root is depth 0), and 17 agents per root family over its lifetime. Closed descendants still count so recursive revocation remains bounded. Older immutable releases do not acquire these fixes.
+
+Native mandates are owner-approved exact-transfer or budget grants with intent hashes and deadlines. New account authorization binds mandate ID, single-use payment ID, purchase reference and expiry. The policy enforces both grant and covenant, recording a receipt atomically with payment. Returns to the pool do not require a grant. Generic calls retain covenant checks; native mandates do not implement AP2 credentials, remote task execution or delivery verification. Legacy pools do not acquire these rules.
 
 ### Covenant parameters
 
@@ -83,6 +101,8 @@ The pool publishes one event per state change. Use Stellar RPC `getEvents` on th
 
 Agent payments appear as USDC `transfer` events from the agent's wallet address.
 
+The new **policy** also emits `MandateCreated` (agent, mandate ID, params), `MandateRevoked` (agent, mandate ID), and `MandatePayment` (agent, payment ID, receipt). Query the selected pool's policy, not a global latest policy when viewing an old pool.
+
 ## Error codes
 
 Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.g. `#3904 PayeeNotAllowed`.
@@ -107,8 +127,10 @@ Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.
 | 16 | `Expired` | The agent's covenant has expired |
 | 17 | `PoolClosed` | The pool is permanently closed |
 | 18 | `PoolNotEmpty` | Can't close the pool while agents are open |
+| 29 | `TooManyDescendants` | Root family already contains 17 lifetime agents |
+| 30 | `DelegationTooDeep` | Child would exceed depth 4, counting the root as 0 |
 
-Codes 2 and 8 are reserved; 19–27 belong to the undeployed v3 yield code.
+Codes 2 and 8 are reserved; 19–27 belong to v3 yield operations. `28 UnsupportedMandate` refuses grants for agents without the new capability.
 
 ### Covenant policy
 
@@ -129,6 +151,14 @@ Codes 2 and 8 are reserved; 19–27 belong to the undeployed v3 yield code.
 | 3912 | `SelfCallForbidden` | The wallet can't call itself |
 | 3913 | `NoSigner` | No authenticated signer |
 | 3914 | `NotPool` | Reserved (revoke and amend on the policy already require the pool's authorization) |
+| 3915 | `MandateRequired` | New outgoing payment lacks a grant envelope |
+| 3916 | `MandateInvalid` | Invalid grant or payment binding |
+| 3917 | `MandateExists` | Grant ID cannot be replaced |
+| 3918 | `MandateMissing` | Unknown grant |
+| 3919 | `MandateRevoked` | Grant permanently revoked |
+| 3920 | `MandateExceeded` | Grant budget exhausted |
+| 3921 | `PaymentConsumed` | Payment ID already used, even under another grant |
+| 3922 | `PaymentMismatch` | Payment differs from the authorized scope |
 
 ### Smart account (OpenZeppelin, 3000–3018)
 

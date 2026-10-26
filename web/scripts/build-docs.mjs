@@ -62,7 +62,7 @@ for (const slug of ORDER) {
 }
 
 await writeFile(here("../src/data/docs.generated.json"),
-  JSON.stringify({ pages: pages.map(({ body, ...p }) => p) }, null, 2) + "\n");
+  JSON.stringify({ pages: pages.map(page => Object.fromEntries(Object.entries(page).filter(([key]) => key !== "body"))) }, null, 2) + "\n");
 
 const llms = `# Kovan
 

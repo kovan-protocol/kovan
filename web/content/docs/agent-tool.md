@@ -13,6 +13,8 @@ One self-contained Node.js file (Node 20+). Agents use it to prepare every Kovan
 
 Contract IDs and code hashes are built into the file from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json). Nothing passed on the command line can change them.
 
+Use the rebuilt tool for the native-mandate release: new creation selects `current_release`, while existing pools retain their verified original bindings. New accounts require a grant before payment; old accounts do not upgrade automatically.
+
 ## Output
 
 - **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","pool":"C…"}`
@@ -57,8 +59,12 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 | `return_funds` | `--pool --agent --amount` | Pulls USDC from the agent wallet back into the pool |
 | `close` | `--pool --agent` | Final; after everything drawn is back |
 | `withdraw` | `--pool --amount` | Takes back unassigned USDC |
+| `create_mandate` | `--pool --agent --mandate-id HEX --intent-hash HEX --expiry-ledger N`, plus scope flags below | Owner approves a payment grant |
+| `revoke_mandate` | `--pool --agent --mandate-id HEX` | Permanently revoke a grant, without blocking returns |
 
 `--agent-key` takes the agent's **public** key (`G…` or 64 hex characters). A secret key is refused with a warning.
+
+Mandate scopes: `--scope exact --payee G… --amount 0.01 --reference HEX` authorizes one purchase; `--scope budget --payees G…,G… --per-payment-cap 0.1 --total-cap 1` authorizes multiple purchases within limits. Hashes are nonzero 32-byte hex; expiry is a future ledger no later than the covenant. Grants never expand covenant permissions.
 
 ### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…]`
 
@@ -77,6 +83,10 @@ The covenant is checked during simulation, so a refused payment fails before any
 ```
 
 ### `status --pool C… [--agent C…]`
+
+New agents require `--mandate-id HEX --request-id PERSISTED_ID --reference HEX` for `pay`. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. Draw/return do not take payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
+
+Read grants with `mandate --pool C… --agent C… --mandate-id HEX`, and receipts with `receipt --pool C… --agent C… --request-id PERSISTED_ID`. A receipt proves authorized transfer, not delivery. Missing receipt while authorization is live does not prove nonpayment.
 
 Reads the pool (owner, locked, assigned, agents) and, with `--agent`, that agent's limits, drawn amount, covenant and spend counters.
 
@@ -101,6 +111,8 @@ Full list: [Contracts → Error codes](/docs/contracts#error-codes).
 
 Chat assistants that can't run commands (ChatGPT, Grok, Claude.ai) write **one plain link** from the limits you give them in the chat. You open it, connect Freighter once, and approve each step; the page creates the pool, funds it and creates every agent.
 
+Setup does **not** approve mandates. New agents need a separate owner-approved grant in the console or a signing link before spending.
+
 ```text
 https://kovan-protocol.vercel.app/setup?fund=100
   &agent=name:research,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
@@ -123,3 +135,5 @@ node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(pro
 ```
 
 The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there.
+
+`create_mandate` adds `mandate_id`, `intent_hash`, `expiry_ledger`, and `scope` (`exact`: `payee`, `amount`, `reference`; `budget`: `payees` array, `per_payment_cap`, `total_cap`). `revoke_mandate` needs `pool`, `agent`, `mandate_id`. Amounts remain decimal USDC strings. The page fixes the asset to the verified pool's USDC.

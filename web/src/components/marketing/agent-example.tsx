@@ -13,8 +13,12 @@ export const agentExampleCode = [
   "",
   "export async function preparePaidResource(url) {",
   "  const agent = process.env.KOVAN_AGENT_ACCOUNT;",
+  "  const mandateId = process.env.KOVAN_MANDATE_ID;",
   "  if (!agent) {",
   "    throw Error(\"Set KOVAN_AGENT_ACCOUNT\");",
+  "  }",
+  "  if (!/^[a-f0-9]{64}$/.test(mandateId ?? \"\") || /^0{64}$/.test(mandateId)) {",
+  "    throw Error(\"Set KOVAN_MANDATE_ID to an owner-approved grant\");",
   "  }",
   "  if (!url?.startsWith(\"https://\")) {",
   "    throw Error(\"Use an HTTPS x402 URL\");",
@@ -25,7 +29,7 @@ export const agentExampleCode = [
   "  const response = await fetch(endpoint);",
   "  const terms = await response.json();",
   "  if (!response.ok) throw Error(terms.error);",
-  "  return { agent, url: terms.url, terms,",
+  "  return { agent, mandateId, url: terms.url, terms,",
   "    quoteId: terms.quoteId, requestId: crypto.randomUUID(),",
   "    ...(process.env.KOVAN_POOL_ID",
   "      ? { pool: process.env.KOVAN_POOL_ID } : {}) };",
@@ -34,12 +38,12 @@ export const agentExampleCode = [
   "// Review terms and persist this request before paying.",
   "// Retrying must reuse it, NOT call preparePaidResource again.",
   "export async function requestPaidResource(request) {",
-  "  const { agent, url, pool, quoteId, requestId } = request;",
+  "  const { agent, mandateId, url, pool, quoteId, requestId } = request;",
   "  const endpoint = new URL(\"/api/x402\", consoleUrl);",
   "  const response = await fetch(endpoint, {",
   "    method: \"POST\",",
   "    headers: { \"content-type\": \"application/json\" },",
-  "    body: JSON.stringify({ agent, url, pool, quoteId, requestId }),",
+  "    body: JSON.stringify({ agent, mandateId, url, pool, quoteId, requestId }),",
   "  });",
   "  const result = await response.json();",
   "  if (!response.ok || !result.ok) {",
@@ -135,7 +139,7 @@ export function AgentExample() {
         </section>
       </div>
 
-      <aside className="ae-setup"><span className="ae-setup-number">01</span><p>{t("Create and fund an app-managed agent in the Kovan console and allowlist the provider.", "Crea y fondea un agente gestionado por la consola Kovan y autoriza al proveedor.")}</p><span className="ae-setup-number">02</span><p>{t("Run the console locally on port 3001 and set KOVAN_AGENT_ACCOUNT. Set KOVAN_POOL_ID if using a non-default pool.", "Ejecuta la consola localmente en el puerto 3001 y define KOVAN_AGENT_ACCOUNT. Define KOVAN_POOL_ID si usas otro fondo.")}</p><span className="ae-setup-number">03</span><p>{t("Call preparePaidResource(url), review and save its terms, then call requestPaidResource(request). Reuse the saved request for retries; never create a new payment while settlement is unknown.", "Llama a preparePaidResource(url), revisa y guarda sus condiciones, y llama a requestPaidResource(request). Reutiliza la solicitud guardada al reintentar; no crees otro pago mientras la liquidación sea desconocida.")}</p></aside>
+      <aside className="ae-setup"><span className="ae-setup-number">01</span><p>{t("Create and fund a mandate-enabled app-managed agent, allowlist the provider, and approve a payment mandate as the owner.", "Crea y fondea un agente gestionado con mandatos, autoriza al proveedor y aprueba un mandato de pago como propietario.")}</p><span className="ae-setup-number">02</span><p>{t("Run the console locally on port 3001. Set KOVAN_AGENT_ACCOUNT, KOVAN_POOL_ID and KOVAN_MANDATE_ID to that agent, pool and approved grant.", "Ejecuta la consola localmente en el puerto 3001. Define KOVAN_AGENT_ACCOUNT, KOVAN_POOL_ID y KOVAN_MANDATE_ID con ese agente, fondo y mandato aprobado.")}</p><span className="ae-setup-number">03</span><p>{t("Call preparePaidResource(url), review and save its terms, then call requestPaidResource(request). Reuse the saved request for retries; never create a new payment while settlement is unknown.", "Llama a preparePaidResource(url), revisa y guarda sus condiciones, y llama a requestPaidResource(request). Reutiliza la solicitud guardada al reintentar; no crees otro pago mientras la liquidación sea desconocida.")}</p></aside>
       <p className="ae-note">{t("The preview is illustrative. The copied function uses the real console endpoint when you run it, and the console signs with its configured agent key on Stellar testnet.", "La simulación es ilustrativa. La función copiada usa la API real de la consola al ejecutarla, y la consola firma con la clave configurada del agente en la testnet de Stellar.")}</p>
     </div>
   </main>;

@@ -19,6 +19,8 @@ Kovan gives AI agents shared USDC budgets they can't overspend. An owner locks U
 
 The owner can revoke an agent at any time and pull its funds back into the pool without the agent's signature. See [Concepts](/docs/concepts).
 
+New testnet pools additionally require native owner-approved payment mandates: exact or budget grants, intent/purchase commitments, deadlines, consumed payment IDs and receipts. Existing pools retain their original code. These grants are not AP2 signed credentials or proof of task delivery; see [Contracts](/docs/contracts).
+
 ## Two ways to use Kovan
 
 - **Through an agent.** Install Kovan into your agent and ask in plain words: *"Set me up a $100 pool with 2 agents."* The agent prepares every transaction with [`kovan.mjs`](/docs/agent-tool); you approve each owner action in Freighter. → [Quickstart](/docs/quickstart)

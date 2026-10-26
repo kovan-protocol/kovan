@@ -96,13 +96,14 @@ export function SecurityContent() {
 export function DevelopersContent() {
   const t = useCopy();
   const { locale } = usePreferences();
-  const deployed = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(deployment.deployed_at));
-  const contractDescriptions = [
-    [t("Shared pool · v2", "Fondo común · v2"), t("Reconciled accounting and permanent shutdown", "Contabilidad conciliada y cierre permanente")],
-    [t("Covenant policy", "Política de gasto"), t("Payment permissions and limits", "Permisos y límites de pago")],
-    [t("Signature verifier", "Verificador de firmas"), "ed25519"],
-    [t("Historical agent account", "Cuenta de agente histórica"), t("Legacy pool · OpenZeppelin smart account", "Fondo anterior · cuenta de OpenZeppelin")],
-  ];
+  const deployed = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(deployment.current_release?.published_at ?? deployment.deployed_at));
+  const contractDescriptions: Record<string, [string, string]> = {
+    pool: [t("Retained pool · v2", "Fondo conservado · v2"), t("Historical default; not upgraded", "Fondo anterior; no actualizado")],
+    "mandate-policy": [t("Native mandate policy · new pools", "Política de mandatos · nuevos fondos"), t("Owner grants, payment limits and receipts", "Autorizaciones, límites de pago y recibos")],
+    "legacy-policy": [t("Legacy covenant policy", "Política de gasto anterior"), t("Original bindings retained for old pools", "Configuración original de los fondos anteriores")],
+    verifier: [t("Signature verifier", "Verificador de firmas"), "ed25519"],
+    agent: [t("Historical agent account", "Cuenta de agente histórica"), t("Legacy pool · OpenZeppelin smart account", "Fondo anterior · cuenta de OpenZeppelin")],
+  };
   function transactionLabel(id: string, fallback: string) {
     const labels: Record<string, string> = {
       "deploy-verifier": t("Deploy signature verifier", "Desplegar verificador de firmas"),
@@ -142,15 +143,15 @@ export function DevelopersContent() {
         </header>
 
         <section>
-          <p className="page-lede">{t("The current pool was deployed empty with accounting v2 and permanent shutdown. The unchanged policy, verifier and agent-account code are reused. Older funding and agent records below belong to the legacy pool; this rollout did not move funds or migrate agents.", "El fondo actual se desplegó vacío, con contabilidad v2 y cierre permanente. Se reutilizan la política, el verificador y el código de las cuentas. Los registros anteriores de fondos y agentes pertenecen al fondo anterior; este despliegue no movió fondos ni migró agentes.")}</p>
+          <p className="page-lede">{t("New pools use the published native-mandate policy and new pool/account code. Existing pools keep their original bindings. The verifier is reused; no existing funds or agents were migrated. Yield remains inactive. The recorded x402 payment below used a legacy account; the new release has a separate direct-payment rehearsal.", "Los nuevos fondos usan la política de mandatos y el nuevo código de fondo y cuenta. Los fondos existentes conservan su configuración. Se reutiliza el verificador; no se migraron fondos ni agentes. El rendimiento sigue inactivo. El pago x402 registrado usó una cuenta anterior; la nueva versión tiene una prueba separada de pago directo.")}</p>
           <Reveal className="section-heading">
             <div><p className="eyebrow">STELLAR TESTNET</p><h2>{t("Inspect the contracts.", "Revisa los contratos.")}</h2></div>
             <p><CountUp value={testCount} /> {t("tests passed in the verified snapshot.", "pruebas superadas en la verificación registrada.")}</p>
           </Reveal>
           <Reveal className="evidence-list">
-            {sorobanContracts.map((contract, index) => (
-              <a className="evidence-row" key={contract.id} href={contractUrl(contract.id)} target="_blank" rel="noopener noreferrer">
-                <div><strong>{contractDescriptions[index][0]}</strong><small>{contractDescriptions[index][1]}</small></div>
+            {sorobanContracts.map((contract) => (
+              <a className="evidence-row" key={contract.key} href={contractUrl(contract.id)} target="_blank" rel="noopener noreferrer">
+                <div><strong>{contractDescriptions[contract.key]?.[0] ?? contract.name}</strong><small>{contractDescriptions[contract.key]?.[1] ?? "Stellar testnet"}</small></div>
                 <code title={contract.id}>{shortId(contract.id, 8, 6)}</code>
                 <ArrowUpRight size={18} aria-hidden="true" />
               </a>

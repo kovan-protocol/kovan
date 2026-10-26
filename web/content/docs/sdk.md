@@ -7,17 +7,17 @@ description: "@kovan-protocol/sdk: create pools and agents, and sign agent payme
 
 A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
 
-> Available on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk). Testnet prototype, not audited.
+> Testnet prototype, not audited. The fixes and current-release examples below use source version **0.2.0**, not yet published to npm. The earlier 0.1.0 package remains on [npm](https://www.npmjs.com/package/@kovan-protocol/sdk).
 
 ## Install
 
+Build a local tarball with `npm ci && npm pack` from the repository's `sdk/`, then install it into your application:
+
 ```bash
-npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
+npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
 
-`@stellar/stellar-sdk` is a peer dependency, shared with your app.
-
-To develop against the latest repository code, build a local tarball with `npm ci && npm pack` from `sdk/`. The repository may contain changes newer than the published release.
+`@stellar/stellar-sdk` is a peer dependency, shared with your app. Packing builds the package but does not publish it.
 
 ## Configure
 
@@ -32,16 +32,20 @@ const kovan = new KovanClient({
   networkPassphrase: Networks.TESTNET,
   contracts: {
     usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-    policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
+    policy: "CA2NXNPDGZ674K467K3K2IXV342BTPJ7YJRLVZPT4LCSJS5GHLVSMEN7",
     verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
-    poolWasmHash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
-    accountWasmHash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+    poolWasmHash: "857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1",
+    accountWasmHash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
   },
   maxFeeStroops: "10000000", // fee ceiling: 1 XLM
 });
 ```
 
 This configuration uses the new native-mandate release. Build the latest source for deployment helpers: `releaseContracts(currentRelease(manifest))` selects new creation; `releaseContracts(await resolvePoolRelease(kovan, manifest, address))` selects an existing pool's verified generation for a separate client. Old code hashes alone do not reconcile different policies or account code. Do not point an old pool at the new policy.
+
+Version 0.2.0 checks the immutable policy, verifier, token, account WASM and mandate capability before preparing pool operations. A failed binding read refuses preparation. Only explicitly reviewed pre-mandate releases use `legacyBindings: true`; it must never be an automatic fallback for an RPC error. Retained `previous_releases` keep existing pools resolvable after a rollout.
+
+For uncertain submissions, persist the hash and signed envelope before sending and use `transactionStatus(kovan, hash)` to reconcile without another signature. If resubmission is necessary, use the identical envelope, not a freshly prepared action.
 
 **Amounts are integer base-unit strings.** USDC has 7 decimals: `"10000000"` is 1 USDC.
 
