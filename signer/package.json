@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:cli": "node scripts/build-cli.mjs"
+    "build:cli": "node scripts/build-cli.mjs",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
     "@kovan/sdk": "file:../sdk",
