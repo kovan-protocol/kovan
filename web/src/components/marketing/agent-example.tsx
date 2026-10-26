@@ -8,7 +8,10 @@ import "./agent-example.css";
 
 /** Matches the console's POST /api/x402 request and response on main. */
 export const agentExampleCode = [
-  "export async function requestPaidResource(url) {",
+  "const consoleUrl = process.env.KOVAN_CONSOLE_URL",
+  "  ?? \"http://127.0.0.1:3001\";",
+  "",
+  "export async function preparePaidResource(url) {",
   "  const agent = process.env.KOVAN_AGENT_ACCOUNT;",
   "  if (!agent) {",
   "    throw Error(\"Set KOVAN_AGENT_ACCOUNT\");",
@@ -17,13 +20,26 @@ export const agentExampleCode = [
   "    throw Error(\"Use an HTTPS x402 URL\");",
   "  }",
   "",
-  "  const base = process.env.KOVAN_CONSOLE_URL",
-  "    ?? \"http://127.0.0.1:3001\";",
-  "  const endpoint = new URL(\"/api/x402\", base);",
+  "  const endpoint = new URL(\"/api/x402\", consoleUrl);",
+  "  endpoint.searchParams.set(\"url\", url);",
+  "  const response = await fetch(endpoint);",
+  "  const terms = await response.json();",
+  "  if (!response.ok) throw Error(terms.error);",
+  "  return { agent, url: terms.url, terms,",
+  "    quoteId: terms.quoteId, requestId: crypto.randomUUID(),",
+  "    ...(process.env.KOVAN_POOL_ID",
+  "      ? { pool: process.env.KOVAN_POOL_ID } : {}) };",
+  "}",
+  "",
+  "// Review terms and persist this request before paying.",
+  "// Retrying must reuse it, NOT call preparePaidResource again.",
+  "export async function requestPaidResource(request) {",
+  "  const { agent, url, pool, quoteId, requestId } = request;",
+  "  const endpoint = new URL(\"/api/x402\", consoleUrl);",
   "  const response = await fetch(endpoint, {",
   "    method: \"POST\",",
   "    headers: { \"content-type\": \"application/json\" },",
-  "    body: JSON.stringify({ agent, url }),",
+  "    body: JSON.stringify({ agent, url, pool, quoteId, requestId }),",
   "  });",
   "  const result = await response.json();",
   "  if (!response.ok || !result.ok) {",
@@ -119,7 +135,7 @@ export function AgentExample() {
         </section>
       </div>
 
-      <aside className="ae-setup"><span className="ae-setup-number">01</span><p>{t("Create an app-managed agent in the Kovan console and allowlist the provider.", "Crea un agente gestionado por la consola Kovan y autoriza al proveedor.")}</p><span className="ae-setup-number">02</span><p>{t("Run the console locally on port 3001 and set KOVAN_AGENT_ACCOUNT in your agent's environment.", "Ejecuta la consola localmente en el puerto 3001 y define KOVAN_AGENT_ACCOUNT en el entorno del agente.")}</p><span className="ae-setup-number">03</span><p>{t("Call requestPaidResource(url) from your agent with the provider's HTTPS x402 URL.", "Llama a requestPaidResource(url) desde tu agente con la URL HTTPS x402 del proveedor.")}</p></aside>
+      <aside className="ae-setup"><span className="ae-setup-number">01</span><p>{t("Create and fund an app-managed agent in the Kovan console and allowlist the provider.", "Crea y fondea un agente gestionado por la consola Kovan y autoriza al proveedor.")}</p><span className="ae-setup-number">02</span><p>{t("Run the console locally on port 3001 and set KOVAN_AGENT_ACCOUNT. Set KOVAN_POOL_ID if using a non-default pool.", "Ejecuta la consola localmente en el puerto 3001 y define KOVAN_AGENT_ACCOUNT. Define KOVAN_POOL_ID si usas otro fondo.")}</p><span className="ae-setup-number">03</span><p>{t("Call preparePaidResource(url), review and save its terms, then call requestPaidResource(request). Reuse the saved request for retries; never create a new payment while settlement is unknown.", "Llama a preparePaidResource(url), revisa y guarda sus condiciones, y llama a requestPaidResource(request). Reutiliza la solicitud guardada al reintentar; no crees otro pago mientras la liquidación sea desconocida.")}</p></aside>
       <p className="ae-note">{t("The preview is illustrative. The copied function uses the real console endpoint when you run it, and the console signs with its configured agent key on Stellar testnet.", "La simulación es ilustrativa. La función copiada usa la API real de la consola al ejecutarla, y la consola firma con la clave configurada del agente en la testnet de Stellar.")}</p>
     </div>
   </main>;
