@@ -6,6 +6,7 @@
 // asset: those come from the deployment record built into the page.
 import { Buffer } from "buffer";
 import { StrKey } from "@stellar/stellar-sdk";
+import type { MandateInput } from "@kovan-protocol/sdk";
 
 export const USDC_DECIMALS = 7;
 const UNIT = 10n ** BigInt(USDC_DECIMALS);
@@ -32,6 +33,8 @@ export type SignRequest =
       expiryHours: number;
     }
   | { fn: "revoke" | "close"; pool: string; agent: string }
+  | { fn: "create_mandate"; pool: string; agent: string; mandate: MandateInput }
+  | { fn: "revoke_mandate"; pool: string; agent: string; mandateId: string }
   | { fn: "return_funds"; pool: string; agent: string; amount: bigint };
 
 export type Fn = SignRequest["fn"];
@@ -50,6 +53,8 @@ const FIELDS: Record<Fn, readonly string[]> = {
   revoke: ["pool", "agent"],
   close: ["pool", "agent"],
   return_funds: ["pool", "agent", "amount"],
+  create_mandate: ["pool", "agent", "mandate_id", "intent_hash", "expiry_ledger", "scope", "payee", "amount", "reference", "payees", "per_payment_cap", "total_cap"],
+  revoke_mandate: ["pool", "agent", "mandate_id"],
 };
 
 export class RequestError extends Error {}
@@ -121,7 +126,33 @@ export function parseRequest(input: unknown): SignRequest {
       return { fn, pool: contract(o.pool, "pool"), agent: contract(o.agent, "agent"), amount: usdc(o.amount, "amount", true) };
     case "create_agent":
       return createAgent(o);
+    case "create_mandate":
+      return createMandate(o);
+    case "revoke_mandate":
+      return { fn, pool: contract(o.pool, "pool"), agent: contract(o.agent, "agent"), mandateId: commitment(o.mandate_id, "mandate_id") };
   }
+}
+
+export function commitment(value: unknown, name: string): string {
+  if (typeof value !== "string" || !/^[a-fA-F0-9]{64}$/.test(value) || /^0{64}$/.test(value)) return fail(`"${name}" must be a nonzero 32-byte hex value.`);
+  return value.toLowerCase();
+}
+function createMandate(o: Record<string, unknown>): SignRequest {
+  if (!Number.isSafeInteger(o.expiry_ledger) || Number(o.expiry_ledger) <= 0 || Number(o.expiry_ledger) > 0xffffffff) fail("expiry_ledger must be a positive u32 ledger number");
+  const mandate: MandateInput = { id: commitment(o.mandate_id, "mandate_id"), intent_hash: commitment(o.intent_hash, "intent_hash"), expiry: Number(o.expiry_ledger), scope: undefined as never };
+  if (o.scope === "exact") {
+    if ([o.payees, o.per_payment_cap, o.total_cap].some(v => v !== undefined)) fail("Exact mandates do not accept budget fields");
+    // The placeholder never crosses the wire: prepare() substitutes the trusted asset.
+    mandate.scope = { kind: "exact", asset: "", payee: payees([o.payee], "payee")[0], amount: usdc(o.amount, "amount", true).toString(), reference: commitment(o.reference, "reference") };
+  } else if (o.scope === "budget") {
+    if ([o.payee, o.amount, o.reference].some(v => v !== undefined)) fail("Budget mandates do not accept exact-payment fields");
+    const allowed = payees(o.payees, "payees");
+    const per = usdc(o.per_payment_cap, "per_payment_cap", true), total = usdc(o.total_cap, "total_cap", true);
+    caps("mandate", allowed, per, total);
+    if (!allowed.length) fail("A budget mandate needs payees");
+    mandate.scope = { kind: "budget", payees: allowed, per_payment_cap: per.toString(), total_cap: total.toString() };
+  } else fail("scope must be exact or budget");
+  return { fn: "create_mandate", pool: contract(o.pool, "pool"), agent: contract(o.agent, "agent"), mandate };
 }
 
 function createAgent(o: Record<string, unknown>): SignRequest {
@@ -249,6 +280,16 @@ export function describe(req: SignRequest): Summary {
       return { title: "Close an agent", rows: [["Pool", req.pool], ["Agent", req.agent]], notes: ["Final. Only works once everything it drew is back in the pool."] };
     case "return_funds":
       return { title: `Pull ${formatUsdc(req.amount)} back into the pool`, rows: [["Pool", req.pool], ["From agent", req.agent], ["Amount", formatUsdc(req.amount)]], notes: ["Uses the allowance the agent's wallet gave the pool at creation; no agent signature is needed."] };
+    case "revoke_mandate":
+      return { title: "Permanently revoke a payment mandate", rows: [["Pool", req.pool], ["Agent", req.agent], ["Mandate ID", req.mandateId]], notes: ["Future payments using this grant are refused. Settled transfers cannot be undone."] };
+    case "create_mandate": {
+      const m = req.mandate, s = m.scope;
+      const rows: [string, string][] = [["Pool", req.pool], ["Agent", req.agent], ["Mandate ID", m.id], ["Intent commitment", m.intent_hash], ["Expiry ledger (exclusive)", String(m.expiry)], ["Asset", "Configured testnet USDC"]];
+      if (s.kind === "exact") rows.push(["Payee", s.payee], ["Exact amount", formatUsdc(BigInt(s.amount))], ["Purchase reference", s.reference]);
+      else rows.push(["Payees", s.payees.join("\n")], ["Per-payment cap", formatUsdc(BigInt(s.per_payment_cap))], ["Total budget", formatUsdc(BigInt(s.total_cap))]);
+      return { title: s.kind === "exact" ? "Approve one exact payment" : "Approve an autonomous spending budget", rows,
+        notes: [s.kind === "exact" ? "Usable once, even with a different payment ID." : "The agent chooses individual purchases within this budget. Different IDs can authorize different purchases.", "Existing covenant limits still apply. This does not fund the agent or verify delivery.", "Keep the original intent document and this mandate ID. The chain records only its hash."] };
+    }
     case "create_agent": {
       const rows: [string, string][] = [
         ["Pool", req.pool],
@@ -270,6 +311,7 @@ export function describe(req: SignRequest): Summary {
         notes: [
           "Check every payee: the agent can pay these addresses and no others. Lists cannot be changed later.",
           "The agent key is public. Whoever holds its secret can spend inside these rules.",
+          "New mandate-capable agents also need a separate owner-approved payment mandate before spending.",
         ],
       };
     }

@@ -2,7 +2,7 @@
 // the transaction for the connected wallet, sign, submit, and deliver the
 // result to the agent's callback (or show it for copying).
 import { getNetwork, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
-import { KovanError, type PreparedTransaction, type SubmitResult } from "@kovan/sdk";
+import { KovanError, type PreparedTransaction, type SubmitResult } from "@kovan-protocol/sdk";
 import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
 import { describe, parseHash, RequestError, type Envelope } from "./request";
 import "./style.css";
@@ -118,6 +118,8 @@ async function showResult(e: Envelope, r: SubmitResult) {
   if (req.fn === "create_pool" && typeof r.returnValue === "string") out.pool = r.returnValue;
   if (req.fn === "create_agent" && typeof r.returnValue === "string") out.agent = r.returnValue;
   if ("agent" in req) out.agent = req.agent;
+  if (req.fn === "create_mandate") out.mandateId = req.mandate.id;
+  if (req.fn === "revoke_mandate") out.mandateId = req.mandateId;
 
   const links = $("links");
   links.replaceChildren();

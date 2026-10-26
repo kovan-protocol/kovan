@@ -81,18 +81,34 @@ suite.skipIf(!live)("kovan.mjs full loop (live testnet)", () => {
 
     const env = { KOVAN_AGENT_SECRET: agentKey.secret() };
     const base = ["--pool", POOL, "--agent", AGENT];
+    const mandateId = "01".repeat(32), reference = "02".repeat(32);
+    const expiry = (await server.getLatestLedger()).sequence + 600;
+    expect((await tool(["owner", "create_mandate", "--owner", owner.publicKey(), ...base,
+      "--mandate-id", mandateId, "--intent-hash", "03".repeat(32), "--expiry-ledger", String(expiry),
+      "--scope", "budget", "--payees", provider.publicKey(), "--per-payment-cap", "0.1", "--total-cap", "0.3"], owner)).json.status).toBe("SUCCESS");
+    const binding = ["--mandate-id", mandateId, "--reference", reference];
     expect((await tool(["agent", "draw", ...base, "--amount", "0.3"], undefined, env)).json.status).toBe("SUCCESS");
-    expect((await tool(["agent", "pay", ...base, "--amount", "0.1", "--to", provider.publicKey()], undefined, env)).json.status).toBe("SUCCESS");
+    expect((await tool(["agent", "pay", ...base, "--amount", "0.1", "--to", provider.publicKey()], undefined, env)).code).toBe(1);
+    const purchase = ["agent", "pay", ...base, ...binding, "--request-id", "cli-live-purchase-1", "--amount", "0.1", "--to", provider.publicKey()];
+    expect((await tool(purchase, undefined, env)).json.status).toBe("SUCCESS");
+    expect((await tool(purchase, undefined, env)).code).toBe(1);
+    expect((await tool(["receipt", ...base, "--request-id", "cli-live-purchase-1"])).json.value).toBeTruthy();
 
-    const refused = await tool(["agent", "pay", ...base, "--amount", "0.1", "--to", stranger.publicKey()], undefined, env);
+    const refused = await tool(["agent", "pay", ...base, ...binding, "--request-id", "cli-live-stranger", "--amount", "0.1", "--to", stranger.publicKey()], undefined, env);
     expect(refused.code).toBe(1);
-    expect(String(refused.json.error)).toMatch(/PayeeNotAllowed|#\d+/);
+    expect(String(refused.json.error)).toMatch(/PayeeNotAllowed|PaymentMismatch|#\d+/);
 
-    const overCap = await tool(["agent", "pay", ...base, "--amount", "0.2", "--to", provider.publicKey()], undefined, env);
+    const overCap = await tool(["agent", "pay", ...base, ...binding, "--request-id", "cli-live-overcap", "--amount", "0.2", "--to", provider.publicKey()], undefined, env);
     expect(overCap.code).toBe(1);
+
+    expect((await tool(["owner", "revoke_mandate", "--owner", owner.publicKey(), ...base, "--mandate-id", mandateId], owner)).json.status).toBe("SUCCESS");
+    expect((await tool(["agent", "pay", ...base, ...binding, "--request-id", "cli-live-revoked", "--amount", "0.1", "--to", provider.publicKey()], undefined, env)).code).toBe(1);
+    expect((await tool(["agent", "return", ...base, "--amount", "0.2"], undefined, env)).json.status).toBe("SUCCESS");
+    expect((await tool(["owner", "close", "--owner", owner.publicKey(), ...base], owner)).json.status).toBe("SUCCESS");
+    expect((await tool(["owner", "withdraw", "--owner", owner.publicKey(), "--pool", POOL, "--amount", "0.9"], owner)).json.status).toBe("SUCCESS");
 
     const status = await tool(["status", "--pool", POOL, "--agent", AGENT]);
     expect(status.json).toMatchObject({ agents: [AGENT] });
     console.log(JSON.stringify({ POOL, AGENT, refused: refused.json.error, overCap: overCap.json.error }));
-  }, 300_000);
+  }, 600_000);
 });

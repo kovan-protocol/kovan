@@ -13,7 +13,7 @@
     "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
-    "@kovan/sdk": "file:../sdk",
+    "@kovan-protocol/sdk": "file:../sdk",
     "@stellar/freighter-api": "6.0.1",
     "@stellar/stellar-sdk": "16.4.1",
     "buffer": "6.0.3"

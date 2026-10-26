@@ -2,7 +2,7 @@
 // Contract IDs and code hashes come from the committed deployment record, never
 // from the link.
 import { Asset, BASE_FEE, Networks, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
-import { KovanClient, type OwnerArgs, type PreparedTransaction } from "@kovan/sdk";
+import { KovanClient, currentRelease, releaseContracts, resolvePoolRelease, type OwnerArgs, type PreparedTransaction, type DeploymentManifest } from "@kovan-protocol/sdk";
 import deployment from "../../deployments/testnet.json";
 import { ledgerFromHours, type SignRequest } from "./request";
 
@@ -19,18 +19,17 @@ if (usdcAsset.contractId(NETWORK_PASSPHRASE) !== deployment.usdc) {
 export const client = new KovanClient({
   rpcUrl: RPC_URL,
   networkPassphrase: NETWORK_PASSPHRASE,
-  contracts: {
-    usdc: deployment.usdc,
-    policy: deployment.policy,
-    verifier: deployment.verifier,
-    poolWasmHash: deployment.pool_wasm_hash,
-    accountWasmHash: deployment.account_wasm_hash,
-  },
-  legacyPoolWasmHashes: (deployment.legacy_pools ?? []).map((p) => p.pool_wasm_hash),
+  contracts: releaseContracts(currentRelease(deployment as DeploymentManifest)),
 });
+
+export async function clientForPool(pool: string): Promise<KovanClient> {
+  const release = await resolvePoolRelease(client, deployment as DeploymentManifest, pool);
+  return new KovanClient({ rpcUrl: RPC_URL, networkPassphrase: NETWORK_PASSPHRASE, rpc: client.rpc, contracts: releaseContracts(release) });
+}
 
 /** Builds and simulates the transaction the owner will sign. */
 export async function prepare(req: SignRequest, owner: string): Promise<PreparedTransaction> {
+  const selected = "pool" in req ? await clientForPool(req.pool) : client;
   switch (req.fn) {
     case "create_pool":
       return client.prepareCreatePool(owner);
@@ -43,11 +42,15 @@ export async function prepare(req: SignRequest, owner: string): Promise<Prepared
       return { xdr: tx.toXDR(), hash: tx.hash().toString("hex"), source: owner, networkPassphrase: NETWORK_PASSPHRASE, preview: null };
     }
     case "fund": case "withdraw":
-      return client.pool(req.pool).prepareOwner(req.fn, { amount: req.amount.toString() }, owner);
+      return selected.pool(req.pool).prepareOwner(req.fn, { amount: req.amount.toString() }, owner);
     case "revoke": case "close":
-      return client.pool(req.pool).prepareOwner(req.fn, { agent: req.agent, by: owner }, owner);
+      return selected.pool(req.pool).prepareOwner(req.fn, { agent: req.agent, by: owner }, owner);
     case "return_funds":
-      return client.pool(req.pool).prepareOwner("return_funds", { agent: req.agent, by: owner, amount: req.amount.toString() }, owner);
+      return selected.pool(req.pool).prepareOwner("return_funds", { agent: req.agent, by: owner, amount: req.amount.toString() }, owner);
+    case "create_mandate":
+      return selected.pool(req.pool).prepareOwner("create_mandate", { agent: req.agent, params: { ...req.mandate, scope: req.mandate.scope.kind === "exact" ? { ...req.mandate.scope, asset: selected.contracts.usdc } : req.mandate.scope } }, owner);
+    case "revoke_mandate":
+      return selected.pool(req.pool).prepareOwner("revoke_mandate", { agent: req.agent, id: req.mandateId }, owner);
     case "create_agent": {
       const latest = await client.rpc.getLatestLedger();
       const args: OwnerArgs["create_agent"] = {
@@ -64,7 +67,7 @@ export async function prepare(req: SignRequest, owner: string): Promise<Prepared
           expiry: ledgerFromHours(latest.sequence, req.expiryHours),
         },
       };
-      return client.pool(req.pool).prepareOwner("create_agent", args, owner);
+      return selected.pool(req.pool).prepareOwner("create_agent", args, owner);
     }
   }
 }

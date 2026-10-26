@@ -10,10 +10,10 @@ import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { parseArgs } from "node:util";
 import { Keypair, StrKey, TransactionBuilder } from "@stellar/stellar-sdk";
-import { jsonSafe, keypairTransactionSigner, type AgentAction } from "@kovan/sdk";
+import { jsonSafe, keypairTransactionSigner, paymentIdForRequest, type AgentAction } from "@kovan-protocol/sdk";
 import deployment from "../../deployments/testnet.json";
-import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
-import { describe, parseRequest, RequestError, usdc, type SignRequest } from "./request";
+import { client, clientForPool, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
+import { commitment, describe, parseRequest, RequestError, usdc, type SignRequest } from "./request";
 
 declare const __WALLET_PAGE_JS__: string;
 declare const __WALLET_PAGE_CSS__: string;
@@ -34,14 +34,21 @@ Owner (the person signs each step in Freighter on a local page):
   owner return_funds --owner G… --pool C… --agent C… --amount 1
   owner close        --owner G… --pool C… --agent C…
   owner withdraw     --owner G… --pool C… --amount 1
+  owner create_mandate --owner G… --pool C… --agent C… --mandate-id HEX --intent-hash HEX --expiry-ledger N
+                    --scope exact --payee G… --amount 0.01 --reference HEX
+                    (or --scope budget --payees G…,G… --per-payment-cap 0.1 --total-cap 1)
+  owner revoke_mandate --owner G… --pool C… --agent C… --mandate-id HEX
 
 Agent (signed with the agent's own key: --key <stellar identity> or KOVAN_AGENT_SECRET):
   agent draw   --pool C… --agent C… --amount 1
   agent pay    --pool C… --agent C… --amount 0.25 --to G…
+               --mandate-id HEX --request-id PERSISTED_ID --reference HEX (required by new agents)
   agent return --pool C… --agent C… --amount 1
 
 Read:
   status --pool C… [--agent C…]
+  mandate --pool C… --agent C… --mandate-id HEX
+  receipt --pool C… --agent C… --request-id PERSISTED_ID
   ids                                      Contract IDs this tool trusts
 
 Wallet page: --port N (default random), --no-open, --timeout-min N (default 15)
@@ -68,7 +75,7 @@ function page(job: Job, done: string): string {
 <meta name="referrer" content="no-referrer"><title>Kovan wallet</title><style>${__WALLET_PAGE_CSS__}</style>
 <script>(function(){var t;try{t=localStorage.getItem('kovan-theme')}catch(e){}document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()</script></head><body>
 <header class="site-header"><div class="header-inner">
-<a class="brand" href="https://kovan-indol.vercel.app" aria-label="Kovan home"><svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg><span>kovan</span></a>
+<a class="brand" href="https://kovan-protocol.vercel.app" aria-label="Kovan home"><svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg><span>kovan</span></a>
 <span class="header-label">Wallet approval</span><div class="header-controls"><span class="badge">Stellar testnet · local</span>
 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme"><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></svg></button>
 </div></div></header><main>
@@ -78,7 +85,7 @@ function page(job: Job, done: string): string {
 <section id="request"><p class="eyebrow">Your agent asks you to</p><h1 id="title"></h1><dl id="rows"></dl><ul id="notes" class="notes"></ul></section>
 <section id="wallet"><button id="act" type="button"></button></section>
 <p id="status" role="status" aria-live="polite" hidden></p>
-</div><footer><p class="footer-heading">You have the final say.</p><p>This page runs on your computer, served by your agent. Trust what Freighter's own window shows: it is the real transaction. Nothing is signed without your approval there. Testnet only.</p><p class="footer-links"><a href="https://kovan-indol.vercel.app">About Kovan ↗</a><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">View source ↗</a></p></footer>
+</div><footer><p class="footer-heading">You have the final say.</p><p>This page runs on your computer, served by your agent. Trust what Freighter's own window shows: it is the real transaction. Nothing is signed without your approval there. Testnet only.</p><p class="footer-links"><a href="https://kovan-protocol.vercel.app">About Kovan ↗</a><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">View source ↗</a></p></footer>
 </main><script>window.__KOVAN_JOB__=${data(job)};window.__KOVAN_DONE__=${data(done)};</script><script>${__WALLET_PAGE_JS__}</script></body></html>`;
 }
 
@@ -155,6 +162,8 @@ const OWNER_FLAGS: Record<string, string> = {
   providers: "providers", "provider-per-transfer-cap": "provider_per_transfer_cap", "provider-total-cap": "provider_total_cap",
   recipients: "recipients", "recipient-per-transfer-cap": "recipient_per_transfer_cap", "recipient-total-cap": "recipient_total_cap",
   "expiry-hours": "expiry_hours",
+  "mandate-id": "mandate_id", "intent-hash": "intent_hash", "expiry-ledger": "expiry_ledger",
+  scope: "scope", payee: "payee", payees: "payees", "per-payment-cap": "per_payment_cap", "total-cap": "total_cap", reference: "reference",
 };
 
 /** Flags → the same request object the signing page accepts, so the same validation applies. */
@@ -163,8 +172,8 @@ export function ownerRequest(fn: string, flags: Record<string, string | undefine
   for (const [flag, key] of Object.entries(OWNER_FLAGS)) {
     const v = flags[flag];
     if (v === undefined) continue;
-    if (key === "providers" || key === "recipients") obj[key] = v.split(",").map((s) => s.trim()).filter(Boolean);
-    else if (key === "expiry_hours") obj[key] = Number(v);
+    if (key === "providers" || key === "recipients" || key === "payees") obj[key] = v.split(",").map((s) => s.trim()).filter(Boolean);
+    else if (key === "expiry_hours" || key === "expiry_ledger") obj[key] = Number(v);
     else obj[key] = v;
   }
   return parseRequest(obj);
@@ -198,6 +207,8 @@ async function owner(fn: string, flags: Record<string, string | undefined>, opts
   if ("agent" in req) res.agent = req.agent;
   if (req.fn === "create_pool" && typeof result.returnValue === "string") res.pool = result.returnValue;
   if (req.fn === "create_agent" && typeof result.returnValue === "string") res.agent = result.returnValue;
+  if (req.fn === "create_mandate") res.mandateId = req.mandate.id;
+  if (req.fn === "revoke_mandate") res.mandateId = req.mandateId;
   for (const k of ["pool", "agent"]) if (typeof res[k] === "string") res[`${k}_explorer`] = explorerContract(res[k] as string);
   out(res);
   if (result.status !== "SUCCESS") process.exitCode = 1;
@@ -217,23 +228,36 @@ async function agent(action: string, flags: Record<string, string | undefined>) 
   if (!["draw", "pay", "return"].includes(action)) throw new UsageError("agent action must be draw, pay or return");
   for (const f of ["pool", "agent", "amount"]) if (!flags[f]) throw new UsageError(`--${f} is required`);
   if (action === "pay" && !flags.to) throw new UsageError("--to is required for pay");
+  const selected = await clientForPool(flags.pool!);
+  const hasBinding = [flags["mandate-id"], flags["request-id"], flags.reference].some(v => v !== undefined);
+  if (hasBinding && action !== "pay") throw new UsageError("Payment mandate flags apply only to pay");
+  const payment = hasBinding ? { mandateId: commitment(flags["mandate-id"], "mandate-id"), paymentId: paymentIdForRequest(flags["request-id"] ?? ""), reference: commitment(flags.reference, "reference") } : undefined;
   const key = agentKeypair(flags);
   const signer = { publicKey: key.rawPublicKey().toString("hex"), sign: (digest: Uint8Array) => key.sign(Buffer.from(digest)) };
   const amount = usdc(flags.amount, "amount", true).toString();
   log("Preparing, signing as the agent, and simulating with the covenant…");
-  const prepared = await client.pool(flags.pool!).prepareAgent(action as AgentAction, { agent: flags.agent!, amount, to: flags.to }, { source: key.publicKey(), signer });
-  const r = await client.signAndSend(prepared, keypairTransactionSigner(key));
-  out({ v: 1, fn: `agent_${action}`, status: r.status, tx: r.hash, explorer: explorerTx(r.hash), ...(r.error ? { error: r.error } : {}) });
+  const prepared = await selected.pool(flags.pool!).prepareAgent(action as AgentAction, { agent: flags.agent!, amount, to: flags.to, payment }, { source: key.publicKey(), signer });
+  const r = await selected.signAndSend(prepared, keypairTransactionSigner(key));
+  out({ v: 1, fn: `agent_${action}`, status: r.status, tx: r.hash, explorer: explorerTx(r.hash), ...(payment ? { paymentId: payment.paymentId, mandateId: payment.mandateId } : {}), ...(r.error ? { error: r.error } : {}) });
   if (r.status !== "SUCCESS") process.exitCode = 1;
 }
 
 async function status(flags: Record<string, string | undefined>) {
   if (!flags.pool) throw new UsageError("--pool is required");
-  const pool = client.pool(flags.pool);
+  const pool = (await clientForPool(flags.pool)).pool(flags.pool);
   const [info, agents] = await Promise.all([pool.getPool(), pool.listAgents()]);
   const res: Record<string, unknown> = { v: 1, pool: flags.pool, ...info, agents };
   if (flags.agent) res.agent = await pool.getAgent(flags.agent);
   out(res);
+}
+
+async function readMandate(kind: string, flags: Record<string, string | undefined>) {
+  if (!flags.pool || !flags.agent) throw new UsageError("--pool and --agent are required");
+  const pool = (await clientForPool(flags.pool)).pool(flags.pool);
+  await pool.requireMandates(flags.agent);
+  const value = kind === "mandate" ? await pool.getMandate(flags.agent, commitment(flags["mandate-id"], "mandate-id"))
+    : await pool.getPayment(flags.agent, paymentIdForRequest(flags["request-id"] ?? ""));
+  out({ v: 1, fn: kind, pool: flags.pool, agent: flags.agent, value });
 }
 
 // ---------- main ----------
@@ -243,6 +267,7 @@ export async function main(argv: string[]) {
     args: argv, allowPositionals: true, strict: true,
     options: {
       owner: { type: "string" }, key: { type: "string" }, to: { type: "string" },
+      "request-id": { type: "string" },
       port: { type: "string" }, "no-open": { type: "boolean" }, "timeout-min": { type: "string" }, help: { type: "boolean", short: "h" },
       ...Object.fromEntries(Object.keys(OWNER_FLAGS).map((f) => [f, { type: "string" as const }])),
     },
@@ -256,6 +281,7 @@ export async function main(argv: string[]) {
     case "owner": if (!sub) throw new UsageError("owner needs an action, e.g. owner fund"); return owner(sub, flags, opts);
     case "agent": if (!sub) throw new UsageError("agent needs an action: draw, pay or return"); return agent(sub, flags);
     case "status": return status(flags);
+    case "mandate": case "receipt": return readMandate(cmd, flags);
     case "ids": return out(deployment);
     default: throw new UsageError(`Unknown command "${cmd}". Run with --help.`);
   }

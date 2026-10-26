@@ -2,10 +2,12 @@
 
 A static page where a pool owner signs requests prepared by an agent. Testnet only.
 
-An agent sends a link like `https://kovan-protocol.github.io/kovan/#r=<base64url(JSON)>`. The link says what to do (create a pool, fund it, create an agent…). The page connects Freighter, builds and simulates the transaction for the connected wallet with `@kovan/sdk`, and submits it once the owner approves. The agent never needs the owner's address or keys.
+An agent sends a link like `https://kovan-protocol.github.io/kovan/#r=<base64url(JSON)>`. The link says what to do (create a pool, fund it, create an agent…). The page connects Freighter, builds and simulates the transaction for the connected wallet with `@kovan-protocol/sdk`, and submits it once the owner approves. The agent never needs the owner's address or keys.
 
 - Request format and the agent workflow: [`skills/kovan/SKILL.md`](../skills/kovan/SKILL.md), also published as `agent.md` next to the page.
 - Contract IDs and code hashes come from [`deployments/testnet.json`](../deployments/testnet.json) at build time. A link cannot choose code, policy, verifier or asset; unknown fields are refused.
+- New-pool creation uses `current_release`. Existing pools resolve their own reviewed code/bindings, including the historical policy. Native `create_mandate` / `revoke_mandate` links and CLI commands require owner wallet approval. New agent payments require mandate ID, persisted purchase request ID and reference; `mandate` / `receipt` commands reconcile chain state.
+- The setup page only creates/funds pools and agents; it does not automatically approve grants. Complete that separate approval before spending. Rebuild hosted pages and the CLI after every manifest change (`npm run build:vercel` writes the website's generated assets). Publishing those assets is a separate deployment.
 
 ## Agent tool: `kovan.mjs`
 

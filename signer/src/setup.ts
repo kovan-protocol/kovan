@@ -3,7 +3,7 @@
 // Progress (never keys) survives a reload, so a refresh can't create a second pool.
 import { getNetwork, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Keypair } from "@stellar/stellar-sdk";
-import { addrVal, type SubmitResult } from "@kovan/sdk";
+import { addrVal, type SubmitResult } from "@kovan-protocol/sdk";
 import { client, explorerContract, explorerTx, NETWORK_PASSPHRASE, prepare } from "./chain";
 import { describeAgent, parsePlan, steps, type Plan } from "./plan";
 import { encodeRequest, formatUsdc, RequestError, type SignRequest } from "./request";
@@ -219,12 +219,13 @@ function summary(): string {
     lines.push(`Agent "${a.name}": wallet ${progress.agents[i]}, key ${agentKey(i)}. ${describeAgent(a).slice(0, -1).join(". ")}`);
   });
   lines.push(`Transactions: ${progress.txs.filter(Boolean).join(", ")}`);
+  lines.push("Before a new agent can pay: approve a separate exact/budget mandate in the console or with owner create_mandate. Funding/drawing alone does not grant payment authority.");
   return lines.join("\n");
 }
 
 function finish() {
   $("run").hidden = true;
-  status("Done. Your pool and agents are on Stellar testnet.", "ok");
+  status("Pool and agents created. New agents still need a separate owner-approved payment mandate before spending.", "ok");
   const pool = plan.pool ?? progress.pool!;
   const res = $("result");
   const links = $("links");
