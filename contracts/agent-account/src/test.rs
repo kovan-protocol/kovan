@@ -140,3 +140,19 @@ fn digest_vector() {
     std::println!("DIGEST_VECTOR {}", hex);
     assert_eq!(d.len(), 32);
 }
+
+#[test]
+fn mandate_digest_vector() {
+    use kovan_covenant_types::{payment_payload, PaymentBinding};
+    use stellar_accounts::smart_account::AuthDigestPreimage;
+    let e = Env::default();
+    let payment = PaymentBinding { mandate_id: BytesN::from_array(&e, &[1; 32]), payment_id: BytesN::from_array(&e, &[3; 32]), reference: BytesN::from_array(&e, &[4; 32]), valid_until: 100 };
+    let digest = AuthDigestPreimage {
+        account: Address::from_str(&e, "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ"),
+        signature_payload: payment_payload(&e, &BytesN::from_array(&e, &[7; 32]), &payment).to_bytes(),
+        context_rule_ids: vec![&e, 0u32],
+    }.digest(&e);
+    let hex: std::string::String = digest.to_array().iter().map(|b| std::format!("{:02x}", b)).collect();
+    std::println!("MANDATE_DIGEST_VECTOR {}", hex);
+    assert_eq!(hex, "46c9a09bc878f9d0461eebf5d889d29c570f421379ba76ec8ab1b16724090628");
+}

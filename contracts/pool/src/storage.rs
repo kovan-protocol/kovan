@@ -52,6 +52,17 @@ pub struct PoolInfo {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PoolConfig {
+    pub owner: Address,
+    pub usdc: Address,
+    pub policy: Address,
+    pub verifier: Address,
+    pub account_wasm_hash: BytesN<32>,
+    pub mandate_version: u32,
+}
+
+#[contracttype]
 pub enum PoolKey {
     Owner,
     Usdc,
@@ -100,6 +111,7 @@ pub enum PoolError {
     YieldLiquidity = 25,
     YieldUnderfunded = 26,
     YieldArithmetic = 27,
+    UnsupportedMandate = 28,
 }
 
 /// Children per parent, so `revoke` and `close` stay within one transaction's budget.

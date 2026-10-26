@@ -15,6 +15,19 @@ mod lifecycle;
 mod yield_tests;
 mod defindex_wasm;
 
+#[test]
+fn public_config_matches_immutable_constructor_bindings() {
+    let f = setup();
+    let config = f.pool.get_config();
+    assert_eq!(config.owner, f.owner);
+    assert_eq!(config.usdc, f.usdc);
+    assert_eq!(config.policy, f.policy);
+    assert_eq!(config.verifier, f.verifier);
+    assert_eq!(config.mandate_version, 1);
+    assert_eq!(config.account_wasm_hash, f.e.crypto().sha256(&soroban_sdk::Bytes::from_slice(&f.e, account_wasm::WASM)).to_bytes());
+    assert!(f.e.auths().is_empty());
+}
+
 mod account_wasm {
     soroban_sdk::contractimport!(file = "../target/wasm32v1-none/release/kovan_agent_account.wasm");
 }
@@ -661,6 +674,11 @@ mod e2e {
         Bytes, TryFromVal, Val,
     };
     use stellar_accounts::smart_account::{AuthDigestPreimage, AuthPayload, Signer};
+    use kovan_covenant_types::{payment_payload, MandateBudget, MandateParams, MandateScope, PaymentBinding};
+
+    #[soroban_sdk::contracttype]
+    #[derive(Clone)]
+    struct MandateSignature { version: u32, auth: AuthPayload, payment: PaymentBinding }
 
     const NONCE: i64 = 1;
     const EXPIRATION_LEDGER: u32 = 100;
@@ -736,20 +754,45 @@ mod e2e {
         fx.pool.fund(&LOCK);
         let agent = fx.pool.create_agent(&pubkey, &LIMIT, &covenant(&fx));
         fx.pool.draw(&agent, &LIMIT);
+        fx.pool.create_mandate(&agent, &MandateParams {
+            id: BytesN::from_array(&fx.e, &[1; 32]), intent_hash: BytesN::from_array(&fx.e, &[2; 32]), expiry: 1_000,
+            scope: MandateScope::Budget(MandateBudget { payees: vec![&fx.e, fx.prov.clone()], per_payment_cap: 2_000_000, total_cap: LIMIT }),
+        });
         let signer = Signer::External(fx.verifier.clone(), Bytes::from_array(&fx.e, key.verifying_key().as_bytes()));
         Signed { fx, agent, signer, key }
     }
 
     fn transfer_with_signature(s: &Signed, to: &Address, amount: i128) -> Result<(), ()> {
+        transfer_bound(s, to, amount, NONCE, binding(&s.fx.e, 3))
+    }
+
+    fn binding(e: &Env, id: u8) -> PaymentBinding {
+        PaymentBinding { mandate_id: BytesN::from_array(e, &[1; 32]), payment_id: BytesN::from_array(e, &[id; 32]), reference: BytesN::from_array(e, &[4; 32]), valid_until: 100 }
+    }
+
+    fn payment_entry(s: &Signed, to: &Address, amount: i128, nonce: i64, payment: PaymentBinding) -> SorobanAuthorizationEntry {
         let e = &s.fx.e;
         let inv = contract_fn(
             &s.fx.usdc,
             "transfer",
             std::vec![to_scval(e, s.agent.clone()), to_scval(e, to.clone()), to_scval(e, amount)],
         );
-        e.set_auths(&[signed_entry(e, &s.agent, &s.signer, &s.key, inv)]);
+        let digest = AuthDigestPreimage { account: s.agent.clone(), signature_payload: payment_payload(e, &signature_payload(e, nonce, &inv), &payment).to_bytes(), context_rule_ids: vec![e, 0u32] }.digest(e);
+        let sig = Bytes::from_array(e, &s.key.sign(&digest.to_array()).to_bytes());
+        let payload = MandateSignature { version: 1, auth: AuthPayload { signers: map![e, (s.signer.clone(), sig)], context_rule_ids: vec![e, 0u32] }, payment };
+        SorobanAuthorizationEntry {
+            credentials: SorobanCredentials::Address(SorobanAddressCredentials { address: (&s.agent).into(), nonce, signature_expiration_ledger: EXPIRATION_LEDGER, signature: to_scval(e, payload) }),
+            root_invocation: inv,
+        }
+    }
+
+    fn transfer_bound(s: &Signed, to: &Address, amount: i128, nonce: i64, payment: PaymentBinding) -> Result<(), ()> {
+        let e = &s.fx.e;
+        e.set_auths(&[payment_entry(s, to, amount, nonce, payment)]);
         token::TokenClient::new(e, &s.fx.usdc).try_transfer(&s.agent, to, &amount).map(|_| ()).map_err(|_| ())
     }
+
+    mod mandates;
 
     #[test]
     fn signed_transfer_to_provider_succeeds() {

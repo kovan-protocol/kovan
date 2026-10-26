@@ -6,7 +6,7 @@
 //! value. Investment losses can breach backing: new allocation/increased limits,
 //! cash extraction and draws are then blocked; revocation/recovery still work.
 //! Cash-only is the default. The owner must explicitly opt in before opening agents.
-use kovan_covenant_types::{Amendment, CovenantParams};
+use kovan_covenant_types::{Amendment, CovenantParams, MandateParams, MandateState, PaymentReceipt, MANDATE_VERSION};
 use soroban_sdk::{
     contract, contractclient, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
     IntoVal, Val, Vec,
@@ -16,11 +16,15 @@ use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, Poo
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
 use crate::yield_source::{self as yield_source, YieldInfo};
 
-/// The two pool-only calls on the covenant policy contract.
+/// Pool-authorized policy administration and public mandate reads.
 #[contractclient(name = "CovenantPolicyClient")]
 pub trait CovenantPolicyAdmin {
     fn set_revoked(e: &Env, smart_account: Address, revoked: bool);
     fn amend(e: &Env, smart_account: Address, amendment: Amendment);
+    fn create_mandate(e: &Env, smart_account: Address, params: MandateParams);
+    fn revoke_mandate(e: &Env, smart_account: Address, id: BytesN<32>);
+    fn get_mandate(e: &Env, smart_account: Address, id: BytesN<32>) -> Vec<MandateState>;
+    fn get_payment(e: &Env, smart_account: Address, id: BytesN<32>) -> Vec<PaymentReceipt>;
 }
 
 #[contract]
@@ -37,6 +41,46 @@ impl KovanPool {
     }
 
     // ---- owner ----------------------------------------------------------
+
+    pub fn mandate_version(_e: &Env) -> u32 { MANDATE_VERSION }
+
+    /// Immutable deployment bindings, so clients never mix policy generations.
+    pub fn get_config(e: &Env) -> st::PoolConfig {
+        st::PoolConfig {
+            owner: Self::owner(e), usdc: e.storage().instance().get(&PoolKey::Usdc).unwrap(),
+            policy: e.storage().instance().get(&PoolKey::Policy).unwrap(),
+            verifier: e.storage().instance().get(&PoolKey::Verifier).unwrap(),
+            account_wasm_hash: e.storage().instance().get(&PoolKey::AccountWasm).unwrap(),
+            mandate_version: MANDATE_VERSION,
+        }
+    }
+
+    /// Only the original owner can grant new spending authority, including for children.
+    pub fn create_mandate(e: &Env, agent: Address, params: MandateParams) {
+        Self::owner(e).require_auth();
+        Self::require_open(e);
+        let rec = st::get_agent(e, &agent);
+        if rec.status != Status::Active { panic_with_error!(e, PoolError::NotActive); }
+        let version: u32 = e.invoke_contract(&agent, &soroban_sdk::Symbol::new(e, "mandate_version"), Vec::new(e));
+        if version != MANDATE_VERSION { panic_with_error!(e, PoolError::UnsupportedMandate); }
+        policy(e).create_mandate(&agent, &params);
+    }
+
+    pub fn revoke_mandate(e: &Env, agent: Address, id: BytesN<32>) {
+        Self::owner(e).require_auth();
+        st::get_agent(e, &agent);
+        policy(e).revoke_mandate(&agent, &id);
+    }
+
+    pub fn get_mandate(e: &Env, agent: Address, id: BytesN<32>) -> Vec<MandateState> {
+        st::get_agent(e, &agent);
+        policy(e).get_mandate(&agent, &id)
+    }
+
+    pub fn get_payment(e: &Env, agent: Address, id: BytesN<32>) -> Vec<PaymentReceipt> {
+        st::get_agent(e, &agent);
+        policy(e).get_payment(&agent, &id)
+    }
 
     /// One explicit opt-in before opening agents; no vault replacement or upgrades.
     pub fn configure_yield(e: &Env, vault: Address, wasm_hash: BytesN<32>) {

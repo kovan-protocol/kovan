@@ -1,6 +1,7 @@
 //! Contract wrapper: exposes the covenant as an OpenZeppelin smart-account
 //! policy plus the pool-only admin functions.
-use soroban_sdk::{auth::Context, contract, contractimpl, Address, Env, Vec};
+use soroban_sdk::{auth::Context, contract, contractimpl, Address, BytesN, Env, Vec};
+use kovan_covenant_types::{MandateParams, MandateState, PaymentBinding, PaymentReceipt, PaymentTerms};
 use stellar_accounts::{
     policies::Policy,
     smart_account::{ContextRule, Signer},
@@ -30,6 +31,22 @@ impl Policy for CovenantPolicyContract {
 
 #[contractimpl]
 impl CovenantPolicyContract {
+    pub fn mandate_version(_e: Env) -> u32 { kovan_covenant_types::MANDATE_VERSION }
+    pub fn create_mandate(e: Env, smart_account: Address, params: MandateParams) {
+        crate::mandate::create(&e, &smart_account, params)
+    }
+    pub fn revoke_mandate(e: Env, smart_account: Address, id: BytesN<32>) {
+        crate::mandate::revoke(&e, &smart_account, &id)
+    }
+    pub fn get_mandate(e: Env, smart_account: Address, id: BytesN<32>) -> Vec<MandateState> {
+        crate::mandate::get(&e, &smart_account, &id)
+    }
+    pub fn get_payment(e: Env, smart_account: Address, id: BytesN<32>) -> Vec<PaymentReceipt> {
+        crate::mandate::receipt(&e, &smart_account, &id)
+    }
+    pub fn consume_mandate(e: Env, smart_account: Address, payment: PaymentBinding, terms: PaymentTerms, authorization_hash: BytesN<32>) {
+        crate::mandate::consume(&e, &smart_account, payment, terms, authorization_hash)
+    }
     /// Reads the covenant of a smart account.
     pub fn get_covenant(e: Env, smart_account: Address) -> CovenantState {
         covenant::get_state(&e, &smart_account)

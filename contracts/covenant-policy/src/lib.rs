@@ -3,6 +3,7 @@
 
 pub mod contract;
 pub mod covenant;
+pub mod mandate;
 
 pub use contract::{CovenantPolicyContract, CovenantPolicyContractClient};
 pub use covenant::{Amendment, CallRule, CovenantError, CovenantParams, CovenantState};
