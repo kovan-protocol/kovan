@@ -68,7 +68,7 @@ export function HowContent() {
   }, []);
   const steps = [
     { title: t("Fund one pool.", "Deposita en un fondo."), description: t("The owner deposits testnet USDC into a shared pool. Each agent gets a defined share of the available budget.", "El propietario deposita USDC de testnet en un fondo común. Cada agente recibe una parte definida del presupuesto."), icon: Wallet },
-    { title: t("Set the boundaries.", "Define los límites."), description: t("Choose the budget, approved recipients, payment caps and expiry. The agent cannot rewrite its own rules.", "Elige el presupuesto, los destinatarios, los límites de pago y la vigencia. El agente no puede reescribir sus reglas."), icon: SlidersHorizontal },
+    { title: t("Set the boundaries.", "Define los límites."), description: t("Choose the budget, approved recipients, payment caps and expiry, then approve a payment mandate for what the agent may buy. The agent cannot rewrite its own rules.", "Elige el presupuesto, los destinatarios, los límites de pago y la vigencia, y aprueba un mandato de pago para lo que el agente puede comprar. El agente no puede reescribir sus reglas."), icon: SlidersHorizontal },
     { title: t("Let the agent work.", "Deja actuar al agente."), description: t("The agent draws within its allowance. Its smart account checks each outgoing payment against your rules.", "El agente retira fondos dentro de su asignación. Su cuenta inteligente verifica cada pago según tus reglas."), icon: ShieldCheck },
   ];
   return <main id="main" tabIndex={-1} className="page-main">

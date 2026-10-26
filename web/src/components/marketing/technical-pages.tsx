@@ -109,7 +109,10 @@ export function DevelopersContent() {
   function transactionLabel(id: string, fallback: string) {
     const labels: Record<string, string> = {
       "deploy-verifier": t("Deploy signature verifier", "Desplegar verificador de firmas"),
-      "deploy-policy": t("Deploy covenant policy", "Desplegar política de gasto"),
+      "deploy-mandate-policy": t("Deploy covenant policy · native mandates", "Desplegar política de gasto · mandatos nativos"),
+      "upload-mandate-pool": t("Upload pool code · mandates and recovery", "Subir código del fondo · mandatos y recuperación"),
+      "upload-mandate-account": t("Upload agent account code · mandate enforcing", "Subir código de cuenta de agente · aplica mandatos"),
+      "deploy-policy": t("Deploy covenant policy (legacy pools)", "Desplegar política de gasto (fondos anteriores)"),
       "deploy-pool": deployment.mandate_version === 1
         ? t("Deploy default pool · mandates and recovery", "Desplegar fondo predeterminado · mandatos y recuperación")
         : t("Deploy pool v2 · permanent shutdown", "Desplegar fondo v2 · cierre permanente"),

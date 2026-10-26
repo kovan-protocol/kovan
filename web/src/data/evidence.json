@@ -26,7 +26,8 @@
       "id": "deploy-policy",
       "hash": "8b25ea4e8112195e72bf779bdd80cb1ba690fe6b00b5433d403799b5e56416fd",
       "group": "deploy",
-      "label": "policy"
+      "label": "policy (legacy pools)",
+      "historical": true
     },
     {
       "id": "deploy-legacy-pool",

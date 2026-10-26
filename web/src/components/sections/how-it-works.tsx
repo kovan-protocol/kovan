@@ -82,8 +82,8 @@ export function HowItWorks() {
               <h3>The agent draws and pays, per call.</h3>
               <p>
                 The agent pulls up to its draw limit into its own wallet and pays an allowlisted provider over
-                x402. Every outgoing transfer is authorized by the wallet, and the wallet asks the covenant
-                policy first.
+                x402 or directly. Every outgoing transfer is authorized by the wallet, the wallet asks the covenant
+                policy first, and on new pools the payment must match a mandate the owner approved.
               </p>
               <ul>
                 <li>

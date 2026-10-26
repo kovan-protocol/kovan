@@ -19,7 +19,7 @@ The current default is [`CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON
 | Pool WASM | `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` |
 | Agent-account WASM | `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
 
-The verifier and USDC below are reused. The following bindings describe the **previous default**, retained for history, not the current default or new creation:
+The verifier and USDC below are reused. The following bindings describe the **previous default**, retained for history, not the current default or new creation. An earlier legacy pool (`CAS7ARNT…K2LKJ`, pool code `5b109988…`) is also retained in the manifest's `legacy_pools`:
 
 | Contract | ID / hash |
 |---|---|
@@ -56,14 +56,15 @@ The policy is a separate contract from the pool on purpose: Soroban forbids re-e
 | `return_funds(agent, by, amount)` | agent or owner | Move USDC from the wallet back to the pool |
 | `close_pool()` | owner | Permanent; all agents must be closed |
 | `draw(agent, amount)` | agent | Pool → wallet, within the draw limit |
-| `settle(agent)` | agent | Request closure |
+| `settle(agent)` | agent | Freezes the agent's own spending and requests closure |
 | `dispute(agent, by, evidence)` / `resolve_dispute(agent, outcome)` | agent or owner / owner | Record an objection / the owner's ruling |
 | `delegate(parent, child_pubkey, child_draw_limit, child_covenant) → Address` | agent | Create a narrower child agent |
 | `get_pool()`, `get_agent(agent)`, `list_agents()` | anyone | Read state |
-| `get_config()`, `mandate_version()` | anyone | New release: immutable constructor bindings / native mandate capability |
+| `get_config()`, `mandate_version()`, `recovery_version()` | anyone | New release: immutable constructor bindings / native mandate capability / renewable recovery |
 | `create_mandate(agent, params)` | original owner | New release: approve immutable exact or budget grant |
 | `revoke_mandate(agent, id)` | original owner | New release: terminal grant revocation |
 | `get_mandate(agent, id)`, `get_payment(agent, payment_id)` | anyone | New release: read grant / durable payment receipt |
+| `configure_yield`, `invest`, `lock_shares`, `redeem_shares`, `release_shares`, `get_yield` | owner / anyone | v3 optional yield source (inactive: no vault is enabled on any live pool) |
 
 The published v3 code includes experimental optional-yield functions, but no matching vault is enabled. Pools start cash-only; publication does not activate yield.
 
@@ -93,11 +94,11 @@ The pool publishes one event per state change. Use Stellar RPC `getEvents` on th
 | `Withdrawn` | amount, locked |
 | `AgentCreated` | agent, draw_limit |
 | `Drawn` | agent, amount, drawn |
-| `Returned` | agent, by, amount |
+| `Returned` | agent, by, amount, drawn |
 | `Revoked` | agent, by |
 | `Amended` | agent, draw_limit |
 | `SettlementRequested` | agent |
-| `Closed` | agent, recovered, consumed |
+| `Closed` | agent, recovered, consumed, released |
 | `Delegated` | parent, child, draw_limit |
 | `PoolClosed` | owner, returned |
 
