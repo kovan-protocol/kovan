@@ -93,11 +93,11 @@ node $K owner create_mandate --owner $OWNER --pool $POOL --agent $AGENT \
   --scope budget --payees G…PROVIDER --per-payment-cap 0.50 --total-cap 40
 ```
 
-For one exact purchase, replace the scope flags with `--scope exact --payee G…PROVIDER --amount 0.25 --reference $REFERENCE`. `REFERENCE` is a nonzero 32-byte hex commitment to the reviewed purchase. The tool fixes the asset to the selected pool's USDC. Confirm the grant transaction succeeded before paying. Each intended purchase needs a persisted request ID and reference; reuse the identical inputs for reconciliation, never make a new ID just to retry.
+For one exact purchase, replace the scope flags with `--scope exact --payee G…PROVIDER --amount 0.25 --reference $REFERENCE`. `REFERENCE` is a nonzero 32-byte hex commitment to the reviewed purchase. The tool fixes the asset to the selected pool's USDC. Confirm the grant transaction succeeded before paying. Each intended purchase needs a persisted request ID and reference; reuse the identical inputs for reconciliation, never make a new ID just to retry. `REQUEST_ID` is a persisted purchase ID of 16–128 characters from `A–Z a–z 0–9 _ -` (the tool derives the on-chain payment ID from it).
 
 ```bash
 node $K agent draw   --pool $POOL --agent $AGENT --amount 5 --key kovan-agent-1             # pool → agent wallet
-node $K agent pay    --pool $POOL --agent $AGENT --amount 0.25 --to G…PROVIDER --key kovan-agent-1 \
+node $K agent pay    --pool $POOL --agent $AGENT --amount 0.25 --to G…PROVIDER --key kovan-agent-1 \   # --to G… or C…
   --mandate-id $MANDATE_ID --request-id $REQUEST_ID --reference $REFERENCE
 node $K agent return --pool $POOL --agent $AGENT --amount 1 --key kovan-agent-1             # always allowed
 node $K status --pool $POOL --agent $AGENT                                                 # limits, drawn, spent, status
@@ -146,9 +146,9 @@ https://kovan-protocol.vercel.app/setup?fund=<USDC>&agent=<spec>&agent=<spec>
 
 | Key | Meaning | Required |
 |---|---|---|
-| `name` | Label, e.g. `research` (letters, digits, spaces, `.`, `-`, `_`) | no |
+| `name` | Label, e.g. `research` (letters, digits, spaces, `.`, `-`, `_`; max 32) | no |
 | `draw` | Draw limit in USDC: the most this agent may take from the pool | yes |
-| `pay` | Providers it may pay per call (`G…` addresses), separated by `\|` | `pay` and/or `send` |
+| `pay` | Providers it may pay per call (`G…` or `C…` addresses), separated by `\|` | `pay` and/or `send` |
 | `per`, `total` | Per-payment cap and total cap for `pay`, in USDC | with `pay` |
 | `send` | Plain-transfer recipients (`G…` or `C…`), separated by `\|` | `pay` and/or `send` |
 | `send_per`, `send_total` | Per-transfer and total caps for `send`, in USDC | with `send` |
@@ -183,6 +183,8 @@ node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(pro
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 
-The JSON uses the same actions and snake_case fields as the owner commands (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`), plus `"v": 1` and `"fn"`. After signing, the page shows a one-line JSON result for the person to paste back to you. If you have an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there instead; check `tx` on-chain before trusting it.
+The JSON uses the same actions and snake_case fields as the owner commands (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`), plus `"v": 1` and `"fn"`. After signing, the page shows a one-line JSON result for the person to paste back to you. If you have an `https://` endpoint, or a local `http://127.0.0.1:<port>/` one, add `"callback"` and a random `"id"` (1–64 characters from `A–Z a–z 0–9 . _ -`) and the page POSTs the result there instead; check `tx` on-chain before trusting it.
+
+The skill ships `wait-for-result.mjs` (also at `https://kovan-protocol.vercel.app/wait-for-result.mjs`) for the local case: `node wait-for-result.mjs <id> [port]` (default port 8787, Node 18+) listens for exactly one result with that `id`, verifies its `tx` against Stellar RPC, prints it as one JSON line and exits. Put the same `id` and `http://127.0.0.1:<port>/` as `callback` in the request. It reads `KOVAN_RPC_URL`, `KOVAN_SIGNER_ORIGIN` (one extra allowed page origin) and `KOVAN_WAIT_MINUTES` (default 30).
 
 Mandate requests use `fn: "create_mandate"`, `pool`, `agent`, `mandate_id`, `intent_hash`, `expiry_ledger` (integer), and either `scope: "exact"` with `payee`, `amount`, `reference`, or `scope: "budget"` with `payees` (array), `per_payment_cap`, `total_cap`. Amounts are USDC decimal strings. For revocation use `fn: "revoke_mandate"`, `pool`, `agent`, `mandate_id`. The link cannot choose another asset, policy or code hash.

@@ -38238,7 +38238,7 @@ function describe(req) {
     case "revoke":
       return { title: "Revoke an agent", rows: [["Pool", req.pool], ["Agent", req.agent]], notes: ["Stops the agent's payments and calls, and those of its child agents. Returning funds to the pool keeps working."] };
     case "close":
-      return { title: "Close an agent", rows: [["Pool", req.pool], ["Agent", req.agent]], notes: ["Final. Only works once everything it drew is back in the pool."] };
+      return { title: "Close an agent", rows: [["Pool", req.pool], ["Agent", req.agent]], notes: ["Final. Recovers what is left in the agent's wallet, settles what it spent and releases its unused draw limit. Legacy v1 pools need drawn funds returned first."] };
     case "return_funds":
       return { title: `Pull ${formatUsdc(req.amount)} back into the pool`, rows: [["Pool", req.pool], ["From agent", req.agent], ["Amount", formatUsdc(req.amount)]], notes: ["Uses the allowance the agent's wallet gave the pool at creation; no agent signature is needed."] };
     case "revoke_mandate":
@@ -38367,8 +38367,8 @@ Owner (the person signs each step in Freighter on a local page):
 
 Agent (signed with the agent's own key: --key <stellar identity> or KOVAN_AGENT_SECRET):
   agent draw   --pool C\u2026 --agent C\u2026 --amount 1
-  agent pay    --pool C\u2026 --agent C\u2026 --amount 0.25 --to G\u2026
-               --mandate-id HEX --request-id PERSISTED_ID --reference HEX (required by new agents)
+  agent pay    --pool C\u2026 --agent C\u2026 --amount 0.25 --to G\u2026|C\u2026
+               --mandate-id HEX --request-id ID --reference HEX (required by new agents; ID: 16-128 of A-Z a-z 0-9 _ -)
   agent return --pool C\u2026 --agent C\u2026 --amount 1
 
 Read:

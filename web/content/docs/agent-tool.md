@@ -17,7 +17,11 @@ Use the rebuilt tool for the native-mandate release: new creation selects `curre
 
 ## Output
 
-- **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","pool":"C…"}`
+- **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","explorer":"https://stellar.expert/…","pool":"C…","pool_explorer":"…"}`
+  - `owner …`: `v`, `fn`, `status`, `tx`, `explorer`, plus `pool` / `pool_explorer` after `create_pool`, `agent` / `agent_explorer` after `create_agent`, `mandateId` after `create_mandate`.
+  - `agent …`: `fn` is `agent_draw`, `agent_pay` or `agent_return`; `pay` with mandate flags adds `paymentId` and `mandateId`; failures carry `error`.
+  - `status`: `v`, `pool`, `owner`, `usdc`, `locked`, `sum_limits`, `agent_count`, `agents[]` and, with `--agent`, `agent{…, state}` (no `fn`).
+  - `mandate` / `receipt`: `v`, `fn`, `pool`, `agent`, `value`.
 - **stderr:** progress, and the approval link
 - **Exit codes:** `0` success · `1` refused or failed on-chain · `2` bad usage
 - **Amounts:** USDC (`100`, `0.25`), at most 7 decimals
@@ -57,7 +61,7 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 | `create_agent` | `--pool --agent-key --draw-limit`, `--providers` + `--provider-per-transfer-cap` + `--provider-total-cap` and/or `--recipients` + `--recipient-per-transfer-cap` + `--recipient-total-cap`, `--expiry-hours` (default 24, max 720) | Creates an agent wallet. Result includes `agent`. Lists are comma-separated, at most 10 each. |
 | `revoke` | `--pool --agent` | Freezes the agent's payments and calls |
 | `return_funds` | `--pool --agent --amount` | Pulls USDC from the agent wallet back into the pool |
-| `close` | `--pool --agent` | Final; after everything drawn is back |
+| `close` | `--pool --agent` | Final. Recovers what's left in the wallet, settles what was spent and releases the unused draw limit (children first). Legacy v1 pools need drawn funds returned first. |
 | `withdraw` | `--pool --amount` | Takes back unassigned USDC |
 | `create_mandate` | `--pool --agent --mandate-id HEX --intent-hash HEX --expiry-ledger N`, plus scope flags below | Owner approves a payment grant |
 | `revoke_mandate` | `--pool --agent --mandate-id HEX` | Permanently revoke a grant, without blocking returns |
@@ -66,15 +70,17 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 
 Mandate scopes: `--scope exact --payee G… --amount 0.01 --reference HEX` authorizes one purchase; `--scope budget --payees G…,G… --per-payment-cap 0.1 --total-cap 1` authorizes multiple purchases within limits. Hashes are nonzero 32-byte hex; expiry is a future ledger no later than the covenant. Grants never expand covenant permissions.
 
-### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…]`
+### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…|C…] [--mandate-id HEX --request-id ID --reference HEX]`
 
 Signed with the agent's key: `--key <stellar identity>` (read with `stellar keys secret`) or `KOVAN_AGENT_SECRET=S…`. The same key pays the XLM fee from its `G…` account, so fund it once (`stellar keys generate <name> --network testnet --fund`).
 
 | Action | Moves |
 |---|---|
 | `draw` | Pool → agent wallet, within the draw limit |
-| `pay` | Agent wallet → a listed provider or recipient (`--to`), within caps and before expiry |
+| `pay` | Agent wallet → a listed provider or recipient (`--to`, `G…` or `C…`), within caps and before expiry |
 | `return` | Agent wallet → pool. Always allowed. |
+
+New agents require `--mandate-id HEX --request-id ID --reference HEX` for `pay`: the owner-approved grant, a persisted purchase ID of 16–128 characters from `A–Z a–z 0–9 _ -` (the on-chain payment ID is derived from it) and the nonzero 32-byte hex purchase commitment. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. `draw` and `return` take no payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
 
 The covenant is checked during simulation, so a refused payment fails before anything is sent:
 
@@ -84,11 +90,15 @@ The covenant is checked during simulation, so a refused payment fails before any
 
 ### `status --pool C… [--agent C…]`
 
-New agents require `--mandate-id HEX --request-id PERSISTED_ID --reference HEX` for `pay`. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. Draw/return do not take payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
-
-Read grants with `mandate --pool C… --agent C… --mandate-id HEX`, and receipts with `receipt --pool C… --agent C… --request-id PERSISTED_ID`. A receipt proves authorized transfer, not delivery. Missing receipt while authorization is live does not prove nonpayment.
-
 Reads the pool (owner, locked, assigned, agents) and, with `--agent`, that agent's limits, drawn amount, covenant and spend counters.
+
+### `mandate --pool C… --agent C… --mandate-id HEX`
+
+Reads a grant: scope, caps, spend so far, expiry and whether it is revoked.
+
+### `receipt --pool C… --agent C… --request-id ID`
+
+Reads the on-chain receipt for a persisted request ID. A receipt proves an authorized transfer, not delivery. A missing receipt while the authorization is still live does not prove non-payment.
 
 ### `ids`
 
@@ -119,10 +129,10 @@ https://kovan-protocol.vercel.app/setup?fund=100
   &agent=name:monitor,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
 ```
 
-(One line in practice.) Each `agent` takes comma-separated `key:value` pairs: `name`, `draw` (draw limit), `pay` + `per` + `total` (providers and their caps), `send` + `send_per` + `send_total` (recipients), `hours` (expiry), and optionally `key` (the agent's public key). Lists use `|`. Add `pool=C…` to add agents to an existing pool. All amounts are USDC.
+(One line in practice.) Each `agent` takes comma-separated `key:value` pairs: `name` (max 32 characters), `draw` (draw limit), `pay` + `per` + `total` (providers, `G…` or `C…`, and their caps), `send` + `send_per` + `send_total` (recipients), `hours` (expiry, default 24, max 720), and optionally `key` (the agent's public key). Lists use `|`. At most 5 agents per link. Add `pool=C…` to add agents to an existing pool. All amounts are USDC.
 
 - The page validates everything with the same checks as `kovan.mjs` and refuses bad links with the reason.
-- Without `key`, each agent's key is generated in your browser and offered as a download, for the bot that will spend. Agent accounts get testnet XLM for fees automatically.
+- Without `key`, each agent's key is generated in your browser; you must download the key backup and confirm it is saved before the page deploys any agent. Give each key only to the bot that will spend. Agent accounts get testnet XLM for fees automatically.
 - At the end you get a short summary to paste back into the chat. Progress survives a reload, so a refresh can't create a second pool.
 
 ## Cloud agents
@@ -134,6 +144,6 @@ node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(pro
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 
-The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there.
+The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, or a local `http://127.0.0.1:<port>/` one, add `"callback"` and a random `"id"` (1–64 characters from `A–Z a–z 0–9 . _ -`) and the page POSTs the result there. `wait-for-result.mjs` (shipped with the skill, also at `/wait-for-result.mjs`) covers the local case: `node wait-for-result.mjs <id> [port]` (default 8787) waits for that one result, verifies its `tx` on-chain and prints it as one JSON line.
 
 `create_mandate` adds `mandate_id`, `intent_hash`, `expiry_ledger`, and `scope` (`exact`: `payee`, `amount`, `reference`; `budget`: `payees` array, `per_payment_cap`, `total_cap`). `revoke_mandate` needs `pool`, `agent`, `mandate_id`. Amounts remain decimal USDC strings. The page fixes the asset to the verified pool's USDC.

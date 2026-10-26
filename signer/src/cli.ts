@@ -41,8 +41,8 @@ Owner (the person signs each step in Freighter on a local page):
 
 Agent (signed with the agent's own key: --key <stellar identity> or KOVAN_AGENT_SECRET):
   agent draw   --pool C… --agent C… --amount 1
-  agent pay    --pool C… --agent C… --amount 0.25 --to G…
-               --mandate-id HEX --request-id PERSISTED_ID --reference HEX (required by new agents)
+  agent pay    --pool C… --agent C… --amount 0.25 --to G…|C…
+               --mandate-id HEX --request-id ID --reference HEX (required by new agents; ID: 16-128 of A-Z a-z 0-9 _ -)
   agent return --pool C… --agent C… --amount 1
 
 Read:

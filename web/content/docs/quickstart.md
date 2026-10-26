@@ -47,7 +47,8 @@ node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
   --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
 node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
 # Persist these nonzero 32-byte hex commitments; choose a future ledger
-# no later than the agent's expiry, read from `status`.
+# no later than the agent's expiry, read from `status`. The request ID is
+# 16-128 characters from A-Z a-z 0-9 _ - and must be persisted too.
 node kovan.mjs owner create_mandate --owner G…OWNER --pool C…POOL --agent C…AGENT \
   --mandate-id $MANDATE_ID --intent-hash $INTENT_HASH --expiry-ledger $EXPIRY_LEDGER \
   --scope budget --payees G…PROVIDER --per-payment-cap 0.5 --total-cap 40

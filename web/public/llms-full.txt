@@ -95,7 +95,8 @@ node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
   --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
 node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
 # Persist these nonzero 32-byte hex commitments; choose a future ledger
-# no later than the agent's expiry, read from `status`.
+# no later than the agent's expiry, read from `status`. The request ID is
+# 16-128 characters from A-Z a-z 0-9 _ - and must be persisted too.
 node kovan.mjs owner create_mandate --owner G…OWNER --pool C…POOL --agent C…AGENT \
   --mandate-id $MANDATE_ID --intent-hash $INTENT_HASH --expiry-ledger $EXPIRY_LEDGER \
   --scope budget --payees G…PROVIDER --per-payment-cap 0.5 --total-cap 40
@@ -168,7 +169,7 @@ An [OpenZeppelin smart account](https://github.com/OpenZeppelin/stellar-contract
 
 - It has **exactly one rule**: the agent's ed25519 public key (checked by a shared verifier contract) plus the covenant policy.
 - It has **no admin rule**, so it is **frozen at creation**. Nobody, including the owner and the agent, can add a signer, change the allowlists or remove the policy.
-- At creation it grants the pool a USDC **allowance** (valid for 3,000,000 ledgers, about 174 days). That's how the owner can pull funds back without the agent's signature.
+- At creation it grants the pool a USDC **allowance** (valid for 3,000,000 ledgers, about 174 days). That's how the owner can pull funds back without the agent's signature. On current-release accounts the pool renews this allowance before each recovery; legacy (pre-recovery-v1) accounts keep the original finite window.
 
 ## Covenant
 
@@ -182,7 +183,7 @@ The rules for one agent, checked by the covenant policy on **every** call the wa
 | **calls** | Other contract functions the wallet may call, optionally with a cap on one amount argument. Empty by default. |
 | **expiry** | A ledger number. From then on, payments and calls are refused. Returning funds still works. |
 
-A USDC transfer passes only if **all** of these hold: it's the pool's USDC contract, the function is `transfer`, `0 < amount ≤ per-transfer cap`, the list's running total stays within its total cap, the payee is on that list, the current ledger is before expiry, and the covenant isn't revoked. A transfer **back to the pool** is always allowed.
+A USDC transfer passes only if **all** of these hold: it's the pool's USDC contract, the function is `transfer`, `0 < amount ≤ per-transfer cap`, the list's running total stays within its total cap, the payee is on that list, the current ledger is before expiry, the covenant isn't revoked and, on current-release accounts, the payment carries an owner-approved **mandate** binding (refused with `#3915 MandateRequired` otherwise). A transfer **back to the pool** is always allowed and needs no mandate.
 
 Everything else is refused: `approve` or `transfer_from` on USDC, calls on the wallet itself, unlisted contracts, muxed `M…` payees.
 
@@ -203,6 +204,8 @@ The covenant doesn't trust the payment rail, it trusts the allowlist. An x402 pa
 | `withdraw(amount)` | Takes back USDC no draw limit is backing |
 | `close_pool()` | Permanent. Only when every agent is closed. Remaining USDC returns to the owner. |
 | `resolve_dispute(agent, outcome)` | Records the owner's ruling on a dispute |
+| `create_mandate(agent, params)` | Approves an immutable `exact` or `budget` payment grant for one agent (current release) |
+| `revoke_mandate(agent, id)` | Ends a grant; payments under it stop |
 
 **Agent** (signed by the agent's wallet, so its covenant applies too):
 
@@ -210,9 +213,20 @@ The covenant doesn't trust the payment rail, it trusts the allowlist. An x402 pa
 |---|---|
 | `draw(agent, amount)` | Pool → agent wallet, within the draw limit |
 | `return_funds(agent, agent, amount)` | Agent wallet → pool. Always allowed, even after expiry or revocation. |
-| `settle(agent)` | Asks the owner to close it |
+| `settle(agent)` | Freezes the agent's own spending and asks the owner to close it |
 | `dispute(agent, by, evidence_hash)` | Records an objection on-chain. Nothing moves automatically. |
 | `delegate(parent, child_pubkey, child_draw_limit, child_covenant)` | Creates a child agent (see below) |
+
+## Mandates
+
+On the current release every outgoing payment from an agent wallet must match an owner-approved **mandate**, on top of the covenant:
+
+- `exact`: one payment to one payee for one amount and reference. Single use, even with a different payment ID.
+- `budget`: a payee list (1–16) with a per-payment cap and a total cap.
+- Each grant has an intent hash, an expiry ledger and single-use payment IDs. The policy stores an on-chain receipt per payment (`get_payment`).
+- Mandates intersect with the covenant; they never widen it. Returns to the pool need no mandate.
+
+Pools created before the mandate release keep their original accounts and do not gain mandates.
 
 ## Delegation
 
@@ -235,6 +249,7 @@ Each of these has a test that fails if the rule breaks:
 6. A revoked agent can't draw, and neither can its children.
 7. A child covenant can't exceed its parent on any dimension.
 8. Returning funds to the pool works after expiry and after revocation.
+9. On current-release accounts, a payment without a valid mandate binding, over its grant, with a reused payment ID or under a revoked grant is refused, and a receipt can't exist without the transfer that produced it.
 
 ## Amounts
 
@@ -257,7 +272,11 @@ Use the rebuilt tool for the native-mandate release: new creation selects `curre
 
 ## Output
 
-- **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","pool":"C…"}`
+- **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","explorer":"https://stellar.expert/…","pool":"C…","pool_explorer":"…"}`
+  - `owner …`: `v`, `fn`, `status`, `tx`, `explorer`, plus `pool` / `pool_explorer` after `create_pool`, `agent` / `agent_explorer` after `create_agent`, `mandateId` after `create_mandate`.
+  - `agent …`: `fn` is `agent_draw`, `agent_pay` or `agent_return`; `pay` with mandate flags adds `paymentId` and `mandateId`; failures carry `error`.
+  - `status`: `v`, `pool`, `owner`, `usdc`, `locked`, `sum_limits`, `agent_count`, `agents[]` and, with `--agent`, `agent{…, state}` (no `fn`).
+  - `mandate` / `receipt`: `v`, `fn`, `pool`, `agent`, `value`.
 - **stderr:** progress, and the approval link
 - **Exit codes:** `0` success · `1` refused or failed on-chain · `2` bad usage
 - **Amounts:** USDC (`100`, `0.25`), at most 7 decimals
@@ -297,7 +316,7 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 | `create_agent` | `--pool --agent-key --draw-limit`, `--providers` + `--provider-per-transfer-cap` + `--provider-total-cap` and/or `--recipients` + `--recipient-per-transfer-cap` + `--recipient-total-cap`, `--expiry-hours` (default 24, max 720) | Creates an agent wallet. Result includes `agent`. Lists are comma-separated, at most 10 each. |
 | `revoke` | `--pool --agent` | Freezes the agent's payments and calls |
 | `return_funds` | `--pool --agent --amount` | Pulls USDC from the agent wallet back into the pool |
-| `close` | `--pool --agent` | Final; after everything drawn is back |
+| `close` | `--pool --agent` | Final. Recovers what's left in the wallet, settles what was spent and releases the unused draw limit (children first). Legacy v1 pools need drawn funds returned first. |
 | `withdraw` | `--pool --amount` | Takes back unassigned USDC |
 | `create_mandate` | `--pool --agent --mandate-id HEX --intent-hash HEX --expiry-ledger N`, plus scope flags below | Owner approves a payment grant |
 | `revoke_mandate` | `--pool --agent --mandate-id HEX` | Permanently revoke a grant, without blocking returns |
@@ -306,15 +325,17 @@ Gets the person's address. They sign a short message in Freighter (no transactio
 
 Mandate scopes: `--scope exact --payee G… --amount 0.01 --reference HEX` authorizes one purchase; `--scope budget --payees G…,G… --per-payment-cap 0.1 --total-cap 1` authorizes multiple purchases within limits. Hashes are nonzero 32-byte hex; expiry is a future ledger no later than the covenant. Grants never expand covenant permissions.
 
-### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…]`
+### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…|C…] [--mandate-id HEX --request-id ID --reference HEX]`
 
 Signed with the agent's key: `--key <stellar identity>` (read with `stellar keys secret`) or `KOVAN_AGENT_SECRET=S…`. The same key pays the XLM fee from its `G…` account, so fund it once (`stellar keys generate <name> --network testnet --fund`).
 
 | Action | Moves |
 |---|---|
 | `draw` | Pool → agent wallet, within the draw limit |
-| `pay` | Agent wallet → a listed provider or recipient (`--to`), within caps and before expiry |
+| `pay` | Agent wallet → a listed provider or recipient (`--to`, `G…` or `C…`), within caps and before expiry |
 | `return` | Agent wallet → pool. Always allowed. |
+
+New agents require `--mandate-id HEX --request-id ID --reference HEX` for `pay`: the owner-approved grant, a persisted purchase ID of 16–128 characters from `A–Z a–z 0–9 _ -` (the on-chain payment ID is derived from it) and the nonzero 32-byte hex purchase commitment. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. `draw` and `return` take no payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
 
 The covenant is checked during simulation, so a refused payment fails before anything is sent:
 
@@ -324,11 +345,15 @@ The covenant is checked during simulation, so a refused payment fails before any
 
 ### `status --pool C… [--agent C…]`
 
-New agents require `--mandate-id HEX --request-id PERSISTED_ID --reference HEX` for `pay`. Persist these exact inputs before signing; never retry a purchase under a fresh ID after an unknown outcome. Draw/return do not take payment metadata. A legacy pool rejects explicitly requested mandates instead of silently dropping them.
-
-Read grants with `mandate --pool C… --agent C… --mandate-id HEX`, and receipts with `receipt --pool C… --agent C… --request-id PERSISTED_ID`. A receipt proves authorized transfer, not delivery. Missing receipt while authorization is live does not prove nonpayment.
-
 Reads the pool (owner, locked, assigned, agents) and, with `--agent`, that agent's limits, drawn amount, covenant and spend counters.
+
+### `mandate --pool C… --agent C… --mandate-id HEX`
+
+Reads a grant: scope, caps, spend so far, expiry and whether it is revoked.
+
+### `receipt --pool C… --agent C… --request-id ID`
+
+Reads the on-chain receipt for a persisted request ID. A receipt proves an authorized transfer, not delivery. A missing receipt while the authorization is still live does not prove non-payment.
 
 ### `ids`
 
@@ -359,10 +384,10 @@ https://kovan-protocol.vercel.app/setup?fund=100
   &agent=name:monitor,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
 ```
 
-(One line in practice.) Each `agent` takes comma-separated `key:value` pairs: `name`, `draw` (draw limit), `pay` + `per` + `total` (providers and their caps), `send` + `send_per` + `send_total` (recipients), `hours` (expiry), and optionally `key` (the agent's public key). Lists use `|`. Add `pool=C…` to add agents to an existing pool. All amounts are USDC.
+(One line in practice.) Each `agent` takes comma-separated `key:value` pairs: `name` (max 32 characters), `draw` (draw limit), `pay` + `per` + `total` (providers, `G…` or `C…`, and their caps), `send` + `send_per` + `send_total` (recipients), `hours` (expiry, default 24, max 720), and optionally `key` (the agent's public key). Lists use `|`. At most 5 agents per link. Add `pool=C…` to add agents to an existing pool. All amounts are USDC.
 
 - The page validates everything with the same checks as `kovan.mjs` and refuses bad links with the reason.
-- Without `key`, each agent's key is generated in your browser and offered as a download, for the bot that will spend. Agent accounts get testnet XLM for fees automatically.
+- Without `key`, each agent's key is generated in your browser; you must download the key backup and confirm it is saved before the page deploys any agent. Give each key only to the bot that will spend. Agent accounts get testnet XLM for fees automatically.
 - At the end you get a short summary to paste back into the chat. Progress survives a reload, so a refresh can't create a second pool.
 
 ## Cloud agents
@@ -374,7 +399,7 @@ node -e 'console.log("https://kovan-protocol.vercel.app/sign#r="+Buffer.from(pro
   '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
 ```
 
-The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there.
+The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, or a local `http://127.0.0.1:<port>/` one, add `"callback"` and a random `"id"` (1–64 characters from `A–Z a–z 0–9 . _ -`) and the page POSTs the result there. `wait-for-result.mjs` (shipped with the skill, also at `/wait-for-result.mjs`) covers the local case: `node wait-for-result.mjs <id> [port]` (default 8787) waits for that one result, verifies its `tx` on-chain and prints it as one JSON line.
 
 `create_mandate` adds `mandate_id`, `intent_hash`, `expiry_ledger`, and `scope` (`exact`: `payee`, `amount`, `reference`; `budget`: `payees` array, `per_payment_cap`, `total_cap`). `revoke_mandate` needs `pool`, `agent`, `mandate_id`. Amounts remain decimal USDC strings. The page fixes the asset to the verified pool's USDC.
 
@@ -555,7 +580,7 @@ The current default is [`CBOOAYAVDNAKBAH2OE57O4FDQW4OKCTDJDNJ6MGYM5AP2L46VTGBCON
 | Pool WASM | `857f3a27fda736f842e5b4c548022a05197137650cc49f984dde141287175dc1` |
 | Agent-account WASM | `909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4` |
 
-The verifier and USDC below are reused. The following bindings describe the **previous default**, retained for history, not the current default or new creation:
+The verifier and USDC below are reused. The following bindings describe the **previous default**, retained for history, not the current default or new creation. An earlier legacy pool (`CAS7ARNT…K2LKJ`, pool code `5b109988…`) is also retained in the manifest's `legacy_pools`:
 
 | Contract | ID / hash |
 |---|---|
@@ -592,14 +617,15 @@ The policy is a separate contract from the pool on purpose: Soroban forbids re-e
 | `return_funds(agent, by, amount)` | agent or owner | Move USDC from the wallet back to the pool |
 | `close_pool()` | owner | Permanent; all agents must be closed |
 | `draw(agent, amount)` | agent | Pool → wallet, within the draw limit |
-| `settle(agent)` | agent | Request closure |
+| `settle(agent)` | agent | Freezes the agent's own spending and requests closure |
 | `dispute(agent, by, evidence)` / `resolve_dispute(agent, outcome)` | agent or owner / owner | Record an objection / the owner's ruling |
 | `delegate(parent, child_pubkey, child_draw_limit, child_covenant) → Address` | agent | Create a narrower child agent |
 | `get_pool()`, `get_agent(agent)`, `list_agents()` | anyone | Read state |
-| `get_config()`, `mandate_version()` | anyone | New release: immutable constructor bindings / native mandate capability |
+| `get_config()`, `mandate_version()`, `recovery_version()` | anyone | New release: immutable constructor bindings / native mandate capability / renewable recovery |
 | `create_mandate(agent, params)` | original owner | New release: approve immutable exact or budget grant |
 | `revoke_mandate(agent, id)` | original owner | New release: terminal grant revocation |
 | `get_mandate(agent, id)`, `get_payment(agent, payment_id)` | anyone | New release: read grant / durable payment receipt |
+| `configure_yield`, `invest`, `lock_shares`, `redeem_shares`, `release_shares`, `get_yield` | owner / anyone | v3 optional yield source (inactive: no vault is enabled on any live pool) |
 
 The published v3 code includes experimental optional-yield functions, but no matching vault is enabled. Pools start cash-only; publication does not activate yield.
 
@@ -629,11 +655,11 @@ The pool publishes one event per state change. Use Stellar RPC `getEvents` on th
 | `Withdrawn` | amount, locked |
 | `AgentCreated` | agent, draw_limit |
 | `Drawn` | agent, amount, drawn |
-| `Returned` | agent, by, amount |
+| `Returned` | agent, by, amount, drawn |
 | `Revoked` | agent, by |
 | `Amended` | agent, draw_limit |
 | `SettlementRequested` | agent |
-| `Closed` | agent, recovered, consumed |
+| `Closed` | agent, recovered, consumed, released |
 | `Delegated` | parent, child, draw_limit |
 | `PoolClosed` | owner, returned |
 
@@ -749,7 +775,8 @@ The new contracts have passed a live **direct-payment** mandate lifecycle with d
 - **Total exposure is capped.** The sum of all agents' draw limits never exceeds what the pool holds. Only drawn amounts ever leave the pool.
 - **Each agent is capped.** An agent can't draw more than its limit, and its wallet can't pay anyone outside its lists, more than its caps, after expiry, or after revocation.
 - **Rules can't be changed by the agent.** The wallet has one rule and no admin rule. Nobody can add a signer, change allowlists or remove the policy. The policy refuses calls on the wallet itself and `approve` / `transfer_from` on USDC, so the recovery allowance can't be abused.
-- **The owner can always stop and recover.** Revoking freezes payments immediately (and the agent's children). Funds can always be returned to the pool, by the agent or by the owner without the agent's key.
+- **The owner can always stop and recover.** Revoking freezes payments immediately (and the agent's children). Funds can always be returned to the pool, by the agent or by the owner without the agent's key. Current-release accounts renew the recovery allowance before each recovery, so it can't age out; legacy accounts keep their original window.
+- **Every payment is bound to an owner-approved mandate.** On current-release accounts the agent must present a grant (`exact` or `budget`) with a single-use payment ID; the policy records an on-chain receipt. A reused ID, an over-grant amount or a revoked grant is refused before the transfer.
 - **Edge cases are tested.** Zero and negative amounts, muxed payees, non-integer arguments, the exact expiry ledger, delegation that would exceed the parent. Each rule has a test that fails if it breaks.
 
 ## What you trust
@@ -758,7 +785,7 @@ The new contracts have passed a live **direct-payment** mandate lifecycle with d
 |---|---|
 | Your owner key (Freighter) | It funds the pool and approves every owner action |
 | Each agent's key | Whoever holds it can spend, but only inside that agent's covenant |
-| The deployed contract code | Tools pin trusted code hashes; check them against the source |
+| The deployed contract code | `kovan.mjs`, the signing pages and the SDK pin the code hashes and constructor bindings from the deployment manifest and refuse pools that don't match; check them against the source |
 | Your RPC endpoint | Reads (balances, status) come from it; transactions are verified by the network |
 | The USDC issuer | USDC's issuer can freeze accounts. While a pool, wallet or payee is frozen, transfers involving it fail. |
 
@@ -777,6 +804,11 @@ The local approval page is served by your agent, so a misbehaving agent could sh
 - **Refused attempts aren't on-chain.** The covenant refuses bad payments during simulation, before anything is sent, so block explorers and chain watchers can't see them.
 - **Disputes are records, not a court.** The owner rules; no funds move automatically.
 - **Covenants don't judge value.** A listed provider can still overcharge within the caps. Set caps you're willing to lose.
+- **x402 through the facilitator** has been verified on the historical pool, not yet with the mandate envelope the current release requires.
+- **Delegation** is covered by contract tests but has no on-chain transaction recorded yet.
+- **An HTTP 200 is not payment confirmation**, and a confirmed payment is not proof that the purchased work was correct. The console's request journal keeps retries from paying twice; it does not judge delivery.
+- **The optional yield source is not activated.** If it were, a vault's losses or missing liquidity could stop draws.
+- **The console is local** and holds app-managed agent keys on disk; it is not a hosted service. Everything trusts the configured Stellar RPC for chain observations.
 - **Mainnet, audits and compliance onboarding** are future work.
 
 ## Reporting a problem
