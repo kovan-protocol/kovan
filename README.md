@@ -763,7 +763,11 @@ B2B and non-custodial: owners sign in their own wallets and agents hold their ow
 
 ## Team
 
-*Names and roles to be added by the team.*
+| Name | Role | Built |
+|---|---|---|
+| Robert Lopez | DevOps Engineer | Contracts, SDK, console, agent tooling, deployments |
+| Esteban Brenes | Product Manager | Product, pitch, docs and submission |
+| Sebastián Ceciliano | AI Developer / Designer | Website, brand, landing and signing-page design |
 
 ## License
 

@@ -44,17 +44,17 @@ Four Soroban contracts power this: the pool, agent account, covenant policy and 
 50–65 seconds: show revocation and recovery, or the documented v2 lifecycle receipt. “New spending stops. We close the agent and recover unused funds without the agent's key.”
 
 Evidence boundaries: historical USDC x402 transaction 781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d belongs to a legacy pool. Full v2 revoke/recover/shutdown evidence is a separate isolated testnet XLM pool in docs/SDK.md. Do not present these as one continuous USDC run. Rehearse a fresh sequence before recording. No new payment was submitted while making this deck.
-Optional extensions only after deployment and funded rehearsal: delegation with on-chain evidence; owner-approved mandates; DeFindex yield. Avoid spending the core demo on unrehearsed integrations.
+Owner-approved mandates are live on the current release (rehearsed with a direct payment on an isolated pool; not yet through the x402 facilitator). Delegation has no on-chain evidence yet and DeFindex yield is not activated: keep both out of the live demo unless rehearsed.
 
 Why Stellar: the settlement asset, programmable authorization and HTTP payment rail are composable. Official sources: https://developers.stellar.org/docs/build/agentic-payments/x402/ ; https://docs.openzeppelin.com/stellar-contracts/accounts/policies ; https://www.circle.com/multi-chain-usdc/stellar .
 
 ## Slide 5: Built at HackMeridian.
 
 2:40–3:00 · TEAM / CLOSE
-[Introduce each teammate and the part they built. Names and roles are intentionally left open at the user's request.]
+Robert Lopez, DevOps Engineer: contracts, SDK, console, agent tooling and deployments. Esteban Brenes, Product Manager: product, pitch, docs and submission. Sebastián Ceciliano, AI Developer / Designer: website, brand and the signing-page design.
 We built Kovan at HackMeridian: shared budgets, on-chain spending rules and a working smart-account x402 payment. We want developers of paid-API agents to try the bounded spending loop and tell us where it breaks. Kovan. Give your agents a budget, not your wallet.
 
-If names are not filled before the presentation, introduce the team verbally. Do not claim a precise 24-hour build duration without confirming it.
+Do not claim a precise 24-hour build duration without confirming it.
 Evidence for build period: README.md “Built during event vs prior work” and docs/SUBMISSION_FORM.md, which disclose event-built code, prior planning, OpenZeppelin verifier code and vendored Stellar skills.
 The website's primary demo may be the interactive playground (a simulation); it is not the deployed owner dashboard. Use an actual running console for live payments.
 Suggested pilot invitation, not an existing customer claim. No funding amount or commercial commitment has been invented.
@@ -87,16 +87,16 @@ Permanent pool closure requires zero open agents, allocations and advances, and 
 
 BACKUP D · COMPLETENESS WITHOUT OVERCLAIMING
 Current default deployment: cash-only pool v2. Historical USDC x402 evidence and isolated v2 lifecycle evidence are linked in the evidence slide.
-Native Kovan mandates: implemented and tested locally, not deployed. They add owner-approved exact/budget grants, payment IDs, expiry and receipts, and intersect with covenant limits. They are not AP2 signed credentials, MCP, A2A, escrow or delivery verification. New compatible contracts and agents plus a funded facilitator rehearsal are required.
+Native Kovan mandates: released on testnet on 2026-10-26 (policy CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB; new pools use the release) and rehearsed end to end on an isolated pool with a direct payment. Facilitator acceptance of the mandate envelope over x402 is not yet rehearsed. They add owner-approved exact/budget grants, payment IDs, expiry and receipts, and intersect with covenant limits. They are not AP2 signed credentials, MCP, A2A, escrow or delivery verification. New compatible contracts and agents plus a funded facilitator rehearsal are required.
 Yield v3: locally tested, not deployed/activated. Supports one compatible single-asset DeFindex vault and transferable shares using the exact pool asset. Cash is used before redemption. Backing discounts estimated vault value by 10%; this buffer is not insurance. Losses or unavailable liquidity may stop draws. No APY or live yield claim.
-SDK: @kovan-protocol/sdk is local and packable, not yet published to npm. Agent guides/plugin and owner signing flows exist. Publication and hosted-flow verification should be checked before a live announcement.
+SDK: @kovan-protocol/sdk@0.1.0 is published on npm. Agent guides/plugin and owner signing flows exist.
 General contract-call allowlisting is not equivalent to a completed Blend/Soroswap integration. No broad claims about MPP/AP2/A2A or reputation implementations.
 This is a status snapshot from the repository, not a deployment verification run.
 
 ## Backup 5: Inspect the evidence.
 
 BACKUP E · EVIDENCE REGISTER
-Test count is 151 Rust + 266 dashboard + 73 SDK = 490, from docs/MANDATES.md verification on 2026-10-26. This is a documented local snapshot, not tests re-run during deck production. It includes undeployed mandates and yield work, and excludes an optional ignored external fixture test. It does not establish an audit or a live production deployment.
+Test count is 152 Rust + 267 dashboard + 79 SDK + 49 signer = 547, run on main on 2026-10-26 (README, Testing). It includes the released mandates and the unactivated yield work, and excludes an optional ignored external fixture test. It does not establish an audit or a live production deployment.
 Legacy USDC x402 payment: https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d
 Legacy USDC direct payment: https://stellar.expert/explorer/testnet/tx/263d05036ee5bcc7520cef1dc39fb36a85ab4c90d5eda2caa5a62e7d2b0f4fb0
 Legacy USDC return: https://stellar.expert/explorer/testnet/tx/c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3

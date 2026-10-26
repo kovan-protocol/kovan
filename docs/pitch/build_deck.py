@@ -284,18 +284,20 @@ Four Soroban contracts power this: the pool, agent account, covenant policy and 
 50–65 seconds: show revocation and recovery, or the documented v2 lifecycle receipt. “New spending stops. We close the agent and recover unused funds without the agent's key.”
 
 Evidence boundaries: historical USDC x402 transaction 781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d belongs to a legacy pool. Full v2 revoke/recover/shutdown evidence is a separate isolated testnet XLM pool in docs/SDK.md. Do not present these as one continuous USDC run. Rehearse a fresh sequence before recording. No new payment was submitted while making this deck.
-Optional extensions only after deployment and funded rehearsal: delegation with on-chain evidence; owner-approved mandates; DeFindex yield. Avoid spending the core demo on unrehearsed integrations.
+Owner-approved mandates are live on the current release (rehearsed with a direct payment on an isolated pool; not yet through the x402 facilitator). Delegation has no on-chain evidence yet and DeFindex yield is not activated: keep both out of the live demo unless rehearsed.
 
 Why Stellar: the settlement asset, programmable authorization and HTTP payment rail are composable. Official sources: https://developers.stellar.org/docs/build/agentic-payments/x402/ ; https://docs.openzeppelin.com/stellar-contracts/accounts/policies ; https://www.circle.com/multi-chain-usdc/stellar .''')
 
-# 5. Team — deliberately open per user instruction.
+# 5. Team.
 s=Slide('Built at HackMeridian.','The team',5)
 s.label('04 / THE TEAM')
 s.heading('Built at HackMeridian.')
 s.txt('Agent autonomy. Human control.',.85,3.28,18,.7,34,'Inter',400,MUTED)
-s.label('TEAM / ADD NAMES AND ROLES',.85,4.73,9.7)
-for i,y in enumerate([5.37,6.6,7.83]):
-    s.txt('Name / role',.85,y,8.75,.6,30,'Manrope',600,'A3A8B1')
+s.label('TEAM',.85,4.73,9.7)
+TEAM=[('Robert Lopez','DevOps Engineer'),('Esteban Brenes','Product Manager'),('Sebastián Ceciliano','AI Developer / Designer')]
+for (name,role),y in zip(TEAM,[5.37,6.6,7.83]):
+    s.txt(name,.85,y,5.2,.6,30,'Manrope',600)
+    s.txt(role,6.05,y+.06,3.55,.55,21,'Inter',400,MUTED)
     s.rule(.85,y+.83,9.55,y+.83,LINE)
 s.txt('Contracts · SDK · agent tooling · interface',.85,9.25,9.3,.43,21,'Inter',400,MUTED)
 s.rect(10.7,4.70,8.5,5.0,BLUE,radius=.12)
@@ -304,10 +306,10 @@ s.txt('Try the bounded\nspending loop.',11.17,5.48,7.5,1.6,42,'Manrope',800,WHIT
 s.txt('kovan-protocol.vercel.app',11.17,7.67,7.48,.58,27,'Inter',600,WHITE,url='https://kovan-protocol.vercel.app')
 s.txt('github.com/kovan-protocol/kovan',11.17,8.47,7.48,.50,21,'Inter',400,WHITE,url='https://github.com/kovan-protocol/kovan')
 s.note('''2:40–3:00 · TEAM / CLOSE
-[Introduce each teammate and the part they built. Names and roles are intentionally left open at the user's request.]
+Robert Lopez, DevOps Engineer: contracts, SDK, console, agent tooling and deployments. Esteban Brenes, Product Manager: product, pitch, docs and submission. Sebastián Ceciliano, AI Developer / Designer: website, brand and the signing-page design.
 We built Kovan at HackMeridian: shared budgets, on-chain spending rules and a working smart-account x402 payment. We want developers of paid-API agents to try the bounded spending loop and tell us where it breaks. Kovan. Give your agents a budget, not your wallet.
 
-If names are not filled before the presentation, introduce the team verbally. Do not claim a precise 24-hour build duration without confirming it.
+Do not claim a precise 24-hour build duration without confirming it.
 Evidence for build period: README.md “Built during event vs prior work” and docs/SUBMISSION_FORM.md, which disclose event-built code, prior planning, OpenZeppelin verifier code and vendored Stellar skills.
 The website's primary demo may be the interactive playground (a simulation); it is not the deployed owner dashboard. Use an actual running console for live payments.
 Suggested pilot invitation, not an existing customer claim. No funding amount or commercial commitment has been invented.''')
@@ -373,9 +375,9 @@ s=Slide('What ships today. What comes next.','Delivery status',4,backup=True)
 s.label('D / DELIVERY STATUS — 26 OCT 2026')
 s.heading('What ships today. What comes next.',size=48)
 rows=[('TESTNET','Shared pool + covenants','Cash-only v2; x402 payment evidence.',GREEN),
-      ('LOCAL BUILD','Native payment mandates','Exact or budget grants; durable receipts.',BLUE),
+      ('TESTNET','Native payment mandates','Exact or budget grants; on-chain receipts. Released 26 Oct.',GREEN),
       ('LOCAL BUILD','DeFindex yield backing','Cash-first draws; shares held by pool.',BLUE),
-      ('NEXT','Distribution + pilots','Publish SDK; rehearse new deployments.',MUTED)]
+      ('NEXT','Distribution + pilots','SDK on npm; x402 rehearsal on the new release; pilots.',MUTED)]
 for i,(tag,title,detail,c) in enumerate(rows):
     yy=3.8+i*1.43
     s.txt(tag,.85,yy+.11,3.05,.4,17,'JetBrains Mono',600,c)
@@ -385,9 +387,9 @@ for i,(tag,title,detail,c) in enumerate(rows):
 s.source('Sources: README.md; docs/MANDATES.md; docs/YIELD.md; docs/SDK.md. Local work does not upgrade immutable deployments.')
 s.note('''BACKUP D · COMPLETENESS WITHOUT OVERCLAIMING
 Current default deployment: cash-only pool v2. Historical USDC x402 evidence and isolated v2 lifecycle evidence are linked in the evidence slide.
-Native Kovan mandates: implemented and tested locally, not deployed. They add owner-approved exact/budget grants, payment IDs, expiry and receipts, and intersect with covenant limits. They are not AP2 signed credentials, MCP, A2A, escrow or delivery verification. New compatible contracts and agents plus a funded facilitator rehearsal are required.
+Native Kovan mandates: released on testnet on 2026-10-26 (policy CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB; new pools use the release) and rehearsed end to end on an isolated pool with a direct payment. Facilitator acceptance of the mandate envelope over x402 is not yet rehearsed. They add owner-approved exact/budget grants, payment IDs, expiry and receipts, and intersect with covenant limits. They are not AP2 signed credentials, MCP, A2A, escrow or delivery verification. New compatible contracts and agents plus a funded facilitator rehearsal are required.
 Yield v3: locally tested, not deployed/activated. Supports one compatible single-asset DeFindex vault and transferable shares using the exact pool asset. Cash is used before redemption. Backing discounts estimated vault value by 10%; this buffer is not insurance. Losses or unavailable liquidity may stop draws. No APY or live yield claim.
-SDK: @kovan-protocol/sdk is local and packable, not yet published to npm. Agent guides/plugin and owner signing flows exist. Publication and hosted-flow verification should be checked before a live announcement.
+SDK: @kovan-protocol/sdk@0.1.0 is published on npm. Agent guides/plugin and owner signing flows exist.
 General contract-call allowlisting is not equivalent to a completed Blend/Soroswap integration. No broad claims about MPP/AP2/A2A or reputation implementations.
 This is a status snapshot from the repository, not a deployment verification run.''')
 
@@ -396,9 +398,9 @@ s=Slide('Inspect the evidence.','Evidence',5,backup=True)
 s.label('E / EVIDENCE, WITH SCOPE')
 s.heading('Inspect the evidence.',size=54)
 s.rect(.85,3.45,5.6,5.95,BLUE,radius=.10)
-s.txt('490',1.25,4.0,4.8,1.65,100,'Manrope',800,WHITE)
-s.txt('local tests documented',1.27,5.9,4.7,.6,25,'Inter',600,WHITE)
-s.txt('151 contracts\n266 dashboard\n73 SDK',1.27,6.85,4.7,1.7,26,'Inter',400,WHITE,leading=1.5)
+s.txt('547',1.25,4.0,4.8,1.65,100,'Manrope',800,WHITE)
+s.txt('tests passing on main',1.27,5.9,4.7,.6,25,'Inter',600,WHITE)
+s.txt('152 contracts\n267 dashboard\n79 SDK · 49 signer',1.27,6.85,4.7,1.7,26,'Inter',400,WHITE,leading=1.5)
 evidence=[('USDC / LEGACY POOL','0.01 USDC paid over x402','781a5f2b… · API content returned','https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d'),
           ('XLM / ISOLATED V2 POOL','Complete cash lifecycle','Pay, revoke, recover, close; testnet XLM','https://github.com/kovan-protocol/kovan/blob/main/docs/SDK.md'),
           ('PRE-SUBMISSION SIMULATION','Unapproved payee refused','PayeeNotAllowed · no submitted transaction','https://github.com/kovan-protocol/kovan#testnet-transaction-evidence')]
@@ -408,9 +410,9 @@ for i,(tag,title,detail,url) in enumerate(evidence):
     s.txt(title,7.1,yy+.54,12.1,.65,31,'Manrope',800,url=url)
     s.txt(detail,7.1,yy+1.23,12.1,.5,24,c=MUTED)
     if i<2:s.rule(7.1,yy+1.76,19.2,yy+1.76,LINE)
-s.source('490 = documented 2026-10-26 snapshot in docs/MANDATES.md; includes undeployed code, excludes one optional ignored test.')
+s.source('547 = test run on main, 2026-10-26: 152 Rust, 267 dashboard, 79 SDK, 49 signer; excludes one optional ignored fixture test and six opt-in network tests.')
 s.note('''BACKUP E · EVIDENCE REGISTER
-Test count is 151 Rust + 266 dashboard + 73 SDK = 490, from docs/MANDATES.md verification on 2026-10-26. This is a documented local snapshot, not tests re-run during deck production. It includes undeployed mandates and yield work, and excludes an optional ignored external fixture test. It does not establish an audit or a live production deployment.
+Test count is 152 Rust + 267 dashboard + 79 SDK + 49 signer = 547, run on main on 2026-10-26 (README, Testing). It includes the released mandates and the unactivated yield work, and excludes an optional ignored external fixture test. It does not establish an audit or a live production deployment.
 Legacy USDC x402 payment: https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d
 Legacy USDC direct payment: https://stellar.expert/explorer/testnet/tx/263d05036ee5bcc7520cef1dc39fb36a85ab4c90d5eda2caa5a62e7d2b0f4fb0
 Legacy USDC return: https://stellar.expert/explorer/testnet/tx/c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3
@@ -428,7 +430,7 @@ for y,num,title,detail in [(3.9,'01','Give the agent the guide','agent.md · llm
     s.txt(title,2.0,y,17,.65,35,'Manrope',800)
     s.txt(detail,2.0,y+.8,17,.65,28,c=MUTED)
     if y<7:s.rule(2.0,y+1.45,19.2,y+1.45,LINE)
-s.source('@kovan-protocol/sdk is local and packable; npm publication is pending. Guide: kovan-protocol.vercel.app/agent.md', 'https://kovan-protocol.vercel.app/agent.md')
+s.source('@kovan-protocol/sdk@0.1.0 is on npm. Guide: kovan-protocol.vercel.app/agent.md', 'https://kovan-protocol.vercel.app/agent.md')
 s.note('''BACKUP F · INTEGRATION / PATH TO USERS
 The agent guide and Claude Code plugin let an agent prepare owner transactions using kovan.mjs. Owner approvals are signed in Freighter through local or hosted signing interfaces. Runtime agents may supply their own public keys; app-managed keys are an optional convenience and the app retains its signing copy even after export.
 The package name is @kovan-protocol/sdk, not @kovan/sdk. It is a local TypeScript/ESM package; do not show npm install as a published workflow until a package is actually released. Applications supply their own configuration and signers.

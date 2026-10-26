@@ -21,9 +21,9 @@ The backup covers the actual dashboard UI, authorization, pool accounting, deliv
 
 ## Open items
 
-Team names and roles remain open, as requested. Add those before presenting or introduce the team verbally. The close invites builder feedback; no funding amount, customers, revenue or commercial commitments have been invented.
+Team: Robert Lopez (DevOps Engineer), Esteban Brenes (Product Manager), Sebastián Ceciliano (AI Developer / Designer). The close invites builder feedback; no funding amount, customers, revenue or commercial commitments have been invented.
 
-Rehearse the demo against the exact deployment you will show. Existing USDC x402 receipts and the isolated v2 XLM lifecycle are separate runs. Yield and native mandates are described as locally tested, not deployed. The public website's playground is a simulation; use the actual console for live transactions.
+Rehearse the demo against the exact deployment you will show. Existing USDC x402 receipts and the isolated v2 XLM lifecycle are separate runs. Native mandates are released on testnet (26 Oct); yield is built but not activated. The public website's playground is a simulation; use the actual console for live transactions.
 
 ## Evidence and sources
 
@@ -32,11 +32,11 @@ Repository sources inspected for this revision:
 - `brand.md`, `web/src/app/marketing.css`, `web/src/components/marketing/primitives.tsx`: visual identity.
 - `README.md`: core behavior, current default deployment and historical USDC receipts.
 - `docs/SDK.md`: isolated v2 testnet XLM lifecycle and SDK distribution status.
-- `docs/MANDATES.md`: undeployed native mandate implementation and documented test snapshot.
+- `docs/MANDATES.md`: native mandate release, rehearsal transactions and migration notes.
 - `docs/YIELD.md`: undeployed DeFindex integration, liquidity and valuation limitations.
 - `docs/SUBMISSION_FORM.md`: event context, prior-work disclosure and proposed next steps.
 
-The **490** local tests on the backup slide are the documented 26 October snapshot: 151 contracts + 266 dashboard + 73 SDK. The count excludes one ignored optional fixture test. It includes undeployed work and was not independently rerun for this presentation.
+The **547** tests on the backup slide were run on `main` on 26 October: 152 contracts + 267 dashboard + 79 SDK + 49 signer. The count excludes one ignored optional fixture test and six opt-in signer network tests.
 
 Official external references checked on 26 October 2026:
 
@@ -56,7 +56,7 @@ These are editorial judgments, not external scores:
 | Technical execution | 8/10 | Rehearse one fresh sequence on the deployment used on stage. |
 | Completeness | 7/10 | Keep local-only extensions out of the live demo until activated and verified. |
 | Blockchain necessity | 9/10 | Demonstrate rejection by the account authorization path. |
-| Presentation | 8/10 | Fill team credits; practice the three-minute timing. |
+| Presentation | 8/10 | Practice the three-minute timing. |
 
 ## Editing and rebuilding
 
