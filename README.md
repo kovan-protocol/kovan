@@ -457,8 +457,11 @@ You need Freighter on Stellar testnet with some testnet USDC (`owner trustline`,
 ### Developer SDK
 
 ```bash
-npm install @kovan-protocol/sdk @stellar/stellar-sdk@16.4.1
+cd sdk && npm ci && npm pack          # builds kovan-protocol-sdk-0.2.0.tgz; 0.2.0 is not on npm yet
+npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
+
+The npm package (0.1.0) is an earlier snapshot: it lacks the constructor-binding checks, deployment-manifest helpers and reconciliation described below, and its bundled example targets the legacy v2 release.
 
 ```ts
 import { KovanClient } from "@kovan-protocol/sdk";
@@ -476,9 +479,13 @@ const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), si
 const pool = kovan.pool(created.returnValue as string);
 await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signWithFreighter); // 100 USDC
 
-// Agent: sign only the agent's authorization; a fee payer submits
-const tx = await pool.prepareAgent("pay", { agent, to: provider, amount: "250000" }, { source: feePayer, signer: agentSigner });
-// Agents on the current release also pass `payment: { mandateId, paymentId, reference }` (see docs/MANDATES.md).
+// Agent: sign only the agent's authorization; a fee payer submits.
+// On the current release every payment must bind to an owner-approved mandate (docs/MANDATES.md);
+// without `payment` the enforce-mode simulation refuses with #3915 MandateRequired.
+const tx = await pool.prepareAgent("pay", {
+  agent, to: provider, amount: "250000",
+  payment: { mandateId, paymentId, reference },
+}, { source: feePayer, signer: agentSigner });
 ```
 
 Amounts are integer base-unit strings (7 decimals). A read-only lifecycle example ships with the package: `node examples/testnet-lifecycle.mjs` (`--execute` creates disposable testnet accounts and a new pool). Full reference: [sdk/README.md](sdk/README.md).
@@ -628,12 +635,14 @@ Bound to `127.0.0.1` by default. It is a key-holding development console, not a 
 
 | Member | Purpose |
 |---|---|
-| `new KovanClient({ rpcUrl, networkPassphrase, contracts, maxFeeStroops, legacyPoolWasmHashes? })` | Explicit configuration; no deployment files are loaded for you |
-| `prepareCreatePool(owner)` · `signAndSend(prepared, signer)` · `submit(signedXdr)` · `assertPool(address)` | Pool creation and submission; `assertPool` refuses pools not running Kovan's published code |
+| `new KovanClient({ rpcUrl, networkPassphrase, contracts, maxFeeStroops, legacyPoolWasmHashes?, rpc? })` | Explicit configuration; no deployment files are loaded for you. `rpc` injects your own or a mocked `rpc.Server` |
+| `prepareCreatePool(owner)` · `signAndSend(prepared, signer)` · `submit(signedXdr)` · `assertPool(address)` | Pool creation and submission; `assertPool` refuses pools not running Kovan's published code or whose `get_config` bindings differ from the configured contracts (pre-mandate releases are marked `legacyBindings`) |
 | `kovan.pool(address)` → `PoolClient` | `getPool()` · `getAgent()` · `getAgentSigner()` · `getMandate()` · `getPayment()` · `requireMandates()` |
-| `pool.prepareOwner(fn, args, owner)` | `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `create_mandate`, `revoke_mandate` |
+| `pool.prepareOwner(fn, args, owner)` | `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute`, `create_mandate`, `revoke_mandate` |
 | `pool.prepareAgent(action, request, { source, signer, timeoutSeconds? })` | `draw`, `pay`, `return`; signs only the agent's authorization entries, verified by an enforce-mode simulation |
 | `buildAuthPayload` / `buildMandateAuthPayload` / `signAgentAuthorization` · `decodeContractError` / `explainError` · `covenantToScVal` and other ScVal helpers | Smart-account `AuthPayload` construction, decoded contract errors, ScVal conversion |
+| `currentRelease(manifest)` · `releaseContracts(release)` · `resolvePoolRelease(client, manifest, pool)` · `transactionStatus(client, hash)` | Deployment-manifest helpers and read-only transaction reconciliation (source 0.2.0) |
+| `submitSigned(signedXdr, { attempts?, intervalMs? })` | Lower-level submit; polls 30 × 1.5 s (about 45 s) before returning `NOT_FOUND`. Submission never throws, it returns a `SubmitResult` |
 | `@kovan-protocol/sdk/experimental` | `buildYieldOp` and DeFindex helpers (inactive on live pools) |
 
 ---

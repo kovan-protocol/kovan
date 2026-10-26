@@ -132,7 +132,7 @@ Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.
 | 29 | `TooManyDescendants` | Root family already contains 17 lifetime agents |
 | 30 | `DelegationTooDeep` | Child would exceed depth 4, counting the root as 0 |
 
-Codes 2 and 8 are reserved; 19–27 belong to v3 yield operations. `28 UnsupportedMandate` refuses grants for agents without the new capability.
+Codes 2 (`NotAgent`) and 8 (`ExceedsRemaining`) are defined but never raised by the current contract; the SDK still decodes them. 19–27 belong to v3 yield operations. `28 UnsupportedMandate` refuses grants for agents without the new capability.
 
 ### Covenant policy
 

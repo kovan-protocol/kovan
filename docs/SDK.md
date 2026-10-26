@@ -46,7 +46,9 @@ Ran `node examples/testnet-lifecycle.mjs --execute` in the SDK package. No dashb
 
 This proves the cash lifecycle through the standalone SDK with disposable testnet funds, not mainnet readiness, USDC issuance/trustline setup, live yield liquidity or every wallet/HSM integration. Existing pools and their funds were untouched.
 
-## Local verification — 2026-10-26 UTC
+## Local verification — 2026-10-26 UTC (0.1.0 extraction snapshot)
+
+Counts below are from the extraction run; current totals are in the README's Testing section (SDK: 107 after the mandate, deployment-helper and reconciliation tests).
 
 - SDK: **41 tests passed**, covering operation validation, legacy/AddressV2 signatures, signer/policy/asset/membership checks, unexpected authorization rejection, fee limits, wallet rejection, mutation detection and ambiguous submission outcomes.
 - Dashboard: **149 tests passed**, including five new installed-SDK integration tests and all existing recovery/yield tests.

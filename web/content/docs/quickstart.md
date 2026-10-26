@@ -61,10 +61,10 @@ The setup page creates pools and agents, but does not automatically approve paym
 
 ## From code
 
-`@kovan-protocol/sdk` is available on npm for Node.js 22+ and browser bundlers:
+`@kovan-protocol/sdk` targets Node.js 22+ and browser bundlers. The deployment helpers used below (`currentRelease`, `releaseContracts`) are in source version 0.2.0, which is not on npm yet; the published 0.1.0 package does not export them. Build a local tarball from the repository's `sdk/` (`npm ci && npm pack`) and install it:
 
 ```bash
-npm install @kovan-protocol/sdk@0.1.0 @stellar/stellar-sdk@16.4.1
+npm install /absolute/path/to/kovan-protocol-sdk-0.2.0.tgz @stellar/stellar-sdk@16.4.1
 ```
 
 ```ts
@@ -87,7 +87,7 @@ await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }
 
 SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
 
-Build the latest repository SDK for these deployment helpers; npm v0.1.0 is an earlier snapshot. Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the current default pool. `legacy_pools` and `previous_releases` retain earlier bindings. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
+Review/pin a manifest before signing. `current_release` selects new creation; top-level bindings describe the current default pool. `legacy_pools` and `previous_releases` retain earlier bindings. Existing pools need generation-specific configuration, not the latest policy applied to an old account.
 
 ## Check what happened
 

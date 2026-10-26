@@ -4,7 +4,7 @@ Standalone TypeScript/ESM SDK for Kovan's pool → agent → spending → recove
 
 **Testnet prototype, not audited.** New pool/account code and the native-mandate policy are published on testnet. Existing v2 pools retain their original bindings. Yield is experimental, provider-specific v3 code, not an enabled live integration.
 
-Native mandate v1 provides owner-approved exact/budget grants, signed purchase bindings, replay protection and payment receipts. The configuration below creates matching new pools/agents. See [the mandate guide and live rehearsal](../docs/MANDATES.md) and [direct-payment example](examples/mandate-payment.mjs). This is not AP2 credential conformance. Build this source for the latest deployment helpers; npm v0.1.0 is a separate, earlier snapshot.
+Native mandate v1 provides owner-approved exact/budget grants, signed purchase bindings, replay protection and payment receipts. The configuration below creates matching new pools/agents. See [the mandate guide and live rehearsal](https://github.com/kovan-protocol/kovan/blob/main/docs/MANDATES.md) and [direct-payment example](examples/mandate-payment.mjs). This is not AP2 credential conformance. Build this source for the latest deployment helpers; npm v0.1.0 is a separate, earlier snapshot.
 
 ## Install the earlier npm snapshot
 
@@ -65,6 +65,7 @@ const kovan = new KovanClient({
     accountWasmHash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
   },
   maxFeeStroops: "10000000", // total transaction fee ceiling: 1 XLM
+  // rpc: yourRpcServer,     // optional: inject your own (or a mocked) rpc.Server instead of one built from rpcUrl
 });
 ```
 
@@ -167,16 +168,18 @@ For a caller-held Node `Keypair`, use `keypairTransactionSigner(keypair)` for en
 | Read | `pool.getPool()`, `listAgents()`, `getAgent(agent)`, `balance(address?)` |
 | Mandates / receipts | `pool.getMandate(agent, id)`, `pool.getPayment(agent, paymentId)` |
 | Owner actions | `pool.prepareOwner(fn, args, owner)` |
-| Agent actions | `pool.prepareAgent("draw" / "pay" / "return", request, { source, signer })` |
+| Agent actions | `pool.prepareAgent("draw" / "pay" / "return", request, { source, signer, timeoutSeconds? })` (integer seconds 1–300, default 120; bounds the transaction and the authorization lifetime) |
 | Sign and send | `kovan.signAndSend(prepared, signer)` |
 
-Owner methods: `fund`, `withdraw`, `create_agent`, `create_mandate`, `revoke_mandate`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute`. Mandate revocation takes `{agent, id}`. Agent revoke/close take `{agent, by: owner}`; owner returns also take `amount`; final pool closure takes `{}`. Close children before parents, then close the pool. V2+ agent closure recovers remaining cash and settles consumed funding. Pool closure returns remaining pool cash to its original owner permanently. A plain transfer is not `return_funds`. No automated recovery or hierarchical-delegation wrapper is included in this SDK version.
+Owner methods: `fund`, `withdraw`, `create_agent`, `create_mandate`, `revoke_mandate`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute`. Mandate revocation takes `{agent, id}`. Agent revoke/close take `{agent, by: owner}`; owner returns also take `amount`; final pool closure takes `{}`. Close children before parents, then close the pool. V2+ agent closure recovers remaining cash and settles consumed funding. Pool closure returns remaining pool cash to its original owner permanently. A plain transfer is not `return_funds`. No automated recovery or hierarchical-delegation wrapper is included in this SDK version: the pool's `delegate`, `settle` and `dispute` functions have no wrapper (`resolve_dispute` does).
 
-Pure builders and generic helpers (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are also exported. **They do not perform all high-level target/code/membership checks.** Prefer `KovanClient`; custom composition must preserve those checks. Reads trust the selected RPC and are not cryptographic ownership proofs.
+Pure builders and generic helpers (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are also exported. **They do not perform all high-level target/code/membership checks.** Prefer `KovanClient`; custom composition must preserve those checks. Reads trust the selected RPC and are not cryptographic ownership proofs. `submitSigned(signedXdr, { context?, attempts?, intervalMs? })` polls 30 times at 1500 ms (about 45 s) before returning `NOT_FOUND`; `signAndSend` uses those defaults. `kovan.read(address, fn, args)` runs a generic read-only simulation.
+
+Other exports, grouped: deployment manifests (`currentRelease`, `releaseContracts`, `resolvePoolRelease`, `releaseForHash`, `deploymentReleases`, `assertPoolBindings`, `transactionStatus`); authorization (`authDigest`, `buildAuthPayload`, `buildMandateAuthPayload`, `signAgentAuthorization`, `agentCredentials`, `onlyAgentEntry`); mandates (`paymentIdForRequest`, `mandateToScVal`, `paymentBindingToScVal`, `paymentPayloadHash`, `nonzeroBytes32`, `MANDATE_VERSION`, and `PaymentRequest.validUntil` to bound a binding's lifetime); errors (`decodeContractError`, `explainError`, `scErrorToText`, `POOL_ERRORS`, `COVENANT_ERRORS`, `SMART_ACCOUNT_ERRORS`, `SAC_ERRORS`); ScVal helpers (`covenantToScVal`, `callRuleToScVal`, `amendmentToScVal`, `addrVal`, `i128Val`, `u32Val`, `positiveAmount`, `bytes32Val`, `structVal`, `optionU32`); transport (`KovanError`, `Transport`, `assertNetwork`, `checkedSimulation`, `assertSourceAuthorization`, `assemblePrepared`, `jsonSafe`) and the `ownerFns` list. `signAgentEntry` and `agentPubkeyHex` take a raw Stellar secret and exist for tests and local tooling only; application code should sign through a `DigestSigner` so the SDK never sees a secret.
 
 ## Safety and retries
 
-- `KovanError` identifies a `guard`, `simulate` or `submit` stage, with contract error names. No automatic restoration, deployment, investment or fee-payer funding.
+- `KovanError` is thrown from the `guard` and `simulate` stages, with contract error names. Submission never throws: it returns a `SubmitResult` with `status` and `error`. No automatic restoration, deployment, investment or fee-payer funding.
 - Wallet rejection stops before submission. The returned signed transaction body must match the prepared hash. Preview success is not final success.
 - Submission status is `SUCCESS`, `FAILED`, `ERROR` or `NOT_FOUND`. **`NOT_FOUND` means unknown/pending, not safe to pay again.** Query `kovan.rpc.getTransaction(hash)` and reconcile. The SDK sends once and never blindly rebuilds/resubmits.
 - Ledger expiry, fee limits, stale sequences, current policy and liquidity can invalidate a preview. Each transaction is atomic; the multi-transaction lifecycle is not.
@@ -219,7 +222,7 @@ redeemed for agent draws. One vault per pool. Yield is variable, investment is
 opt-in. The selected XOXNO testnet strategy matches Kovan's exact USDC; the
 dashboard's `/yield/setup` page prepares creation and activation for Freighter.
 It is not enabled for pool funding until an invested vault is registered.
-See [yield setup and verification](../docs/YIELD.md) before activation.
+See [yield setup and verification](https://github.com/kovan-protocol/kovan/blob/main/docs/YIELD.md) before activation.
 
 ## License
 

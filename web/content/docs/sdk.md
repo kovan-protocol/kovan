@@ -38,6 +38,7 @@ const kovan = new KovanClient({
     accountWasmHash: "909b66bf67a425308f832ceadc4aa49ef5862ce256533cec3b8a9e4fdab6ccf4",
   },
   maxFeeStroops: "10000000", // fee ceiling: 1 XLM
+  // rpc: yourRpcServer,     // optional: your own (or a mocked) rpc.Server instead of one built from rpcUrl
 });
 ```
 
@@ -133,20 +134,20 @@ The agent signs the contract authorization; the `source` account signs the envel
 | New pool | `kovan.prepareCreatePool(owner, salt?)` |
 | Read | `pool.getPool()`, `pool.listAgents()`, `pool.getAgent(agent)`, `pool.balance(address?)` |
 | Grants / receipts | `pool.getMandate(agent, id)`, `pool.getPayment(agent, paymentId)` |
-| Owner actions | `pool.prepareOwner(fn, args, owner)`: `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute` |
-| Agent actions | `pool.prepareAgent("draw" \| "pay" \| "return", request, { source, signer })` |
+| Owner actions | `pool.prepareOwner(fn, args, owner)`: `fund`, `withdraw`, `create_agent`, `create_mandate`, `revoke_mandate`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute` |
+| Agent actions | `pool.prepareAgent("draw" \| "pay" \| "return", request, { source, signer, timeoutSeconds? })` (1–300 s, default 120) |
 | Sign and send | `kovan.signAndSend(prepared, signer)` |
 | Signers | `keypairTransactionSigner(keypair)`, or your own `TransactionSigner` / `DigestSigner` |
 
 `revoke` and `close` take `{ agent, by: owner }`; owner `return_funds` also takes `amount`; `close_pool` takes `{}`. Close children before parents, then close the pool.
 
-New owner methods: `create_mandate` (above) and `revoke_mandate` with `{agent, id: mandateId}`. `paymentIdForRequest(persistedRequestId)` derives a stable payment ID. Keep IDs and exact inputs across retries; reconcile receipts and unknown transaction outcomes before paying again. Grants intersect with the covenant, never expand it. Intent hashes and receipts are not proof of useful work or AP2 credential conformance.
+`create_mandate` is shown above; `revoke_mandate` takes `{agent, id: mandateId}`. The pool's `delegate`, `settle` and `dispute` functions have no SDK wrapper yet. `paymentIdForRequest(persistedRequestId)` derives a stable payment ID. Keep IDs and exact inputs across retries; reconcile receipts and unknown transaction outcomes before paying again. Grants intersect with the covenant, never expand it. Intent hashes and receipts are not proof of useful work or AP2 credential conformance.
 
-Lower-level builders (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are exported too. They **don't** run all the safety checks above; prefer `KovanClient`.
+Lower-level builders (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are exported too. They **don't** run all the safety checks above; prefer `KovanClient`. `submitSigned` accepts `{ attempts?, intervalMs? }` and polls 30 × 1.5 s (about 45 s) before returning `NOT_FOUND`. Deployment helpers (`currentRelease`, `releaseContracts`, `resolvePoolRelease`), `transactionStatus`, error tables (`decodeContractError`, `explainError`), ScVal helpers and the `KovanError` class are exported as well; the full list is in the [package README](https://github.com/kovan-protocol/kovan/blob/main/sdk/README.md). `signAgentEntry` and `agentPubkeyHex` take a raw secret and are for tests only. `@kovan-protocol/sdk/experimental` holds the DeFindex yield builders, which stable `prepareOwner` does not accept; no vault is enabled.
 
 ## Errors and retries
 
-- `KovanError` has a stage (`guard`, `simulate` or `submit`) and names contract errors, e.g. `#3904 PayeeNotAllowed`. See [error codes](/docs/contracts#error-codes).
+- `KovanError` is thrown from the `guard` or `simulate` stage and names contract errors, e.g. `#3904 PayeeNotAllowed`. Submission never throws; it returns a result with `status` and `error`. See [error codes](/docs/contracts#error-codes).
 - `signAndSend` returns `SUCCESS`, `FAILED`, `ERROR` or `NOT_FOUND`. **`NOT_FOUND` means pending or unknown, not safe to retry.** Check `kovan.rpc.getTransaction(hash)` first. The SDK sends once and never resubmits blindly.
 - A signed transaction must match the prepared hash. A preview's success isn't final success: sequence numbers, ledger expiry, fees and the current policy can change before submission.
 
