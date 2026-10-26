@@ -1,5 +1,70 @@
+.marketing-stage {
+  position: relative;
+  isolation: isolate;
+}
+
 .route-transition {
   display: flow-root;
+  position: relative;
+  z-index: 1;
+}
+
+.brand-backdrop {
+  position: fixed;
+  inset: min(14vh, 125px) 0 auto;
+  z-index: 0;
+  height: min(65vh, 580px);
+  overflow: hidden;
+  opacity: .035;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+html[data-theme="dark"] .brand-backdrop { opacity: .055; }
+
+.brand-backdrop-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: flex;
+  width: max-content;
+  transform: translateY(-50%);
+  animation: brand-backdrop-scroll 40s linear infinite;
+}
+
+.brand-backdrop-set {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: clamp(110px, 11vw, 190px);
+  padding-right: clamp(110px, 11vw, 190px);
+}
+
+.brand-backdrop-mark {
+  display: block;
+  flex: none;
+  width: clamp(155px, 15vw, 225px);
+  height: auto;
+  fill: var(--blue);
+}
+
+@keyframes brand-backdrop-scroll {
+  from { translate: -50% 0; }
+  to { translate: 0 0; }
+}
+
+html[data-motion="paused"] .brand-backdrop-track { animation-play-state: paused; }
+
+@media (max-width: 760px) {
+  .brand-backdrop { top: 125px; height: 390px; opacity: .03; }
+  html[data-theme="dark"] .brand-backdrop { opacity: .045; }
+  .brand-backdrop-set { gap: 85px; padding-right: 85px; }
+  .brand-backdrop-mark { width: 105px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-backdrop-track { animation: none; translate: 0 0; }
 }
 
 /* The native route transition owns entry motion, so the old mount-only

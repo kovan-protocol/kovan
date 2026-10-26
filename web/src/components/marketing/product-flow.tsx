@@ -1,7 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
-import { ArrowDownLeft, ArrowUpRight, Check, CircleDollarSign, Fingerprint, LockKeyhole, Network, Pause, Play, RotateCcw, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, CircleDollarSign, Fingerprint, LockKeyhole, Pause, Play, RotateCcw, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { AgentCharacter } from "./agent-character";
 import { useProductFilm } from "./use-product-film";
 import "./product-flow.css";
 
@@ -46,14 +47,9 @@ export function ProductFlow({ locale = "en", activeStep }: { locale?: Locale; ac
                 <path className="kf-node-ports" d="M0 112H34M190 112H224M112 0V34M112 190V224" />
                 {[ [16,112], [208,112], [112,16], [112,208] ].map(([cx,cy]) => <circle className="kf-node-port" key={`${cx}-${cy}`} cx={cx} cy={cy} r="4" />)}
               </svg>
-              <div className="kf-node-surface">
-                <span className="kf-node-sheen" />
-                <Network className="kf-node-symbol" size={29} strokeWidth={1.25} />
-                <strong className="kf-node-name">monitor</strong>
-                <div className="kf-node-budget"><span>{t("AGENT BUDGET", "PRESUPUESTO")}</span><strong>0.50 <small>USDC</small></strong></div>
-              </div>
-              <span className="kf-node-policy"><ShieldCheck size={12} strokeWidth={1.5} />{t("COVENANT", "REGLAS")}</span>
-              <span className="kf-node-caption">{t("SMART ACCOUNT", "CUENTA INTELIGENTE")}</span>
+              <span className="kf-agent-type"><strong>monitor</strong><span>{t("SMART ACCOUNT", "CUENTA INTELIGENTE")}</span></span>
+              <div className="kf-agent-portrait"><AgentCharacter /></div>
+              <div className="kf-agent-identity"><strong>0.50</strong><span>USDC</span></div>
             </div>
           </div>
 
@@ -91,7 +87,7 @@ export function ProductFlow({ locale = "en", activeStep }: { locale?: Locale; ac
       <div className="kf-chapters" aria-label={t("Animation chapters", "Escenas de la animación")}>
         {phases.slice(0,activeStep === undefined ? 4 : 3).map((label,index)=><button type="button" key={index} disabled={activeStep !== undefined} aria-label={t("Show scene: ", "Mostrar escena: ") + label} aria-current={film.phase===index ? "step" : undefined} onClick={()=>film.seek(index)}><span className="kf-chapter-label"><span>0{index+1}</span>{label}</span><span className="kf-chapter-track"><i style={{transform:"scaleX(" + Math.max(0,Math.min(1,film.progress*4-index)) + ")"}} /></span></button>)}
       </div>
-      {activeStep===undefined && <div className="kf-playback"><button type="button" className="kf-play-button" onClick={film.toggle} disabled={film.reducedMotion} aria-label={film.paused ? t("Play animations", "Reproducir animaciones") : t("Pause animations", "Pausar animaciones")} title={film.paused ? t("Play animations", "Reproducir animaciones") : t("Pause animations", "Pausar animaciones")}>{film.paused || film.reducedMotion ? <Play size={14} fill="currentColor" /> : <Pause size={15} />}</button><button type="button" className="kf-play-button" onClick={film.replay} disabled={film.reducedMotion} aria-label={t("Replay film", "Repetir animación")} title={t("Replay film", "Repetir animación")}><RotateCcw size={14}/></button></div>}
+      {activeStep===undefined && <div className="kf-playback"><button type="button" className="kf-play-button" onClick={film.toggle} disabled={film.reducedMotion} aria-label={film.paused ? t("Play animations", "Reproducir animaciones") : t("Pause animations", "Pausar animaciones")} title={film.paused ? t("Play animations", "Reproducir animaciones") : t("Pause animations", "Pausar animaciones")}>{film.paused || film.reducedMotion ? <Play size={14} fill="currentColor" /> : <Pause size={15} />}</button><button type="button" className="kf-play-button" onClick={() => { film.replay(); root.current?.dispatchEvent(new Event("kovan-character-replay")); }} disabled={film.reducedMotion} aria-label={t("Replay film", "Repetir animación")} title={t("Replay film", "Repetir animación")}><RotateCcw size={14}/></button></div>}
     </figcaption>
     <span className="kf-sr-only">{t("Illustrative values. Not live transactions.", "Valores ilustrativos. No son transacciones reales.")}</span>
   </figure>;

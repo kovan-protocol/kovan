@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, GitBranch, LockKeyhole, ShieldCheck, SlidersHorizontal, Wallet } from "lucide-react";
 import { CountUp } from "@/components/motion/count-up";
@@ -46,6 +46,25 @@ export function HowContent() {
   const t = useCopy();
   const { locale } = usePreferences();
   const [step, setStep] = useState(0);
+  const stepListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = stepListRef.current;
+    if (!list || !window.IntersectionObserver) return;
+    const animations: Animation[] = [];
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "paused") return;
+      list.querySelectorAll<HTMLButtonElement>(".how-step").forEach((button, index) => {
+        animations.push(button.animate(
+          [{ opacity: 0, transform: "translateY(18px)" }, { opacity: 1, transform: "translateY(0)" }],
+          { duration: 720, delay: index * 180, easing: "cubic-bezier(.22,.68,0,1)", fill: "backwards" },
+        ));
+      });
+    }, { threshold: 0.12 });
+    observer.observe(list);
+    return () => { observer.disconnect(); animations.forEach((animation) => animation.cancel()); };
+  }, []);
   const steps = [
     { title: t("Fund one pool.", "Deposita en un fondo."), description: t("The owner deposits testnet USDC into a shared pool. Each agent gets a defined share of the available budget.", "El propietario deposita USDC de testnet en un fondo común. Cada agente recibe una parte definida del presupuesto."), icon: Wallet },
     { title: t("Set the boundaries.", "Define los límites."), description: t("Choose the budget, approved recipients, payment caps and expiry. The agent cannot rewrite its own rules.", "Elige el presupuesto, los destinatarios, los límites de pago y la vigencia. El agente no puede reescribir sus reglas."), icon: SlidersHorizontal },
@@ -54,7 +73,7 @@ export function HowContent() {
   return <main id="main" tabIndex={-1} className="page-main">
     <div className="container page-intro"><p className="eyebrow">{t("HOW IT WORKS", "CÓMO FUNCIONA")}</p><h1><RiseText text={t("From your budget", "De tu presupuesto")} /><br /><RiseText className="line-muted" text={t("to their next move.", "a su próxima acción.")} /></h1><p className="page-lede">{t("Three steps. A clear path for every payment.", "Tres pasos. Un camino claro para cada pago.")}</p></div>
     <section className="container how-layout" aria-label={t("Explore the payment flow", "Explora el flujo del pago")}>
-      <div className="how-step-list">{steps.map((item, index) => <button key={index} type="button" className={`how-step ${step === index ? "is-active" : ""}`} onClick={() => setStep(index)} aria-pressed={step === index} aria-controls="flow-detail"><span className="step-number">0{index + 1}</span><span><span className="step-title">{item.title}</span><span className="step-description">{item.description}</span></span><ArrowRight size={18} aria-hidden="true" /></button>)}</div>
+      <div ref={stepListRef} className="how-step-list">{steps.map((item, index) => <button key={index} type="button" className={`how-step ${step === index ? "is-active" : ""}`} onClick={() => setStep(index)} aria-pressed={step === index} aria-controls="flow-detail"><span className="step-number">0{index + 1}</span><span><span className="step-title">{item.title}</span><span className="step-description">{item.description}</span></span><ArrowRight size={18} aria-hidden="true" /></button>)}</div>
       <div id="flow-detail"><ProductFlow locale={locale} activeStep={step} /></div>
     </section>
     <Reveal className="container recovery-note"><ArrowDownLeft size={26} /><div><h2>{t("And you keep the keys.", "Y tú conservas el control.")}</h2><p>{t("Revoke an agent and recover its unspent funds. Returning funds remains possible after revocation or expiry.", "Revoca un agente y recupera sus fondos sin usar. Puedes recuperar fondos incluso tras una revocación o el vencimiento.")}</p></div><TextLink href="/playground">{t("Try a payment", "Prueba un pago")}</TextLink></Reveal>

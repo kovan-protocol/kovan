@@ -104,13 +104,11 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
       const camera = select(".kf-camera");
       cameraElement.current = camera[0] ?? null;
       const core = select(".kf-core");
-      const sheen = select(".kf-node-sheen");
       const acts = [0, 1, 2, 3].map((index) => select(`.kf-act-${index}`)[0]);
       const coreFinalX = () => -60;
 
       gsap.set(camera, { scale: 1, opacity: 1, transformOrigin: "50% 50%", force3D: true });
       gsap.set(core, { transformPerspective: 1200, transformOrigin: "50% 50%", transformStyle: "preserve-3d", force3D: true, x: 0, y: 0, rotationX: 10, rotationY: -16, rotationZ: -8, scale: 1, autoAlpha: 1 });
-      gsap.set(sheen, { xPercent: -140, opacity: 0 });
       acts.forEach((act) => { if (act) gsap.set(act, { autoAlpha: 0 }); });
 
       const film = gsap.timeline({ paused: true, repeat: -1, defaults: { ease: "power3.out" } });
@@ -285,10 +283,6 @@ export function useProductFilm(root: RefObject<HTMLElement | null>, options: { a
           film.fromTo(ownerReturn, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: .65, ease: "power3.out", immediateRender: false }, start + 3.4);
         }
 
-        if (sheen.length) {
-          film.fromTo(sheen, { xPercent: -140, opacity: 0 }, { xPercent: 140, opacity: .45, duration: 1.6, ease: "power2.inOut", immediateRender: false }, start + .45);
-          film.to(sheen, { opacity: 0, duration: .3 }, start + 1.85);
-        }
         film.set(act, { autoAlpha: 0 }, start + 5.98);
       });
 
