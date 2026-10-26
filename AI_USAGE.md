@@ -20,5 +20,7 @@ AI tools were allowed at HackMeridian 2026, with attribution.
 | `scripts/`, `Makefile`, `.github/workflows/` | Claude Code (Claude Opus) | Deploy script, build targets, CI for the signer and website copies | [reviewer] |
 | `docs/`, `README.md`, `deployments/` | Claude Code (Claude Opus) | Design doc and plan, SDK, yield, pool and safety docs, README, deployment records | [reviewer] |
 | `.agents/skills/` (except `kovan`) | None (vendored) | Stellar Development Foundation agent skills (Apache-2.0), reference for AI agents | — |
+| `docs/pitch/` (deck, backup slides, HTML deck, pitch script) | Claude Code (Claude Opus) | Slide content, layout, build script and speaker notes | [reviewer] |
+| Demo video | Grok (xAI) | Generated video clips | Narration recorded by a team member (real voice, not AI) |
 
 Pre-event planning documents (problem, rules, risks, an earlier design) were also drafted with Claude Code; they live outside this repository and no code from them was reused.
