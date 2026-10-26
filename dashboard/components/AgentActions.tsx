@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,14 +9,16 @@ import { unitsFromUsdc, usdc } from "@/lib/format";
 import { X402_TESTNET_EXAMPLE } from "@/lib/covenant-examples";
 
 export type AgentRun = (action: "draw" | "pay" | "return", body: { agent: string; amount: string; to?: string }, label: string) => Promise<void>;
-export type X402Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number };
-export type X402Pay = (agent: string, url: string, label: string) => Promise<{ ok: boolean; body?: string; txHash?: string; error?: string; terms?: X402Terms }>;
+export type X402Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number; quoteId: string };
+export type X402Pay = (agent: string, url: string, label: string, approval: { quoteId: string; requestId: string }) => Promise<{ ok: boolean; body?: string; txHash?: string; error?: string; terms?: X402Terms }>;
 
 /** Agent-side buttons: these are signed by the server with AGENT_SECRET, never by Freighter. */
 export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { agent: StateAgent; run: AgentRun; payX402: X402Pay; latestLedger: number; disabled?: boolean }) {
   const [amount, setAmount] = useState("0.1");
   const [url, setUrl] = useState<string>(X402_TESTNET_EXAMPLE.url);
   const [terms, setTerms] = useState<X402Terms | null>(null);
+  const requestId = useRef<string | null>(null);
+  const paymentInFlight = useRef(false);
   const [response, setResponse] = useState<string | null>(null);
   const [to, setTo] = useState(agent.covenant.providers[0] ?? "");
   const [busy, setBusy] = useState<string | null>(null);
@@ -43,14 +45,17 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
   }
 
   async function checkTerms() {
+    if (paymentInFlight.current) return;
     setErr(null);
     setTerms(null);
+    requestId.current = null;
     setResponse(null);
     setBusy("terms");
     try {
       const r = await fetch(`/api/x402?url=${encodeURIComponent(url)}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "could not read terms");
+      requestId.current = crypto.randomUUID();
       setTerms(j);
     } catch (e) {
       setErr((e as Error).message);
@@ -60,17 +65,19 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
   }
 
   async function payUrl() {
+    if (paymentInFlight.current || !terms || !requestId.current) return;
+    paymentInFlight.current = true;
     setErr(null);
     setResponse(null);
     setBusy("x402");
     try {
-      const r = await payX402(agent.id, url, "x402 pay");
-      if (r.terms) setTerms(r.terms);
+      const r = await payX402(agent.id, terms.url, "x402 pay", { quoteId: terms.quoteId, requestId: requestId.current });
       if (r.ok) setResponse(r.body ?? "(empty body)");
       else setErr(r.error ?? "payment failed");
     } catch (e) {
       setErr((e as Error).message);
     } finally {
+      paymentInFlight.current = false;
       setBusy(null);
     }
   }
@@ -104,14 +111,15 @@ export function AgentActions({ agent, run, payX402, latestLedger, disabled }: { 
       <div className="flex flex-col gap-2 rounded-md border p-3">
         <Label htmlFor={`${uid}-url`}>Pay an x402 endpoint</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input id={`${uid}-url`} value={url} onChange={(e) => setUrl(e.target.value)} spellCheck={false} className="font-mono text-xs" placeholder="https://…" />
+          <Input id={`${uid}-url`} value={url} disabled={!!busy} onChange={(e) => { setUrl(e.target.value); setTerms(null); requestId.current = null; setResponse(null); }} spellCheck={false} className="font-mono text-xs" placeholder="https://…" />
           <Button size="sm" variant="outline" disabled={!!busy || !url} onClick={checkTerms}>
             {busy === "terms" ? "Reading…" : "Read terms"}
           </Button>
-          <Button size="sm" disabled={disabled || !!busy || !active || !url} onClick={payUrl}>
+          <Button size="sm" disabled={disabled || !!busy || !active || !terms || !payeeAllowed} onClick={payUrl}>
             {busy === "x402" ? "Paying…" : "Pay endpoint"}
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">Read and review terms before paying. Repeating Pay checks the same request; Read terms starts a new one. If settlement is unknown, reconcile it before starting another payment.</p>
         {terms ? (
           <p className="font-mono text-xs text-muted-foreground">
             wants {usdc(terms.amount)} → {terms.payTo.slice(0, 6)}…{terms.payTo.slice(-4)} ·{" "}

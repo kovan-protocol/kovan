@@ -1,86 +1,92 @@
-// Server-only: an agent account pays an x402 endpoint.
-import { Address, Contract, Operation, rpc, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { feePayerKeypair, onlyAgentEntry, resolveAgentSecret } from "./agent";
-import { signAgentEntry } from "./authpayload";
-import { explainError } from "./errors";
-import { addrVal, i128Val } from "./scval";
+// Server-only x402 v2 exact payments. The SDK owns authorization and covenant checks.
+import { Keypair, TransactionBuilder, type Transaction, type xdr } from "@stellar/stellar-sdk";
+import { KovanError } from "@kovan/sdk";
+import { feePayerKeypair, resolveAgentSecret } from "./agent";
+import { kovanClient } from "./kovan";
 import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
+import { fetchPaymentResource } from "./x402-http";
 import {
-  decodePaymentResponse,
-  encodePaymentHeader,
-  ledgerTimeout,
-  parsePaymentRequired,
-  pickStellarRequirement,
-  REQ_HEADER,
-  RES_HEADER,
-  SIG_HEADER,
-  type PaymentRequired,
-  type PaymentRequirement,
+  decodePaymentResponse, encodePaymentHeader, parsePaymentRequired, paymentQuoteId,
+  paymentUrl, pickStellarRequirement, REQ_HEADER, RES_HEADER, SIG_HEADER, X402_NETWORK,
+  type PaymentRequired, type PaymentRequirement,
 } from "./x402";
 
-export type Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number; pr: PaymentRequired; req: PaymentRequirement };
+export type Terms = { url: string; description?: string; payTo: string; amount: string; asset: string; maxTimeoutSeconds: number; quoteId: string; pr: PaymentRequired; req: PaymentRequirement };
+export const publicTerms = (t: Terms) => ({ url: t.url, description: t.description, payTo: t.payTo, amount: t.amount, asset: t.asset, maxTimeoutSeconds: t.maxTimeoutSeconds, quoteId: t.quoteId });
 
-/** GET the endpoint and read its 402 terms. */
-export async function discoverTerms(url: string): Promise<Terms> {
-  if (!/^https:\/\//i.test(url)) throw new Error("endpoint must be an https:// URL");
-  const r = await fetch(url, { method: "GET", redirect: "manual" });
+/** Discover only the supported profile; no keys are accessed and no payment is made. */
+export async function discoverTerms(value: string): Promise<Terms> {
+  const url = paymentUrl(value);
+  const r = await fetchPaymentResource(url);
   const h = r.headers.get(REQ_HEADER);
-  if (r.status !== 402 || !h) throw new Error(`endpoint answered ${r.status} without ${REQ_HEADER}; not an x402 v2 resource`);
+  if (r.status !== 402 || !h) throw new Error(`endpoint answered ${r.status} without valid ${REQ_HEADER}; redirects are not followed`);
   const pr = parsePaymentRequired(h);
+  if (paymentUrl(pr.resource.url) !== url) throw new Error("Payment resource does not match the requested URL");
   const req = pickStellarRequirement(pr);
-  return { url, description: pr.resource.description, payTo: req.payTo, amount: req.amount, asset: req.asset, maxTimeoutSeconds: req.maxTimeoutSeconds, pr, req };
+  if (req.asset !== ids().usdc) throw new Error("Payment asset is not the configured testnet USDC contract");
+  return { url, description: pr.resource.description, payTo: req.payTo, amount: req.amount, asset: req.asset, maxTimeoutSeconds: req.maxTimeoutSeconds, quoteId: paymentQuoteId(url, req), pr, req };
 }
 
 export type X402Result =
-  | { ok: true; status: number; txHash?: string; body: string; contentType: string | null; terms: Omit<Terms, "pr" | "req"> }
-  | { ok: false; stage: "guard" | "terms" | "simulate" | "settle"; status?: number; error: string; raw?: string; terms?: Omit<Terms, "pr" | "req"> };
+  | { ok: true; paymentStatus: "confirmed"; status: number; txHash: string; body: string; contentType: string | null; terms: ReturnType<typeof publicTerms> }
+  | { ok: false; paymentStatus: "not_sent" | "unknown" | "confirmed"; stage: "guard" | "terms" | "simulate" | "settle"; status?: number; error: string; txHash?: string; terms?: ReturnType<typeof publicTerms> };
 
-const strip = (t: Terms) => ({ url: t.url, description: t.description, payTo: t.payTo, amount: t.amount, asset: t.asset, maxTimeoutSeconds: t.maxTimeoutSeconds });
+function inner(tx: ReturnType<typeof TransactionBuilder.fromXDR>): Transaction {
+  return "innerTransaction" in tx ? tx.innerTransaction : tx;
+}
 
-export async function payEndpoint(agent: string, url: string): Promise<X402Result> {
-  const feePayer = await feePayerKeypair();
-  const { verifier, usdc, pool } = ids();
-  const ctx = { usdc, pool };
-  const server = rpcServer();
+/** The facilitator may change the source/fees, but not our transfer or signed auth. */
+export function assertSettlementMatches(preparedXdr: string, envelope: xdr.TransactionEnvelope, receiptHash: string): void {
+  const observed = TransactionBuilder.fromXDR(envelope, NETWORK_PASSPHRASE);
+  const settled = inner(observed);
+  if (![observed.hash().toString("hex"), settled.hash().toString("hex")].includes(receiptHash.toLowerCase())) throw new Error("Settlement transaction hash mismatch");
+  const expected = inner(TransactionBuilder.fromXDR(preparedXdr, NETWORK_PASSPHRASE));
+  const a = expected.operations[0];
+  const b = settled.operations[0];
+  if (expected.operations.length !== 1 || settled.operations.length !== 1 || a.type !== "invokeHostFunction" || b.type !== "invokeHostFunction"
+      || !a.func.toXDR().equals(b.func.toXDR()) || a.auth?.length !== 1 || b.auth?.length !== 1 || !a.auth[0].toXDR().equals(b.auth[0].toXDR())) {
+    throw new Error("Settlement does not contain this payment's exact transfer and authorization");
+  }
+}
 
-  const secret = await resolveAgentSecret(agent, verifier);
-
+export async function payEndpoint(agent: string, url: string, options: { quoteId: string; pool?: string }): Promise<X402Result> {
   let terms: Terms;
   try {
     terms = await discoverTerms(url);
+    if (terms.quoteId !== options.quoteId) return { ok: false, paymentStatus: "not_sent", stage: "terms", error: "Payment terms changed; review the new terms before authorizing another request", terms: publicTerms(terms) };
   } catch (e) {
-    return { ok: false, stage: "terms", error: (e as Error).message };
+    return { ok: false, paymentStatus: "not_sent", stage: "terms", error: (e as Error).message };
   }
-  if (terms.asset !== usdc) return { ok: false, stage: "terms", error: `endpoint wants asset ${terms.asset}, agent holds USDC ${usdc}`, terms: strip(terms) };
 
-  // transfer(from = agent, to = payTo, amount); fee payer is only the simulation source.
-  const op = new Contract(usdc).call("transfer", addrVal(agent), addrVal(terms.payTo), i128Val(terms.amount));
-  const latest = (await withRetry(() => server.getLatestLedger())).sequence;
-  const source = await withRetry(() => server.getAccount(feePayer.publicKey()));
-  const tx1 = new TransactionBuilder(source, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE }).addOperation(op).setTimeout(terms.maxTimeoutSeconds).build();
-  const sim1 = await withRetry(() => server.simulateTransaction(tx1));
-  if (rpc.Api.isSimulationError(sim1)) return { ok: false, stage: "simulate", error: explainError(sim1.error, ctx), raw: sim1.error, terms: strip(terms) };
-
-  const expirationLedger = latest + ledgerTimeout(terms.maxTimeoutSeconds);
-  const signed = ((sim1 as rpc.Api.SimulateTransactionSuccessResponse).result?.auth ?? []).map((e) =>
-    onlyAgentEntry(e, agent, (entry) => signAgentEntry(entry, { verifier, secret, networkPassphrase: NETWORK_PASSPHRASE, expirationLedger })),
-  );
-  const source2 = await withRetry(() => server.getAccount(feePayer.publicKey()));
-  const tx2 = new TransactionBuilder(source2, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(Operation.invokeHostFunction({ func: op.body().invokeHostFunctionOp().hostFunction(), auth: signed }))
-    .setTimeout(terms.maxTimeoutSeconds)
-    .build();
-  // Covenant check happens here, before the endpoint or facilitator see anything.
-  const sim2 = await withRetry(() => server.simulateTransaction(tx2));
-  if (rpc.Api.isSimulationError(sim2)) return { ok: false, stage: "simulate", error: explainError(sim2.error, ctx), raw: sim2.error, terms: strip(terms) };
-  const prepared = rpc.assembleTransaction(tx2, sim2).build();
-
-  const header = encodePaymentHeader(terms.pr, terms.req, prepared.toXDR());
-  const r = await fetch(url, { method: "GET", headers: { [SIG_HEADER]: header }, redirect: "manual" });
-  const body = await r.text();
-  const settlement = decodePaymentResponse(r.headers.get(RES_HEADER));
-  if (!r.ok) {
-    return { ok: false, stage: "settle", status: r.status, error: settlement?.errorReason ?? `endpoint answered ${r.status}`, raw: body.slice(0, 500), terms: strip(terms) };
+  let preparedXdr: string;
+  try {
+    const { pool, verifier } = ids(options.pool);
+    const client = kovanClient(options.pool);
+    const key = Keypair.fromSecret(await resolveAgentSecret(agent, verifier));
+    const source = (await feePayerKeypair()).publicKey();
+    const prepared = await client.pool(pool).prepareAgent("pay", { agent, to: terms.payTo, amount: terms.amount }, {
+      source, timeoutSeconds: terms.maxTimeoutSeconds,
+      signer: { publicKey: key.rawPublicKey().toString("hex"), sign: (digest) => key.sign(Buffer.from(digest)) },
+    });
+    preparedXdr = prepared.xdr; // Envelope stays unsigned: only the facilitator pays fees.
+  } catch (e) {
+    return { ok: false, paymentStatus: "not_sent", stage: e instanceof KovanError && e.stage === "simulate" ? "simulate" : "guard", error: (e as Error).message, terms: publicTerms(terms) };
   }
-  return { ok: true, status: r.status, txHash: settlement?.transaction, body: body.slice(0, 4000), contentType: r.headers.get("content-type"), terms: strip(terms) };
+
+  // From here a transport error is ambiguous: the server may already have settled.
+  // Never automatically retry this request or issue a fresh authorization.
+  try {
+    const r = await fetchPaymentResource(terms.url, { [SIG_HEADER]: encodePaymentHeader(terms.pr, terms.req, preparedXdr) });
+    const settlement = decodePaymentResponse(r.headers.get(RES_HEADER));
+    if (!settlement?.success || !settlement.transaction || settlement.network !== X402_NETWORK || (settlement.payer !== undefined && settlement.payer !== agent)) throw new Error("Missing, failed, or mismatched payment settlement receipt");
+    const server = rpcServer();
+    if ((await withRetry(() => server.getNetwork())).passphrase !== NETWORK_PASSPHRASE) throw new Error("Settlement RPC network mismatch");
+    const confirmed = await withRetry(() => server.getTransaction(settlement.transaction!));
+    if (confirmed.status !== "SUCCESS") throw new Error(`Payment not confirmed by Stellar RPC (${confirmed.status})`);
+    assertSettlementMatches(preparedXdr, confirmed.envelopeXdr, settlement.transaction);
+    if (r.status < 200 || r.status >= 300) return { ok: false, stage: "settle", paymentStatus: "confirmed", status: r.status, txHash: settlement.transaction, error: `Payment confirmed, but resource returned HTTP ${r.status}. Do not pay again.`, terms: publicTerms(terms) };
+    return { ok: true, paymentStatus: "confirmed", status: r.status, txHash: settlement.transaction, body: r.body.slice(0, 4000), contentType: r.headers.get("content-type"), terms: publicTerms(terms) };
+  } catch (e) {
+    return { ok: false, stage: "settle", paymentStatus: "unknown", error: `${(e as Error).message}. Authorization was sent or may have been sent; reconcile before making a new payment.`, terms: publicTerms(terms) };
+  }
 }

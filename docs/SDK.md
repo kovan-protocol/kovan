@@ -4,6 +4,8 @@
 
 The dashboard consumes SDK builders, covenant serialization, custom authorization, reads, error decoding, owner preparation, agent execution and submission. Deployment discovery, local keys, Freighter UI, x402 HTTP handling, yield-provider activation gates and recovery UI remain application-side. Unfinished yield operations have an explicitly experimental export, not a stable client API.
 
+The existing x402 console flow now also uses `PoolClient.prepareAgent`, with an optional `timeoutSeconds` (integer 1–300, default 120) controlling transaction bounds and authorization lifetime. It adds reviewed quotes, persistent request IDs, restricted HTTP transport and RPC-confirmed payment evidence; see [agentic payment safety and API migration](AGENTIC_SAFETY.md). These checks do not add AP2/MCP/A2A support or change the contracts.
+
 Explicit operation construction preserves custom-account authorization and deployed ABI behavior. Stellar's SDK handles XDR, credential-aware preimages, simulation assembly and RPC transport. The Stellar dApp skill guided configuration/signer separation and client/server boundaries.
 
 ## Isolated testnet execution — 2026-10-25 UTC

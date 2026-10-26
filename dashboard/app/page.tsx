@@ -170,14 +170,14 @@ export default function Page() {
     else throw new Error(j.error ?? j.status ?? "failed");
   }
 
-  async function payX402(agent: string, url: string, label: string) {
+  async function payX402(agent: string, url: string, label: string, approval: { quoteId: string; requestId: string }) {
     if (ownerInFlight.current) throw new Error("Wait for the owner transaction or pool recovery to finish");
     const at = Date.now();
     setLog((l) => [{ at, kind: "agent", label: `${label} (${agent.slice(0, 6)}) ${url}`, ok: null }, ...l]);
-    const r = await fetch("/api/x402", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent, url }) });
-    const j = (await r.json()) as { ok: boolean; txHash?: string; body?: string; error?: string; stage?: string; terms?: import("@/components/AgentActions").X402Terms };
+    const r = await fetch("/api/x402", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent, url, ...(pool ? { pool } : {}), ...approval }) });
+    const j = (await r.json()) as { ok: boolean; paymentStatus?: string; txHash?: string; body?: string; error?: string; stage?: string; terms?: import("@/components/AgentActions").X402Terms };
     setLog((l) => l.map((e) => (e.at === at ? { ...e, ok: !!j.ok, hash: j.txHash, detail: j.ok ? `paid ${j.terms ? usdc(j.terms.amount) : ""}` : `${j.stage ? j.stage + ": " : ""}${j.error ?? "failed"}` } : e)));
-    if (j.ok) await refresh();
+    if (j.ok || j.paymentStatus === "confirmed" || j.paymentStatus === "unknown") await refresh();
     return j;
   }
 
