@@ -5,65 +5,7 @@ Shared USDC budgets your AI agents can't overspend.
 
 HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that spend")
 
-Design: [docs/superpowers/specs/2026-10-25-kovan-covenant-design.md](docs/superpowers/specs/2026-10-25-kovan-covenant-design.md) · Plan: [docs/superpowers/plans/2026-10-25-kovan-contracts.md](docs/superpowers/plans/2026-10-25-kovan-contracts.md)
-
-## One-liner
-
-**Kovan gives AI agents their own on-chain spending covenant.** An owner locks USDC in a pool; each agent gets a smart account that enforces its approved recipients, contract calls, spending caps, and expiry. Signers and allowlists are fixed at creation; the owner can amend numeric limits and expiry. The covenant enforces the same rules for direct and x402 payments.
-
-## Problem
-
-Agents that spend need money to spend. Today you hand the agent a funded wallet and hope, or refill it by hand. A buggy, looping or prompt-injected agent can empty whatever it holds.
-
-## User
-
-A developer running an agent that pays data or RPC providers per call over x402. The owner (the developer or their company) backs the agent with testnet USDC. B2B.
-
-## Solution
-
-1. The **owner** locks USDC in a **pool** (`fund`).
-2. The pool **creates an agent**: it deploys an OpenZeppelin smart account with exactly one context rule (the agent's ed25519 key + the **covenant policy**) and no management rule. The signer, allowlists, and policy binding are fixed; the owner can amend numeric limits and expiry. The account grants the pool a USDC recovery allowance, valid for 3,000,000 ledgers from creation.
-3. The agent **draws** up to its draw limit from the pool into its own account.
-4. Every outgoing call from the account goes through the covenant: USDC transfers only to allowlisted **providers** (x402 or direct) and **recipients**, within per-transfer and total caps, before **expiry**; allowlisted **contract calls**; the pool's lifecycle functions. Anything else, including calls on the account itself, is rejected.
-5. An agent may **delegate** a narrower covenant to a child, carved out of its own remaining allowance.
-6. The owner (or a parent) can **revoke** and **close**. The owner can **amend** numeric limits and record dispute outcomes. `return_funds` remains available after covenant expiry or revocation, subject to the token allowance. Closing recovers the remaining wallet balance and settles consumed funding before releasing unused allocation.
-7. Once all agents are closed, the owner can permanently **close the pool** (`close_pool`). The remaining pool USDC returns to the original owner in the same transaction. The pool cannot be funded or reused again; its history and late-refund recovery remain available.
-
-*Humans configure, agents only execute inside limits.*
-
-### Deployed cash-pool accounting v2
-
-The deployed v2 pool implements the complete draw → spend → recover → close → withdraw lifecycle. AP2 mandates, intent records, and escrow are deferred; this keeps the existing pool, policy, and agent accounts.
-
-- `locked` = the pool's actual USDC balance + outstanding agent advances. It is an accounting total, **not** the pool's cash balance. An advance includes money already spent until it is settled at closure.
-- `sum_limits` = draw limits of all non-closed agents. Available funds are `locked - sum_limits`, always backed by cash in the pool.
-- `close` atomically freezes spending, pulls back the agent's entire USDC balance, records unrecovered advances as `settled_spent`, and releases only the unused allocation. A child returns only that unused allocation to its parent. Children must close before their parent.
-- `settle` freezes the requesting agent's spending while awaiting owner/parent closure. Expired agents cannot draw or delegate, but the owner can still recover and close.
-- Use `return_funds` to reconcile an agent's advance. A raw transfer to the pool counts as an unattributed deposit instead; it is still available, but it does not update that agent's return history. `settled_spent` is net funding consumed at closure, not gross provider payment volume.
-
-For example: draw 10 USDC, spend 3, then close. The pool recovers 7, settles 3, and releases 7 of allocation. The 3 already consumed can never be allocated or withdrawn again.
-
-### Permanent pool shutdown
-
-The console's **Close pool** replaces **Free pool**: revoke agents, recover and close them child-first, then invoke owner-only `close_pool()`. The final transaction requires zero open agents, allocations, and outstanding advances, returns all pool cash to the original owner, and sets `closed: true`. If the refund fails, shutdown rolls back. A maintained open-agent counter includes zero-limit delegated parents and avoids scanning every historical agent in the final transaction.
-
-This is irreversible deactivation, not deletion of the contract or its history. There is no reopen/upgrade function. The pool rejects new funding, agents, draws, delegation, amendments, and other operational changes. `return_funds`, owner-only `withdraw`, and reads remain available so late USDC deposits can be recovered without reopening it. Closing agents and closing their pool are distinct operations; draining cash alone does not close a pool.
-
-**Deployment:** accounting v2 and permanent shutdown are deployed on testnet (2026-10-25, 22:30:42 UTC). The default pool and the dashboard's **New pool** flow use pool WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464`. The policy, verifier, and agent-account WASM are unchanged and were checked byte-for-byte against the current build. The new pool was deployed empty; no old balances or agents were moved.
-
-Existing pools are immutable and cannot be upgraded in place. The [previous deployment record](deployments/history/testnet-2026-10-25-legacy.json) is preserved, and the dashboard keeps its old default plus browser-saved pools selectable. Explicit legacy WASM hashes remain allowed for access and recovery, never for new deployments. Old pools retain **Recover funds** and **Return to wallet**; the console only offers permanent closure when `get_pool` includes the boolean `closed` field. Create a new pool owned by your connected wallet, fund it, and create new agents to use the new lifecycle. Moving funds from an old pool still requires its owner's separate signatures.
-
-### Optional yield — v3 source, not yet activated
-
-The new pool source supports both **investing pool USDC into a DeFindex vault** and **locking an existing transferable vault-share position**. It uses actual share custody, discounts estimated backing by 10%, redeems only missing cash during an agent draw, and returns shares in kind during closure. The console separates cash from estimated vault backing and requires owner-signed opt-in and bounded quotes. This buffer is not insurance; investment losses and unavailable liquidity can stop draws.
-
-**The manifest and New pool flow still deploy cash-only v2.** The published DeFindex testnet vault uses a different USDC contract, so it is deliberately not enabled. Existing funds are untouched. See [yield design, trust boundaries, tests and activation requirements](docs/YIELD.md). A compatible reviewed vault and fresh v3 rollout are required before using yield on chain.
-
-### Agent signer choice
-
-The console supports **app-managed signers** and **your own runtime's public key**. App-managed keys are bound to the requesting pool owner's wallet, with an optional private-key download authorized through Freighter. Exporting gives the owner a copy; the app retains its signing copy. External runtimes keep their own private keys. The contracts accept the same public-key argument in either mode. See [console setup and key management](dashboard/README.md).
-
-## Live URL + video *(to fill during the event)*
+## Live URL + video
 
 | Item | Link |
 |---|---|
@@ -73,6 +15,53 @@ The console supports **app-managed signers** and **your own runtime's public key
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
 | Deck | TBD |
+
+## One-liner
+
+**Kovan gives AI agents their own on-chain spending covenant.** An owner locks USDC in one pool; each agent gets a Stellar smart account that only pays approved recipients, within per-payment and total caps, until an expiry. Signers and allowlists are fixed at creation, the owner can revoke and claw funds back at any time, and the same rules apply to direct and x402 payments.
+
+## Problem
+
+Agents that spend need money to spend. Today you hand the agent a funded wallet and hope, or refill it by hand. A buggy, looping or prompt-injected agent can empty whatever it holds, and it has happened: one manipulated prompt got the Freysa agent to release its ~$47K prize pool ([OECD AI incident](https://oecd.ai/en/incidents/2024-11-29-2e31)), and malicious prompts made the AIXBT agent send 55.5 ETH, about $105K ([Decrypt](https://decrypt.co/310510)).
+
+## User
+
+A developer or company running agents that pay data, API or RPC providers per call over x402. The owner backs the agents with testnet USDC and sets their limits. B2B.
+
+## Solution
+
+1. The **owner** locks USDC in a **pool** (`fund`).
+2. The pool **creates an agent**: it deploys an OpenZeppelin smart account with exactly one context rule (the agent's ed25519 key + the **covenant policy**) and no management rule. The signer, allowlists, and policy binding are fixed; the owner can amend numeric limits and expiry. The account grants the pool a USDC recovery allowance, valid for 3,000,000 ledgers from creation.
+3. The agent **draws** up to its draw limit from the pool into its own account. The pool keeps the sum of all draw limits at or below what is locked.
+4. Every outgoing call from the account goes through the covenant: USDC transfers only to allowlisted **providers** (x402 or direct) and **recipients**, within per-transfer and total caps, before **expiry**; allowlisted **contract calls**; the pool's lifecycle functions. Anything else, including calls on the account itself, is rejected.
+5. An agent may **delegate** a narrower covenant to a child, carved out of its own remaining allowance.
+6. The owner (or a parent) can **revoke** and **close**. The owner can **amend** numeric limits, pull funds back without the agent's key, and record dispute outcomes. Closing recovers the remaining wallet balance and settles consumed funding before releasing unused allocation.
+7. Once all agents are closed, the owner can permanently **close the pool** (`close_pool`); the remaining USDC returns to the owner in the same transaction.
+
+*Humans configure, agents only execute inside limits.*
+
+```mermaid
+flowchart LR
+  O[Owner<br/>Freighter] -- fund / create_agent / revoke --> P[Kovan pool]
+  P -- deploys --> A[Agent smart account<br/>frozen at creation]
+  A -- every call --> C{Covenant policy<br/>payees · caps · expiry}
+  C -- allowed --> X[Provider<br/>USDC or x402]
+  C -. refused .-> R[PayeeNotAllowed / cap exceeded]
+  P -- clawback via allowance --> A
+```
+
+### What's different
+
+Earlier Stellar hackathon projects put spending limits on a single agent wallet. Kovan is the treasury layer around them:
+
+- **One pool, many agents.** The contract guarantees the agents' draw limits never add up to more than the pool holds.
+- **Frozen accounts.** The agent's account has no admin rule: nobody, including the agent and Kovan, can add a key or change who it pays. The owner can only adjust the numbers or revoke.
+- **Clawback without the agent.** The owner pulls funds back through an allowance the account grants the pool at creation, even if the agent's key is lost or compromised.
+- **Delegation.** An agent can give a sub-agent a narrower budget carved out of its own; revoking a parent freezes its children.
+- **A smart-account x402 payer.** The standard Stellar x402 client signs only for classic accounts; Kovan builds the OpenZeppelin `AuthPayload` so a covenant-bound smart account can pay x402 endpoints.
+- **Agent-native setup.** Agents create pools and agents themselves through a Claude Code plugin or a guide any agent can read; the owner approves each step in Freighter and the agent never holds the owner's key.
+
+Pool accounting, permanent shutdown, the optional DeFindex yield source (built and tested against DeFindex's real vault code, not yet activated) and signer choices are documented in [docs/POOL.md](docs/POOL.md). Design: [covenant design](docs/superpowers/specs/2026-10-25-kovan-covenant-design.md) · [implementation plan](docs/superpowers/plans/2026-10-25-kovan-contracts.md).
 
 ## Architecture: how Stellar is used
 
@@ -96,7 +85,7 @@ Current pool rollout (confirmed by Stellar RPC):
 | upload pool v2 | Current pool WASM uploaded at ledger 5388770 | [`74ca13…`](https://stellar.expert/explorer/testnet/tx/74ca13c5799421ec314cf5fa3fd946e4f0cb91be4f990849592ed6338ac4186f) |
 | deploy pool v2 | Fresh pool at ledger 5388771; verified `accounting_version: 2`, `closed: false`, zero balance and zero agents | [`b2b2f1…`](https://stellar.expert/explorer/testnet/tx/b2b2f1f8fd3911504f91a5d9f959ffdb61a24e1b9a9fa9c29b56965eb26074f5) |
 
-Historical lifecycle evidence below belongs to the legacy pool [`CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ`](https://stellar.expert/explorer/testnet/contract/CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ), including its first agent [`CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ`](https://stellar.expert/explorer/testnet/contract/CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ). These are not funding/agent records for the new pool. Shared verifier and policy deployments remain in use.
+Lifecycle evidence on the legacy pool [`CAS7ARNT…`](https://stellar.expert/explorer/testnet/contract/CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ), with its first agent [`CAL7PY3A…`](https://stellar.expert/explorer/testnet/contract/CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ). Shared verifier and policy deployments remain in use.
 
 | Step | What it shows | Tx |
 |---|---|---|
@@ -108,9 +97,17 @@ Historical lifecycle evidence below belongs to the legacy pool [`CAS7ARNTLTRAD4W
 | blocked payment | Agent tries to pay an address outside its covenant; the covenant refuses in `__check_auth` with `#3904 PayeeNotAllowed` before anything is submitted (no transaction exists, by design) | simulation only |
 | direct payment | Agent pays an allowlisted provider 0.20 USDC directly (same covenant rule as x402) | [`263d05…`](https://stellar.expert/explorer/testnet/tx/263d05036ee5bcc7520cef1dc39fb36a85ab4c90d5eda2caa5a62e7d2b0f4fb0) |
 | create agent (console key) | Agent created for a console-generated key | [`0980a4…`](https://stellar.expert/explorer/testnet/tx/0980a449e94c152f5f841130dc6fd36cbdad85cff5694beeacbeac81bf017166) |
-| delegate | Agent carves a child covenant | TBD |
-| revoke | Owner kill switch | TBD |
 | return funds | Agent returns 0.29 USDC to the pool | [`c455d6…`](https://stellar.expert/explorer/testnet/tx/c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3) |
+| delegate | Agent carves a child covenant | TBD on testnet; covered by contract tests (`delegate_carves_limit_from_parent`, `revoke_parent_revokes_children`, …) |
+
+Full lifecycle with the standalone SDK on an isolated pool (testnet XLM as the asset, [details](docs/SDK.md)):
+
+| Step | Tx |
+|---|---|
+| create pool → fund → create agent | [`02e719…`](https://stellar.expert/explorer/testnet/tx/02e7191ad9bda54e11e678eaa1e36387e35449fd429dc580600d453afa5669f6) [`80bde8…`](https://stellar.expert/explorer/testnet/tx/80bde86a4c685d189d1575670ea22d2f86018e8897730d2d44af1deffa24b8a0) [`a6181b…`](https://stellar.expert/explorer/testnet/tx/a6181b925c5ae6cec14dfba038e8324e221126c629cdbb9510645fa68699ff20) |
+| draw → pay → return | [`2df385…`](https://stellar.expert/explorer/testnet/tx/2df38579aa272fc15c55a5b0b10b14c49fd4b16b05911c5b1fa4cefa5167b3ee) [`48b5c1…`](https://stellar.expert/explorer/testnet/tx/48b5c1114cf4c51a5de04554b14e3ec360997cffcfdb44d964409070fff61e23) [`748e25…`](https://stellar.expert/explorer/testnet/tx/748e25c5622233b090c5884ba3355b5d7a587041b22bded10015238a999e5447) |
+| revoke (owner kill switch) | [`447cdd…`](https://stellar.expert/explorer/testnet/tx/447cdd0f2b1c7f36a64308f01295df39068935688f9930e986480ed8df765f8b) |
+| close agent → withdraw → close pool | [`4d1eb6…`](https://stellar.expert/explorer/testnet/tx/4d1eb6b875096c799aefc9bbb6e7a50ce201e85a8330517c9fc4ea02a66969f4) [`cbf24d…`](https://stellar.expert/explorer/testnet/tx/cbf24d059313a2f036bef5066fbd2b3de002c48adb8256bab36ef75fadca41da) [`0a8d81…`](https://stellar.expert/explorer/testnet/tx/0a8d81a9006b5a53ec6676e0df72a99d0ce6a30812b65f075631db097accc0ae) |
 
 ## Setup
 
@@ -130,8 +127,6 @@ The agent prepares every transaction itself with [`kovan.mjs`](skills/kovan/scri
 
 [`@kovan/sdk`](sdk/README.md) is a standalone local TypeScript/ESM package for deploying/funding pools, creating agents, authorized payments and recovery/closure. The dashboard uses the same SDK. Applications supply their own configuration and owner/agent/fee-payer signers; no Kovan backend or keystore is required. It is **not yet published to npm**. Yield remains experimental and inactive on the default v2 deployment.
 
-A standalone example completed the full cash lifecycle on a new isolated testnet pool using faucet XLM, including cap/revocation refusals, recovery and shutdown. See [execution evidence and scope](docs/SDK.md). This is separate from the historical USDC demo and does not activate yield or move existing funds.
-
 ```bash
 cd sdk
 npm ci
@@ -143,9 +138,7 @@ node examples/testnet-lifecycle.mjs
 
 ### Contracts and dashboard
 
-Cash-only deployment verification snapshot (2026-10-25, before the v3 yield work): **231 tests** passed — 107 contract tests and 124 dashboard tests. Separately, RPC confirmed the new pool's deployed WASM hash and initial v2/shutdown state. The full spending/recovery lifecycle is covered by tests; it has not yet been replayed with funds on this new default pool. The newer local v3 suite has 132 regular contract tests and 144 dashboard tests, plus one separately run DeFindex-bytecode integration test; see [yield verification](docs/YIELD.md#verification).
-
-Post-SDK merge verification snapshot (2026-10-26): **322 tests** passed — 132 contract tests, 149 dashboard tests, and 41 SDK tests. One optional DeFindex-bytecode integration test is ignored by the default contract run and excluded from this total. These local tests include experimental v3 code; they do not change the default v2 deployment.
+Verification snapshot (2026-10-26, current `main`): **460 tests** pass: 132 contract, 251 dashboard, 48 SDK and 29 signer tests. One optional DeFindex-bytecode integration test is ignored by the default contract run and excluded from this total. Earlier snapshots: [docs/POOL.md](docs/POOL.md#earlier-test-snapshots).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
@@ -154,33 +147,50 @@ node dashboard/scripts/deploy-pool.mjs --check --source <identity> # read-only p
 OWNER=<identity> make deploy         # testnet only; pool-only rollout when manifest exists
 ```
 
-Run `make setup-js` to install/build the SDK and install the dashboard's local package dependency. `make test-js` rebuilds the SDK, refreshes that installed copy and checks both packages. With an existing manifest, deployment verifies the owner and unchanged shared code, archives the old manifest, deploys and verifies the new pool, and atomically updates the record while retaining legacy access. It does not move funds. It refuses changed shared dependencies rather than silently mixing bindings. Update the README's deployment evidence after a rollout, then run `cd web && npm run build` to synchronize the website snapshot. A bootstrap without any manifest uses the original full deployment path.
+Run `make setup-js` to install/build the SDK and install the dashboard's local package dependency. `make test-js` rebuilds the SDK, refreshes that installed copy and checks both packages. The console runs locally (`cd dashboard && npm run dev`); see [dashboard/README.md](dashboard/README.md). With an existing manifest, deployment verifies the owner and unchanged shared code, archives the old manifest, deploys and verifies the new pool, and atomically updates the record while retaining legacy access. It does not move funds. Update the README's deployment evidence after a rollout, then run `cd web && npm run build` to synchronize the website snapshot.
 
 ## Env vars
 
 Names in [.env.example](.env.example). Never commit real values.
 
-## Demo *(to fill during the event)*
+## Demo
 
-Planned beats: a draw and a paid call → a blocked payment → delegation and revoke.
+The video walks through the same flow you can run yourself on testnet:
+
+1. **Set up by an agent.** In Claude Code with the plugin installed: *"Set me up a $100 Kovan pool with 2 agents."* The agent runs `kovan.mjs` (`connect`, `owner create_pool`, `owner fund`, `owner create_agent`), and the owner approves each step in Freighter.
+2. **Spend.** The agent draws from the pool and pays an allowlisted provider, directly (`agent pay`) or over x402 from the console.
+3. **Refuse.** A payment to an address outside the covenant, or above a cap, is refused before submission (`PayeeNotAllowed`, `PerTransferCapExceeded`).
+4. **Delegate and revoke.** The agent carves a smaller budget for a child; the owner revokes the parent, which freezes both, and pulls the funds back to the pool.
+5. **Close.** The owner closes the agents and the pool; the remaining USDC returns to the owner.
 
 ## Built during event vs prior work
 
-Everything in this repo was written after Sun Oct 25 11:30 Lisbon. Before the event: planning docs only, and a throwaway x402 + smart-account proof of concept whose code was not reused.
+The repository was created at 10:04 Lisbon on Sun Oct 25 with a one-line README. All code and documentation were written after the event started at 11:30 Lisbon. Before the event: planning docs only (kept outside this repository), and a throwaway x402 + smart-account proof of concept whose code was not reused. Third-party code: the OpenZeppelin ed25519 verifier example (stellar-contracts v0.8.0) and the Stellar Development Foundation's agent skills, vendored as reference for AI agents.
 
 ## AI usage
 
-AI tools were used with attribution: commits containing AI-written code start with `[ai]`. Users supply their own signer public keys or authorize the app to generate signer keys. Private keys are kept by the runtime/backend and returned only for an explicit owner-authorized export; they are not included in AI chat or committed. Design decisions were made in conversation and recorded in the design doc.
+AI tools were used with attribution: every commit containing AI-written code starts with `[ai]`. See [AI_USAGE.md](AI_USAGE.md) for which tool built what. Owner keys are created and held by humans in their own wallets; agent signing keys are generated by software (the console or `stellar keys generate`), never pasted into AI chats or committed. Design decisions were made in conversation and recorded in the design doc.
 
 ## Compliance by design
 
-B2B, non-custodial, no return to the owner on locked funds, no token issued, no personal data on-chain. Testnet only. See the parent planning docs; not legal advice.
+B2B and non-custodial: owners sign in their own wallets and agents hold their own keys. No token issued, no promised returns, no personal data on-chain. Testnet only; mainnet only after an audit and business (KYB) onboarding. Not legal advice.
 
 ## Roadmap
 
-Agent runtime with x402 payload builder for smart-account payers · dashboard · reputation (stellar-8004) · multiple pools per owner · mainnet with KYB.
+- x402 payments built into the agent tool, and the SDK published to npm.
+- An MCP server, so any MCP-capable agent can use Kovan without running a script.
+- Live DeFindex yield on idle pool funds, once a vault accepts Circle's testnet USDC.
+- On-chain payment mandates, and co-signing for large or unusual payments.
+- Agent reputation (stellar-8004) and limits that grow with good behaviour.
+- Mainnet after an audit, with KYB onboarding.
 
-## Team *(to fill during the event)*
+## Team
+
+*Names and roles to be added by the team.*
+
+## License
+
+[MIT](LICENSE).
 
 ## Testnet disclaimer
 
