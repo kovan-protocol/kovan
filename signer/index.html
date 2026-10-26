@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Kovan Signer</title>
+    <meta name="description" content="Sign a Kovan request from your agent with your own wallet. Stellar testnet only." />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">Kovan</span>
+        <span class="badge">Stellar testnet</span>
+      </header>
+
+      <section id="empty">
+        <h1>Sign a request from your agent</h1>
+        <p>Your agent prepares a link that says what to do: create a pool, fund it, create an agent. This page builds the transaction for <em>your</em> wallet, so the agent never needs your address, and you sign it in Freighter.</p>
+        <p>Open the link your agent gave you. Agents: read <a href="./agent.md">agent.md</a> to learn how to make one.</p>
+      </section>
+
+      <section id="request" hidden>
+        <p class="eyebrow">Your agent asks you to</p>
+        <h1 id="title"></h1>
+        <dl id="rows"></dl>
+        <ul id="notes" class="notes"></ul>
+      </section>
+
+      <section id="wallet" hidden>
+        <button id="connect" type="button">Connect Freighter</button>
+        <p id="connected" hidden>Signing as <span id="owner" class="mono"></span></p>
+        <button id="sign" type="button" hidden>Review and sign in Freighter</button>
+      </section>
+
+      <p id="status" role="status" aria-live="polite" hidden></p>
+
+      <section id="result" hidden>
+        <div id="handoff" hidden>
+          <h2>Send this back to your agent</h2>
+          <pre id="result-json" class="mono"></pre>
+          <button id="copy" type="button" class="secondary">Copy</button>
+        </div>
+        <p id="links" class="links"></p>
+      </section>
+
+      <footer>
+        <p>Nothing is signed or sent without your approval in Freighter. Freighter shows the full transaction before you approve. Testnet only: testnet USDC has no value. Not audited.</p>
+        <p><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">Source</a></p>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

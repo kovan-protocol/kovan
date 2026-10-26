@@ -1,0 +1,25 @@
+{
+  "name": "kovan-signer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Static page that signs Kovan requests made by agents, with the owner's own wallet. Testnet only.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kovan/sdk": "file:../sdk",
+    "@stellar/freighter-api": "6.0.1",
+    "@stellar/stellar-sdk": "16.4.1",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

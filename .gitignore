@@ -9,3 +9,4 @@ contracts/**/test_snapshots/
 dashboard/.env*.local
 dashboard/.next/
 .keys/
+signer/dist/
