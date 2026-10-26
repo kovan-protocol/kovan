@@ -14,7 +14,7 @@ HackMeridian 2026 · Lisbon · Track: Genesis + Stellar Composed ("Agents that s
 | Signing page (for cloud agents) | <https://kovan-protocol.vercel.app/sign> |
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
-| Deck | TBD |
+| Deck | [Kovan pitch deck (PDF)](docs/kovan-pitch-deck.pdf) |
 
 ## One-liner
 
