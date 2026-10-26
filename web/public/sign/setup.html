@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Kovan Setup</title>
+    <meta name="description" content="Set up a Kovan pool and its agents from one link your agent wrote. You approve each step in your own wallet. Stellar testnet only." />
+    <script>(function(){var t;try{t=localStorage.getItem('kovan-theme')}catch(e){}document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()</script>
+    <script type="module" crossorigin src="/sign/assets/setup-DSsCjHwo.js"></script>
+    <link rel="modulepreload" crossorigin href="/sign/assets/scval-B93zeJ2Y.js">
+    <link rel="modulepreload" crossorigin href="/sign/assets/appearance-DoJq8vVT.js">
+    <link rel="stylesheet" crossorigin href="/sign/assets/appearance-CAKZi1IT.css">
+    <link rel="stylesheet" crossorigin href="/sign/assets/setup-2lyUW6mP.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="https://kovan-protocol.vercel.app" aria-label="Kovan home"><svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg><span>kovan</span></a>
+        <span class="header-label">Pool setup</span>
+        <div class="header-controls">
+          <span class="badge">Stellar testnet</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme">
+            <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg>
+            <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <p class="page-kicker"><span>Agent autonomy.</span> Human control.</p>
+      <div class="approval-card">
+      <ol class="approval-steps" aria-label="Setup process">
+        <li><span>01</span> Review the plan</li>
+        <li><span>02</span> Approve each step</li>
+        <li><span>03</span> Back to your agent</li>
+      </ol>
+
+      <section id="empty">
+        <p class="eyebrow">Planned by your agent. Approved by you.</p>
+        <h1>Set up a pool and its agents</h1>
+        <p>Ask your agent (ChatGPT, Grok, Claude…) for a Kovan setup link with the limits you want. Open it here, connect Freighter, and approve each step.</p>
+        <p>Agents: read the <a href="/agent.md">agent guide</a> to write the link.</p>
+      </section>
+
+      <section id="plan" hidden>
+        <p class="eyebrow">Your agent asks you to</p>
+        <h1>Set up Kovan</h1>
+        <dl id="rows"></dl>
+        <div id="agents" class="plan-agents" hidden></div>
+        <h2 class="plan-steps-title">Steps</h2>
+        <ol id="steps" class="plan-steps"></ol>
+        <ul class="notes">
+          <li>Check every payee: each agent can pay those addresses and no others, within its caps. Lists can't be changed later.</li>
+          <li>Each step is its own transaction. Freighter shows the real contract call before you approve.</li>
+        </ul>
+      </section>
+
+      <section id="wallet" hidden>
+        <button id="connect" type="button">Connect Freighter</button>
+        <p id="connected" hidden>Signing as <span id="owner" class="mono"></span></p>
+        <button id="run" type="button" hidden>Start</button>
+      </section>
+
+      <p id="status" role="status" aria-live="polite" hidden></p>
+
+      <section id="result" hidden>
+        <div id="keys" class="plan-keys" hidden>
+          <h2>Download your agent keys</h2>
+          <p>These keys were generated in this browser. Give each one only to the bot that spends for that agent; its covenant limits what the key can do. They aren't stored anywhere else.</p>
+          <button id="download" type="button">Download agent keys</button>
+        </div>
+        <h2>Send this back to your agent</h2>
+        <pre id="result-json" class="mono"></pre>
+        <button id="copy" type="button" class="secondary">Copy</button>
+        <p id="links" class="links"></p>
+      </section>
+      </div>
+
+      <footer>
+        <p class="footer-heading">You have the final say.</p>
+        <p>Nothing is signed or sent without your approval in Freighter. Freighter shows the full transaction before you approve. Testnet only: testnet USDC has no value. Not audited.</p>
+        <p class="footer-links"><a href="https://kovan-protocol.vercel.app/docs">Docs ↗</a><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">View source ↗</a></p>
+      </footer>
+    </main>
+  </body>
+</html>

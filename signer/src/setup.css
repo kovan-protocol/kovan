@@ -1,0 +1,15 @@
+/* Setup page additions. Tokens come from style.css. */
+.plan-agents { display: grid; gap: 12px; margin-top: 20px; }
+.plan-agent { border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+.plan-agent-name { font-family: var(--f-display); font-weight: 700; margin: 0 0 6px; }
+.plan-agent ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.plan-agent li + li { margin-top: 4px; }
+.plan-steps-title { margin-top: 28px; }
+.plan-steps { margin: 0; padding-left: 22px; font-size: 14px; }
+.plan-steps li { padding: 6px 0; }
+.plan-steps li::marker { color: var(--muted); font-family: var(--f-mono); font-size: 12px; }
+.plan-steps .step-done { color: var(--muted); }
+.plan-steps .step-done a { color: var(--ok); text-decoration: none; margin-left: 6px; }
+.plan-keys { border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 24px; background: var(--accent-soft); }
+.plan-keys p { font-size: 13px; color: var(--muted); }
+#result h2 { margin-top: 0; }

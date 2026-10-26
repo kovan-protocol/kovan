@@ -1,5 +1,5 @@
 // Builds the hosted signing page into the website, which serves everything:
-//   web/public/sign/           → https://kovan-protocol.vercel.app/sign
+//   web/public/sign/           → https://kovan-protocol.vercel.app/sign and /setup
 //   web/public/agent.md        → /agent.md        (the Kovan skill, for any agent)
 //   web/public/kovan.mjs       → /kovan.mjs       (the agent tool)
 //   web/public/wait-for-result.mjs
@@ -17,7 +17,12 @@ await build({
   root: here(".."),
   base: "/sign/",
   logLevel: "warn",
-  build: { outDir: `${pub}sign`, emptyOutDir: true },
+  build: {
+    outDir: `${pub}sign`,
+    emptyOutDir: true,
+    // Two pages: the signing page (/sign) and the plan page for chat agents (/setup).
+    rolldownOptions: { input: { main: here("../index.html"), setup: here("../setup.html") } },
+  },
 });
 
 await copyFile(here("../../skills/kovan/SKILL.md"), `${pub}agent.md`);
