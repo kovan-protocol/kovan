@@ -6,20 +6,40 @@
     <meta name="referrer" content="no-referrer" />
     <title>Kovan Signer</title>
     <meta name="description" content="Sign a Kovan request from your agent with your own wallet. Stellar testnet only." />
-    <script type="module" crossorigin src="/sign/assets/index-_g7wyGCU.js"></script>
-    <link rel="stylesheet" crossorigin href="/sign/assets/index-DjpFd1ya.css">
+    <script>(function(){var t;try{t=localStorage.getItem('kovan-theme')}catch(e){}document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()</script>
+    <script type="module" crossorigin src="/sign/assets/index-T3-izYac.js"></script>
+    <link rel="stylesheet" crossorigin href="/sign/assets/index-CAKZi1IT.css">
   </head>
   <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="https://kovan-indol.vercel.app" aria-label="Kovan home"><svg viewBox="0 0 401 505" aria-hidden="true"><polygon points="0,183 401,0 401,153 0,336" /><polygon points="62,350 330,229 330,505" /></svg><span>kovan</span></a>
+        <span class="header-label">Wallet approval</span>
+        <div class="header-controls">
+          <span class="badge">Stellar testnet</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme">
+            <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg>
+            <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
     <main>
-      <header>
-        <span class="brand">Kovan</span>
-        <span class="badge">Stellar testnet</span>
-      </header>
+      <p class="page-kicker"><span>Agent autonomy.</span> Human control.</p>
+      <div class="approval-card">
+      <ol class="approval-steps" aria-label="Approval process">
+        <li><span>01</span> Review request</li>
+        <li><span>02</span> Approve in wallet</li>
+        <li><span>03</span> Back to your agent</li>
+      </ol>
+      <div class="request-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6l-8-3Z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg></div>
 
       <section id="empty">
+        <p class="eyebrow">Prepared by your agent. Approved by you.</p>
         <h1>Sign a request from your agent</h1>
-        <p>Your agent prepares a link that says what to do: create a pool, fund it, create an agent. This page builds the transaction for <em>your</em> wallet, so the agent never needs your address, and you sign it in Freighter.</p>
-        <p>Open the link your agent gave you. Agents: read <a href="./agent.md">agent.md</a> to learn how to make one.</p>
+        <p>Open the approval link your agent gives you to create a pool, add funds, or set an agent’s spending rules.</p>
+        <p>You review the request here and approve it in Freighter. Your wallet stays yours.</p>
+        <p>Building with an agent? Read the <a href="./agent.md">agent guide</a> to prepare a request.</p>
       </section>
 
       <section id="request" hidden>
@@ -45,10 +65,12 @@
         </div>
         <p id="links" class="links"></p>
       </section>
+      </div>
 
       <footer>
+        <p class="footer-heading">You have the final say.</p>
         <p>Nothing is signed or sent without your approval in Freighter. Freighter shows the full transaction before you approve. Testnet only: testnet USDC has no value. Not audited.</p>
-        <p><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">Source</a></p>
+        <p class="footer-links"><a href="https://kovan-indol.vercel.app">About Kovan ↗</a><a href="https://github.com/kovan-protocol/kovan/tree/main/signer">View source ↗</a></p>
       </footer>
     </main>
   </body>
