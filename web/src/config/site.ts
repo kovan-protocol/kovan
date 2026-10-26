@@ -20,7 +20,10 @@ export const DEMO_VIDEO_URL = "";
 /** Interactive demo used when APP_URL and DEMO_VIDEO_URL are both empty. */
 export const DEMO_REPLAY_HREF = "/playground";
 
-export const DOCS_URL = "https://github.com/kovan-protocol/kovan#readme";
+export const DOCS_URL = "/docs";
+
+/** Production origin, for robots.txt and sitemap.xml. Keep in sync with SITE in scripts/build-docs.mjs. */
+export const SITE_URL = "https://kovan-indol.vercel.app";
 
 export const GITHUB_URL = "https://github.com/kovan-protocol/kovan";
 

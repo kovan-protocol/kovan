@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/sync-testnet.mjs",
-    "prebuild": "node scripts/sync-testnet.mjs",
+    "predev": "node scripts/sync-testnet.mjs && node scripts/build-docs.mjs",
+    "prebuild": "node scripts/sync-testnet.mjs && node scripts/build-docs.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:docs": "node scripts/build-docs.mjs"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",
@@ -36,6 +37,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "marked": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

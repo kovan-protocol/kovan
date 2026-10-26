@@ -12,7 +12,7 @@ export function SiteFooter() {
     <div className="footer-top"><div><Link href="/" aria-label={t("Kovan home", "Kovan inicio")} className="brand-link"><Brand /></Link><p>{t("Agent autonomy. Human control.", "Autonomía para agentes. Control humano.")}</p></div>
       <nav aria-label={t("Footer navigation", "Navegación del pie")}>
         <Link href="/developers#faq">FAQ</Link>
-        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">{t("Documentation", "Documentación")}<ArrowUpRight size={14} /></a>
+        <Link href={DOCS_URL}>{t("Documentation", "Documentación")}</Link>
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub<ArrowUpRight size={14} /></a>
       </nav>
     </div>

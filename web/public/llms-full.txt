@@ -1,0 +1,687 @@
+# Kovan docs (all pages)
+
+Source: https://kovan-indol.vercel.app/docs · Stellar testnet only · Not audited
+
+<!-- https://kovan-indol.vercel.app/docs -->
+# Kovan docs
+
+Kovan gives AI agents shared USDC budgets they can't overspend. An owner locks USDC in one **pool**. Each agent gets its own Stellar smart account, bound to a **covenant**: how much it may draw, which addresses it may pay, how much per payment and in total, and until when. The agent's own account enforces these rules on-chain, so a buggy, looping or prompt-injected agent can't break them.
+
+> **Stellar testnet only.** Testnet USDC has no value. Kovan is a hackathon prototype: not audited, not a financial product.
+
+## The three pieces
+
+| Piece | What it is | What it enforces |
+|---|---|---|
+| **Pool** | A Soroban contract holding the owner's USDC | How much each agent may draw. The sum of all draw limits never exceeds what is locked. |
+| **Agent wallet** | An OpenZeppelin smart account per agent, deployed by the pool | Signed by the agent's key; frozen at creation, so nobody can add a key or remove the rules |
+| **Covenant policy** | The rules attached to each wallet | Who the wallet may pay, per-payment and total caps, allowed contract calls, expiry |
+
+The owner can revoke an agent at any time and pull its funds back into the pool without the agent's signature. See [Concepts](/docs/concepts).
+
+## Two ways to use Kovan
+
+- **Through an agent.** Install Kovan into your agent and ask in plain words: *"Set me up a $100 pool with 2 agents."* The agent prepares every transaction with [`kovan.mjs`](/docs/agent-tool); you approve each owner action in Freighter. → [Quickstart](/docs/quickstart)
+- **From your own code.** Use [`@kovan/sdk`](/docs/sdk) to create pools and agents, and to sign agent payments from your runtime.
+
+## What runs where
+
+- **Stellar testnet:** the pool, the agent wallets, the covenant policy and the signature verifier. See [Contracts](/docs/contracts).
+- **Your machine:** your agent and `kovan.mjs`. For owner actions, `kovan.mjs` opens a small local page where you approve in **Freighter**. Your owner key never leaves your wallet.
+- **Hosted, for cloud agents:** a [signing page](https://kovan-protocol.github.io/kovan/) that builds the transaction in your browser.
+
+## Pages
+
+- [Quickstart](/docs/quickstart): from zero to a funded pool and a working agent
+- [Concepts](/docs/concepts): pools, wallets, covenants, lifecycle, guarantees
+- [Agent tool](/docs/agent-tool): every `kovan.mjs` command
+- [SDK](/docs/sdk): `@kovan/sdk` for TypeScript
+- [Contracts](/docs/contracts): deployed IDs, functions, events, error codes
+- [Paying with x402](/docs/x402): per-call payments from a smart account
+- [Security model](/docs/security): what is enforced, what you trust, what's not covered
+
+## For agents
+
+- Agent guide: <https://kovan-protocol.github.io/kovan/agent.md>
+- All docs as one text file: [/llms-full.txt](/llms-full.txt) · index: [/llms.txt](/llms.txt)
+- Source: <https://github.com/kovan-protocol/kovan>
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/quickstart -->
+# Quickstart
+
+Two paths: let an agent do it for you, or call the SDK from your own code. Both run on **Stellar testnet**.
+
+## Before you start
+
+- **Freighter** wallet, switched to **Testnet**. Fund it with testnet XLM ("Fund with Friendbot" in Freighter).
+- **Testnet USDC** in that wallet. Add a USDC trustline first (your agent can prepare it), then get USDC from the [Circle faucet](https://faucet.circle.com) (choose Stellar Testnet).
+- **Node.js 20+** and the **Stellar CLI** where your agent runs (the CLI is used to create agent keys).
+
+Tip: use a separate Freighter account as the pool owner. A pool's owner can't be changed later.
+
+## With an agent
+
+### 1. Install Kovan into your agent
+
+```text
+Claude Code:  /plugin install kovan --marketplace kovan-protocol/kovan
+              (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
+Other agents: "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+```
+
+### 2. Ask for what you want
+
+> Set me up a $100 Kovan pool with 2 agents. Each may pay `G…PROVIDER` up to 0.50 USDC per call and 40 USDC in total, for 48 hours.
+
+### 3. Approve each step
+
+The agent opens a local page like `http://127.0.0.1:53817/…`. Open it in the browser where Freighter is installed, check what **Freighter's own window** shows, and approve. The agent continues by itself.
+
+Behind the scenes, the agent runs:
+
+```bash
+node kovan.mjs connect                                    # your address, proven by a signed message
+node kovan.mjs owner create_pool --owner G…OWNER          # → pool C…
+node kovan.mjs owner fund --owner G…OWNER --pool C…POOL --amount 100
+stellar keys generate kovan-agent-1 --network testnet --fund
+node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
+  --agent-key "$(stellar keys public-key kovan-agent-1)" --draw-limit 40 \
+  --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
+node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
+node kovan.mjs agent pay  --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1
+```
+
+Every command prints one JSON line. See [Agent tool](/docs/agent-tool) for all commands.
+
+## From code
+
+`@kovan/sdk` is a TypeScript package (Node.js 22+ and browser bundlers). It isn't on npm yet; build it from the repository:
+
+```bash
+git clone https://github.com/kovan-protocol/kovan && cd kovan/sdk
+npm ci && npm pack                      # → kovan-sdk-0.1.0.tgz
+cd /your/app && npm install /path/to/kovan-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+```
+
+```ts
+import { Networks } from "@stellar/stellar-sdk";
+import { KovanClient } from "@kovan/sdk";
+
+const d = await (await fetch("https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json")).json();
+const kovan = new KovanClient({
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  networkPassphrase: Networks.TESTNET,
+  contracts: { usdc: d.usdc, policy: d.policy, verifier: d.verifier, poolWasmHash: d.pool_wasm_hash, accountWasmHash: d.account_wasm_hash },
+});
+
+// Owner: prepare → show the owner → sign (e.g. Freighter) → submit.
+const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), signOwner);
+const pool = kovan.pool(created.returnValue as string);
+await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signOwner); // 100 USDC
+```
+
+SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
+
+## Check what happened
+
+```bash
+node kovan.mjs status --pool C…POOL --agent C…AGENT
+```
+
+Or open the pool on [stellar.expert](https://stellar.expert/explorer/testnet). Every owner and agent action is a normal testnet transaction.
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/concepts -->
+# Concepts
+
+> *The pool is the bank. Each agent's wallet holds its own funds. The covenant says how much it may take and what it may do.*
+
+## Pool
+
+A Soroban contract that holds the owner's USDC. It enforces one thing: **how much each agent may draw**.
+
+- The owner **funds** the pool. Funds become *locked*.
+- Creating an agent reserves a **draw limit** for it. The sum of all active draw limits never exceeds what is locked.
+- An agent **draws** up to its limit into its own wallet. Only the drawn amount ever leaves the pool.
+- The owner can **withdraw** only what no draw limit is backing.
+- When every agent is closed, the owner can permanently **close the pool**: the remaining USDC returns to the owner in the same transaction, and the pool can't be funded again.
+
+## Agent wallet
+
+An [OpenZeppelin smart account](https://github.com/OpenZeppelin/stellar-contracts) (a `C…` address), deployed by the pool for each agent.
+
+- It has **exactly one rule**: the agent's ed25519 public key (checked by a shared verifier contract) plus the covenant policy.
+- It has **no admin rule**, so it is **frozen at creation**. Nobody, including the owner and the agent, can add a signer, change the allowlists or remove the policy.
+- At creation it grants the pool a USDC **allowance** (valid for 3,000,000 ledgers, about 174 days). That's how the owner can pull funds back without the agent's signature.
+
+## Covenant
+
+The rules for one agent, checked by the covenant policy on **every** call the wallet authorizes.
+
+| Part | Rule |
+|---|---|
+| **draw** | The most USDC that may move from the pool into this wallet. Returned funds can be drawn again. Checked by the pool. |
+| **providers** | Addresses paid per call (x402 resource servers, data/RPC APIs), with a per-transfer cap and a total cap |
+| **recipients** | Plain transfers, such as another agent's wallet or a treasury, with their own per-transfer and total caps |
+| **calls** | Other contract functions the wallet may call, optionally with a cap on one amount argument. Empty by default. |
+| **expiry** | A ledger number. From then on, payments and calls are refused. Returning funds still works. |
+
+A USDC transfer passes only if **all** of these hold: it's the pool's USDC contract, the function is `transfer`, `0 < amount ≤ per-transfer cap`, the list's running total stays within its total cap, the payee is on that list, the current ledger is before expiry, and the covenant isn't revoked. A transfer **back to the pool** is always allowed.
+
+Everything else is refused: `approve` or `transfer_from` on USDC, calls on the wallet itself, unlisted contracts, muxed `M…` payees.
+
+The covenant doesn't trust the payment rail, it trusts the allowlist. An x402 payment and a direct transfer look the same on-chain, and both are judged by payee and amount.
+
+## Lifecycle
+
+**Owner** (signed by the pool owner):
+
+| Function | Effect |
+|---|---|
+| `fund(amount)` | Locks USDC in the pool |
+| `create_agent(agent_pubkey, draw_limit, covenant)` | Deploys the agent's wallet with its covenant. Fails if total draw limits would exceed what's locked. |
+| `amend(agent, draw_limit, amendment)` | Changes numeric limits and expiry. Can't go below what the agent already drew, or break the pool's invariant. |
+| `revoke(agent, by)` | Freezes the agent's payments and calls, and its children's. Returning funds keeps working. |
+| `return_funds(agent, by, amount)` | Pulls USDC from the agent's wallet back into the pool, using the allowance |
+| `close(agent, by)` | Final. Recovers what's left in the wallet, settles what was spent, and releases the unused draw limit. |
+| `withdraw(amount)` | Takes back USDC no draw limit is backing |
+| `close_pool()` | Permanent. Only when every agent is closed. Remaining USDC returns to the owner. |
+| `resolve_dispute(agent, outcome)` | Records the owner's ruling on a dispute |
+
+**Agent** (signed by the agent's wallet, so its covenant applies too):
+
+| Function | Effect |
+|---|---|
+| `draw(agent, amount)` | Pool → agent wallet, within the draw limit |
+| `return_funds(agent, agent, amount)` | Agent wallet → pool. Always allowed, even after expiry or revocation. |
+| `settle(agent)` | Asks the owner to close it |
+| `dispute(agent, by, evidence_hash)` | Records an objection on-chain. Nothing moves automatically. |
+| `delegate(parent, child_pubkey, child_draw_limit, child_covenant)` | Creates a child agent (see below) |
+
+## Delegation
+
+An agent can create a **child** with a narrower covenant, carved out of its own remaining allowance:
+
+- The child's draw limit is at most the parent's `draw_limit − drawn`, and it is deducted from the parent.
+- The child's payees, calls and caps must be a subset of the parent's, and its expiry can't be later.
+- Revoking a parent revokes all of its children. A parent can revoke and close its own children.
+- When a child is closed, its draw limit returns to the parent, not to the pool.
+
+## Guarantees
+
+Each of these has a test that fails if the rule breaks:
+
+1. The sum of active draw limits never exceeds the USDC locked in the pool.
+2. No agent draws more than its draw limit.
+3. A transfer is refused for: wrong asset, payee on no list, zero or negative amount, over the per-transfer cap, over the list total, after expiry, when revoked.
+4. A contract call is refused if it isn't listed, exceeds its capped argument, is after expiry or the agent is revoked.
+5. Only the owner can call owner functions; only the agent can call agent functions.
+6. A revoked agent can't draw, and neither can its children.
+7. A child covenant can't exceed its parent on any dimension.
+8. Returning funds to the pool works after expiry and after revocation.
+
+## Amounts
+
+USDC has 7 decimals: 1 USDC = 10,000,000 base units. The contracts and the SDK use **base units**; `kovan.mjs` and the signing page take **USDC** (`"0.5"`, `"100"`).
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/agent-tool -->
+# Agent tool: `kovan.mjs`
+
+One self-contained Node.js file (Node 20+). Agents use it to prepare every Kovan transaction. Owner actions are approved by the person in **Freighter**; agent actions are signed with the agent's own key.
+
+- Installed with the Kovan skill: `skills/kovan/scripts/kovan.mjs`
+- Or download it: `curl -fsSO https://kovan-protocol.github.io/kovan/kovan.mjs`
+- `node kovan.mjs --help` lists every command.
+
+Contract IDs and code hashes are built into the file from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json). Nothing passed on the command line can change them.
+
+## Output
+
+- **stdout:** exactly one JSON line per command, e.g. `{"v":1,"fn":"fund","status":"SUCCESS","tx":"…","pool":"C…"}`
+- **stderr:** progress, and the approval link
+- **Exit codes:** `0` success · `1` refused or failed on-chain · `2` bad usage
+- **Amounts:** USDC (`100`, `0.25`), at most 7 decimals
+
+## How owner approval works
+
+For `connect` and every `owner …` command, the tool:
+
+1. Validates the request and builds and simulates the transaction (refusals stop here).
+2. Serves a small page on `http://127.0.0.1:<port>/<random>` and tries to open it.
+3. Waits. The person opens the page in the browser where Freighter is installed and approves.
+4. Checks that what was signed is exactly the transaction it prepared, submits it, and prints the result.
+
+The page only accepts answers from itself (same origin, random path, single use). It refuses if Freighter is on another account or network. **The person should check Freighter's own window**: it shows the real contract call, amounts and addresses.
+
+Options: `--port N` (default random), `--no-open` (only print the link), `--timeout-min N` (default 15).
+
+The page lives on the person's computer, so this works when the agent runs on that machine. Cloud agents use the [hosted signing page](#cloud-agents).
+
+## Commands
+
+### `connect`
+
+Gets the person's address. They sign a short message in Freighter (no transaction, no fee); the tool verifies the signature.
+
+```json
+{"v":1,"fn":"connect","address":"G…","verified":true}
+```
+
+### `owner <action> --owner G… [flags]`
+
+| Action | Flags | Does |
+|---|---|---|
+| `trustline` | | Lets the wallet hold testnet USDC. Moves no money. |
+| `create_pool` | | New pool owned by `--owner`. Result includes `pool`. |
+| `fund` | `--pool --amount` | Locks USDC in the pool |
+| `create_agent` | `--pool --agent-key --draw-limit`, `--providers` + `--provider-per-transfer-cap` + `--provider-total-cap` and/or `--recipients` + `--recipient-per-transfer-cap` + `--recipient-total-cap`, `--expiry-hours` (default 24, max 720) | Creates an agent wallet. Result includes `agent`. Lists are comma-separated, at most 10 each. |
+| `revoke` | `--pool --agent` | Freezes the agent's payments and calls |
+| `return_funds` | `--pool --agent --amount` | Pulls USDC from the agent wallet back into the pool |
+| `close` | `--pool --agent` | Final; after everything drawn is back |
+| `withdraw` | `--pool --amount` | Takes back unassigned USDC |
+
+`--agent-key` takes the agent's **public** key (`G…` or 64 hex characters). A secret key is refused with a warning.
+
+### `agent <draw|pay|return> --pool C… --agent C… --amount N [--to G…]`
+
+Signed with the agent's key: `--key <stellar identity>` (read with `stellar keys secret`) or `KOVAN_AGENT_SECRET=S…`. The same key pays the XLM fee from its `G…` account, so fund it once (`stellar keys generate <name> --network testnet --fund`).
+
+| Action | Moves |
+|---|---|
+| `draw` | Pool → agent wallet, within the draw limit |
+| `pay` | Agent wallet → a listed provider or recipient (`--to`), within caps and before expiry |
+| `return` | Agent wallet → pool. Always allowed. |
+
+The covenant is checked during simulation, so a refused payment fails before anything is sent:
+
+```json
+{"v":1,"status":"ERROR","error":"#3904 PayeeNotAllowed"}
+```
+
+### `status --pool C… [--agent C…]`
+
+Reads the pool (owner, locked, assigned, agents) and, with `--agent`, that agent's limits, drawn amount, covenant and spend counters.
+
+### `ids`
+
+Prints the contract IDs and code hashes the tool trusts.
+
+## Common refusals
+
+| Error | Meaning |
+|---|---|
+| `PayeeNotAllowed` | The payee isn't on the providers or recipients list |
+| `PerTransferCapExceeded` / `TotalCapExceeded` | Over the per-payment cap, or the list's total is used up |
+| `Expired` / `Revoked` | The covenant has expired or the owner revoked the agent |
+| `ExceedsDrawLimit` | Drawing more than the agent's remaining draw limit |
+| `ExceedsLocked` | Creating or amending would assign more than the pool holds |
+| `NotActive` | The agent is revoked or closed |
+
+Full list: [Contracts → Error codes](/docs/contracts#error-codes).
+
+## Cloud agents
+
+If the agent can't serve a page on the person's machine, it sends a link to the hosted signing page instead. The page builds the transaction in the person's browser, so the agent doesn't even need their address:
+
+```bash
+node -e 'console.log("https://kovan-protocol.github.io/kovan/#r="+Buffer.from(process.argv[1]).toString("base64url"))' \
+  '{"v":1,"fn":"fund","pool":"C…","amount":"100"}'
+```
+
+The JSON uses the owner actions above with snake_case fields (`pool`, `amount`, `agent`, `agent_key`, `draw_limit`, `providers`, `provider_per_transfer_cap`, `provider_total_cap`, `recipients`, `recipient_per_transfer_cap`, `recipient_total_cap`, `expiry_hours`) plus `"v": 1` and `"fn"`. After signing, the page shows a one-line result for the person to paste back. With an `https://` endpoint, add `"callback"` and a random `"id"` and the page POSTs the result there.
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/sdk -->
+# SDK: `@kovan/sdk`
+
+A standalone TypeScript/ESM package for the pool → agent → spending → recovery lifecycle. Node.js 22+ and modern browser bundlers. No backend, wallet dependency, key storage or automatic funding: you supply configuration and signers.
+
+> Local package, **not on npm yet**. Testnet prototype, not audited.
+
+## Install
+
+```bash
+git clone https://github.com/kovan-protocol/kovan && cd kovan/sdk
+npm ci && npm pack                       # → kovan-sdk-0.1.0.tgz (npm pack does not publish)
+cd /your/app
+npm install /path/to/kovan-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+```
+
+`@stellar/stellar-sdk` is a peer dependency, shared with your app.
+
+## Configure
+
+The SDK doesn't load deployment files or pick a pool for you. Pass reviewed public IDs, e.g. from [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json):
+
+```ts
+import { KovanClient } from "@kovan/sdk";
+import { Networks } from "@stellar/stellar-sdk";
+
+const kovan = new KovanClient({
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  networkPassphrase: Networks.TESTNET,
+  contracts: {
+    usdc: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
+    verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
+    poolWasmHash: "cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464",
+    accountWasmHash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
+  },
+  maxFeeStroops: "10000000", // fee ceiling: 1 XLM
+});
+```
+
+The client refuses pools that don't run a trusted Kovan code hash. `legacyPoolWasmHashes` allows older code for recovering existing pools only.
+
+**Amounts are integer base-unit strings.** USDC has 7 decimals: `"10000000"` is 1 USDC.
+
+## Owner: prepare → review → sign → submit
+
+Supply a `TransactionSigner`, for example a Freighter adapter:
+
+```ts
+import { signTransaction } from "@stellar/freighter-api";
+import type { TransactionSigner } from "@kovan/sdk";
+
+const signOwner: TransactionSigner = async (xdr, { networkPassphrase, address }) => {
+  const r = await signTransaction(xdr, { networkPassphrase, address });
+  if (r.error) throw new Error(r.error.message);
+  return r.signedTxXdr;
+};
+
+const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), signOwner);
+if (created.status !== "SUCCESS") throw new Error(`${created.status}: ${created.hash}`);
+const pool = kovan.pool(created.returnValue as string);
+
+await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signOwner); // 100 USDC
+```
+
+Use the confirmed `returnValue` as the pool address, not the simulation preview.
+
+## Create an agent
+
+Only the agent's raw 32-byte ed25519 public key (hex) goes into creation. Keep its secret in your runtime.
+
+```ts
+const latest = await kovan.rpc.getLatestLedger();
+const r = await kovan.signAndSend(await pool.prepareOwner("create_agent", {
+  agent_pubkey: agentPublicKeyHex,
+  draw_limit: "400000000",                                  // 40 USDC
+  covenant: {
+    providers: [provider], provider_per_transfer_cap: "5000000", provider_total_cap: "400000000",
+    recipients: [], recipient_per_transfer_cap: "0", recipient_total_cap: "0",
+    calls: [], expiry: latest.sequence + 48 * 720,          // ~48 h at ~5 s per ledger
+  },
+}, owner), signOwner);
+const agent = r.returnValue as string;
+```
+
+Creating an agent reserves its draw limit; it doesn't move funds. **Draw before paying.** The signer, allowlists and policy are fixed; numeric limits and expiry can be amended.
+
+## Agent: sign with the agent key, pay fees with any account
+
+```ts
+import { Keypair } from "@stellar/stellar-sdk";
+import { keypairTransactionSigner, type DigestSigner } from "@kovan/sdk";
+
+const key = Keypair.fromSecret(process.env.KOVAN_AGENT_SECRET!);
+const agentSigner: DigestSigner = {
+  publicKey: key.rawPublicKey().toString("hex"),
+  sign: (digest) => key.sign(Buffer.from(digest)),        // sign these exact bytes
+};
+
+const draw = await pool.prepareAgent("draw", { agent, amount: "50000000" }, { source: key.publicKey(), signer: agentSigner });
+await kovan.signAndSend(draw, keypairTransactionSigner(key));
+
+const pay = await pool.prepareAgent("pay", { agent, to: provider, amount: "5000000" }, { source: key.publicKey(), signer: agentSigner });
+await kovan.signAndSend(pay, keypairTransactionSigner(key));
+```
+
+The agent signs the contract authorization; the `source` account signs the envelope and pays the XLM fee. Here one key does both. `prepareAgent` checks the pool code, asset, agent membership, signer, verifier and policy, signs the authorization, and re-simulates with the covenant enforced. A refused payment throws there, before anything is sent.
+
+## API
+
+| Capability | API |
+|---|---|
+| New pool | `kovan.prepareCreatePool(owner, salt?)` |
+| Read | `pool.getPool()`, `pool.listAgents()`, `pool.getAgent(agent)`, `pool.balance(address?)` |
+| Owner actions | `pool.prepareOwner(fn, args, owner)`: `fund`, `withdraw`, `create_agent`, `amend`, `revoke`, `return_funds`, `close`, `close_pool`, `resolve_dispute` |
+| Agent actions | `pool.prepareAgent("draw" \| "pay" \| "return", request, { source, signer })` |
+| Sign and send | `kovan.signAndSend(prepared, signer)` |
+| Signers | `keypairTransactionSigner(keypair)`, or your own `TransactionSigner` / `DigestSigner` |
+
+`revoke` and `close` take `{ agent, by: owner }`; owner `return_funds` also takes `amount`; `close_pool` takes `{}`. Close children before parents, then close the pool.
+
+Lower-level builders (`buildOwnerOp`, `buildAgentOp`, `buildCreatePoolOp`, `prepareOperation`, `simulateRead`, `signPrepared`, `submitSigned`) are exported too. They **don't** run all the safety checks above; prefer `KovanClient`.
+
+## Errors and retries
+
+- `KovanError` has a stage (`guard`, `simulate` or `submit`) and names contract errors, e.g. `#3904 PayeeNotAllowed`. See [error codes](/docs/contracts#error-codes).
+- `signAndSend` returns `SUCCESS`, `FAILED`, `ERROR` or `NOT_FOUND`. **`NOT_FOUND` means pending or unknown, not safe to retry.** Check `kovan.rpc.getTransaction(hash)` first. The SDK sends once and never resubmits blindly.
+- A signed transaction must match the prepared hash. A preview's success isn't final success: sequence numbers, ledger expiry, fees and the current policy can change before submission.
+
+## Test it
+
+```bash
+npm test                                         # deterministic, no chain writes
+node examples/testnet-lifecycle.mjs --execute    # full lifecycle on a NEW testnet pool with throwaway accounts
+```
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/contracts -->
+# Contracts
+
+Four Soroban contracts, written in Rust with `soroban-sdk` 28 and OpenZeppelin `stellar-accounts` 0.8.0. Source: [`contracts/`](https://github.com/kovan-protocol/kovan/tree/main/contracts).
+
+## Deployed on testnet
+
+| Contract | ID / hash |
+|---|---|
+| Pool (v2, current) | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
+| Pool code (wasm hash) | `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464` |
+| Covenant policy | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
+| ed25519 verifier | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
+| Agent account code (wasm hash) | `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7` |
+| USDC (Stellar Asset Contract) | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, issuer `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
+
+Anyone can deploy their own pool from the published pool code (`kovan.mjs owner create_pool` or `kovan.prepareCreatePool`). The source of truth for these values is [`deployments/testnet.json`](https://github.com/kovan-protocol/kovan/blob/main/deployments/testnet.json); they change if the network resets.
+
+## The four contracts
+
+| Contract | Role |
+|---|---|
+| `kovan-pool` | Holds USDC, deploys agent wallets, enforces draw limits and the lifecycle. One per owner (or more). |
+| `kovan-agent-account` | The agent's wallet: an OpenZeppelin smart account with one rule and no admin rule. One per agent. |
+| `kovan-covenant-policy` | The covenant, as an OpenZeppelin policy. Shared by all wallets; state is keyed by wallet address. |
+| `kovan-ed25519-verifier` | Verifies agent signatures. Copied from the OpenZeppelin example; shared. |
+
+The policy is a separate contract from the pool on purpose: Soroban forbids re-entering a contract. When an agent calls the pool, the pool asks the wallet to authorize, and the wallet asks its policy. If the policy were the pool, that would re-enter the pool.
+
+## Pool functions (v2)
+
+| Function | Caller | Effect |
+|---|---|---|
+| `fund(amount)` | owner | Lock USDC |
+| `withdraw(amount)` | owner | Take back USDC no draw limit backs |
+| `create_agent(agent_pubkey, draw_limit, covenant) → Address` | owner | Deploy an agent wallet with its covenant |
+| `amend(agent, draw_limit, amendment)` | owner | Change numeric caps and expiry |
+| `revoke(agent, by)` | owner or parent | Freeze payments and calls (recursive to children) |
+| `close(agent, by)` | owner or parent | Recover the wallet's balance, settle what was spent, release the draw limit |
+| `return_funds(agent, by, amount)` | agent or owner | Move USDC from the wallet back to the pool |
+| `close_pool()` | owner | Permanent; all agents must be closed |
+| `draw(agent, amount)` | agent | Pool → wallet, within the draw limit |
+| `settle(agent)` | agent | Request closure |
+| `dispute(agent, by, evidence)` / `resolve_dispute(agent, outcome)` | agent or owner / owner | Record an objection / the owner's ruling |
+| `delegate(parent, child_pubkey, child_draw_limit, child_covenant) → Address` | agent | Create a narrower child agent |
+| `get_pool()`, `get_agent(agent)`, `list_agents()` | anyone | Read state |
+
+The repository also contains experimental v3 functions for optional yield on idle pool funds. They are **not deployed** and not part of the current pool.
+
+### Covenant parameters
+
+```text
+CovenantParams {
+  pool, usdc,                                   // set by the pool, not the caller
+  providers: Vec<Address>, provider_per_transfer_cap: i128, provider_total_cap: i128,
+  recipients: Vec<Address>, recipient_per_transfer_cap: i128, recipient_total_cap: i128,
+  calls: Vec<{ contract, fn_name, amount_arg: Option<u32>, amount_cap: i128 }>,
+  expiry: u32,                                  // ledger sequence
+}
+```
+
+## Events
+
+The pool publishes one event per state change. Use Stellar RPC `getEvents` on the pool's contract ID to follow it.
+
+| Event | Fields |
+|---|---|
+| `Funded` | amount, locked |
+| `Withdrawn` | amount, locked |
+| `AgentCreated` | agent, draw_limit |
+| `Drawn` | agent, amount, drawn |
+| `Returned` | agent, by, amount |
+| `Revoked` | agent, by |
+| `Amended` | agent, draw_limit |
+| `SettlementRequested` | agent |
+| `Closed` | agent, recovered, consumed |
+| `Delegated` | parent, child, draw_limit |
+| `PoolClosed` | owner, returned |
+
+Agent payments appear as USDC `transfer` events from the agent's wallet address.
+
+## Error codes
+
+Errors appear as `Error(Contract, #N)`. The SDK and `kovan.mjs` add the name, e.g. `#3904 PayeeNotAllowed`.
+
+### Pool
+
+| # | Name | Meaning |
+|---|---|---|
+| 1 | `NotOwner` | Caller isn't the pool owner |
+| 3 | `NotOwnerOrParent` | Caller is neither the owner nor the agent's parent |
+| 4 | `ExceedsLocked` | Total draw limits would exceed locked USDC |
+| 5 | `ExceedsDrawLimit` | Draw over the agent's remaining limit |
+| 6 | `NotActive` | Agent is revoked or closed |
+| 7 | `DrawnNotZero` | Can't close: drawn funds are still out |
+| 9 | `BelowDrawn` | New draw limit is below what was already drawn |
+| 10 | `Insufficient` | Withdrawal exceeds unassigned USDC |
+| 11 | `NotActiveOrSettle` | A child is still open, or there's no dispute to resolve |
+| 12 | `ChildExceedsParent` | Child covenant exceeds its parent on some dimension |
+| 13 | `AmountNotPositive` | Amount must be above 0 |
+| 14 | `UnknownAgent` | No such agent in this pool |
+| 15 | `TooManyChildren` | Parent already has 16 children |
+| 16 | `Expired` | The agent's covenant has expired |
+| 17 | `PoolClosed` | The pool is permanently closed |
+| 18 | `PoolNotEmpty` | Can't close the pool while agents are open |
+
+Codes 2 and 8 are reserved; 19–27 belong to the undeployed v3 yield code.
+
+### Covenant policy
+
+| # | Name | Meaning |
+|---|---|---|
+| 3900 | `NotInstalled` | Wallet has no covenant |
+| 3901 | `AlreadyInstalled` | A covenant is written once |
+| 3902 | `NotAllowed` | Action not allowed (e.g. `approve` on USDC, malformed call, uninstall) |
+| 3903 | `WrongAsset` | Not the covenant's USDC |
+| 3904 | `PayeeNotAllowed` | Payee isn't on the providers or recipients list |
+| 3905 | `AmountNotPositive` | Amount must be above 0 |
+| 3906 | `PerTransferCapExceeded` | Over the per-payment cap |
+| 3907 | `TotalCapExceeded` | Over the list's total cap |
+| 3908 | `Expired` | Covenant has expired |
+| 3909 | `Revoked` | Owner revoked the agent |
+| 3910 | `CallNotAllowed` | Contract call isn't on the allowlist |
+| 3911 | `CallCapExceeded` | Capped argument too high |
+| 3912 | `SelfCallForbidden` | The wallet can't call itself |
+| 3913 | `NoSigner` | No authenticated signer |
+| 3914 | `NotPool` | Reserved (revoke and amend on the policy already require the pool's authorization) |
+
+### Smart account (OpenZeppelin, 3000–3018)
+
+Raised by the wallet itself, e.g. `3002 UnvalidatedContext` (no rule matched), `3003 ExternalVerificationFailed` (bad signature), `3016 UnauthorizedSigner`. Full list in the [OpenZeppelin stellar-contracts](https://github.com/OpenZeppelin/stellar-contracts) source.
+
+## Build and test
+
+```bash
+cd contracts && stellar contract build && cargo test   # target wasm32v1-none
+```
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/x402 -->
+# Paying with x402
+
+[x402](https://x402.org) lets an API charge per request: the server answers `402 Payment Required` with its terms, the client pays, and a facilitator settles the payment on-chain. On Stellar, the payment is a single USDC `transfer(from, to, amount)`.
+
+## Why a Kovan agent can pay
+
+The covenant judges the **transfer**, not the rail. An x402 payment from an agent's wallet is a USDC transfer like any other: it passes only if the payee is on the agent's providers list and the amount fits its caps, before expiry. A prompt-injected agent pointed at an unknown "paid API" can't pay it.
+
+## Paying from a smart account
+
+The standard `@x402/stellar` client signs only for classic `G…` accounts. Kovan's agents pay from a smart account (`C…`), so the payment is built differently:
+
+1. Request the resource and read the `402` terms: price, USDC asset, `payTo` (a `G…` account with a USDC trustline).
+2. Build `USDC.transfer(agentWallet, payTo, amount)` and simulate it to get the wallet's authorization entry.
+3. Sign that entry with the agent's key as an OpenZeppelin `AuthPayload` (the signature covers the `AuthDigestPreimage` digest and the rule ID), with an expiration ledger within the facilitator's limit.
+4. Send `{ transaction }` as the x402 payment payload. The facilitator verifies and settles it; on testnet, [x402.org](https://x402.org) sponsors the fees.
+5. During settlement, Stellar asks the wallet to authorize the transfer, and the wallet asks the covenant. Allowed: the API returns the resource. Refused: nothing moves.
+
+On testnet, an agent paid Stellar's x402 demo endpoint 0.01 USDC this way ([transaction](https://stellar.expert/explorer/testnet/tx/781a5f2b560df66d3d6c587ef4f2a283e82421ce16b54565a9a64a8ba662775d)). A payment to an address outside the covenant was refused by the wallet with `#3904 PayeeNotAllowed`, before anything was submitted.
+
+## Status
+
+x402 payments are implemented in the Kovan console (`dashboard/lib/agent-x402.ts`). They are not yet in `@kovan/sdk` or `kovan.mjs`. Until then, agents pay listed providers directly with `kovan.mjs agent pay` or `prepareAgent("pay", …)`. The covenant applies the same rules either way.
+
+---
+
+<!-- https://kovan-indol.vercel.app/docs/security -->
+# Security model
+
+> Testnet prototype. **Not audited.** Don't use it with real funds.
+
+## Enforced on-chain
+
+- **Total exposure is capped.** The sum of all agents' draw limits never exceeds what the pool holds. Only drawn amounts ever leave the pool.
+- **Each agent is capped.** An agent can't draw more than its limit, and its wallet can't pay anyone outside its lists, more than its caps, after expiry, or after revocation.
+- **Rules can't be changed by the agent.** The wallet has one rule and no admin rule. Nobody can add a signer, change allowlists or remove the policy. The policy refuses calls on the wallet itself and `approve` / `transfer_from` on USDC, so the recovery allowance can't be abused.
+- **The owner can always stop and recover.** Revoking freezes payments immediately (and the agent's children). Funds can always be returned to the pool, by the agent or by the owner without the agent's key.
+- **Edge cases are tested.** Zero and negative amounts, muxed payees, non-integer arguments, the exact expiry ledger, delegation that would exceed the parent. Each rule has a test that fails if it breaks.
+
+## What you trust
+
+| You trust | Because |
+|---|---|
+| Your owner key (Freighter) | It funds the pool and approves every owner action |
+| Each agent's key | Whoever holds it can spend, but only inside that agent's covenant |
+| The deployed contract code | Tools pin trusted code hashes; check them against the source |
+| Your RPC endpoint | Reads (balances, status) come from it; transactions are verified by the network |
+| The USDC issuer | USDC's issuer can freeze accounts. While a pool, wallet or payee is frozen, transfers involving it fail. |
+
+## Keys
+
+- **Owner keys** stay in your wallet. `kovan.mjs` and the signing pages ask Freighter to sign; they never see your secret.
+- **Agent keys** are created where the agent runs (`stellar keys generate`) and never leave it. Only the public key goes on-chain.
+- Never paste a secret key into a chat, a link or a file in the repository. The signing page and `kovan.mjs` refuse secret keys where a public key belongs.
+
+## Approving transactions
+
+The local approval page is served by your agent, so a misbehaving agent could show misleading text there. **Freighter's own window shows the real transaction.** Check the contract, function, amounts and addresses there. `kovan.mjs` also refuses to submit anything other than the exact transaction it prepared.
+
+## Not covered
+
+- **Refused attempts aren't on-chain.** The covenant refuses bad payments during simulation, before anything is sent, so block explorers and chain watchers can't see them.
+- **Disputes are records, not a court.** The owner rules; no funds move automatically.
+- **Covenants don't judge value.** A listed provider can still overcharge within the caps. Set caps you're willing to lose.
+- **Mainnet, audits and compliance onboarding** are future work.
+
+## Reporting a problem
+
+Open an issue on [GitHub](https://github.com/kovan-protocol/kovan/issues).

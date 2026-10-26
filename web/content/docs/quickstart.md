@@ -1,0 +1,87 @@
+---
+title: Quickstart
+description: From zero to a funded pool and an agent that pays inside its limits.
+---
+
+# Quickstart
+
+Two paths: let an agent do it for you, or call the SDK from your own code. Both run on **Stellar testnet**.
+
+## Before you start
+
+- **Freighter** wallet, switched to **Testnet**. Fund it with testnet XLM ("Fund with Friendbot" in Freighter).
+- **Testnet USDC** in that wallet. Add a USDC trustline first (your agent can prepare it), then get USDC from the [Circle faucet](https://faucet.circle.com) (choose Stellar Testnet).
+- **Node.js 20+** and the **Stellar CLI** where your agent runs (the CLI is used to create agent keys).
+
+Tip: use a separate Freighter account as the pool owner. A pool's owner can't be changed later.
+
+## With an agent
+
+### 1. Install Kovan into your agent
+
+```text
+Claude Code:  /plugin install kovan --marketplace kovan-protocol/kovan
+              (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
+Other agents: "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+```
+
+### 2. Ask for what you want
+
+> Set me up a $100 Kovan pool with 2 agents. Each may pay `G…PROVIDER` up to 0.50 USDC per call and 40 USDC in total, for 48 hours.
+
+### 3. Approve each step
+
+The agent opens a local page like `http://127.0.0.1:53817/…`. Open it in the browser where Freighter is installed, check what **Freighter's own window** shows, and approve. The agent continues by itself.
+
+Behind the scenes, the agent runs:
+
+```bash
+node kovan.mjs connect                                    # your address, proven by a signed message
+node kovan.mjs owner create_pool --owner G…OWNER          # → pool C…
+node kovan.mjs owner fund --owner G…OWNER --pool C…POOL --amount 100
+stellar keys generate kovan-agent-1 --network testnet --fund
+node kovan.mjs owner create_agent --owner G…OWNER --pool C…POOL \
+  --agent-key "$(stellar keys public-key kovan-agent-1)" --draw-limit 40 \
+  --providers G…PROVIDER --provider-per-transfer-cap 0.5 --provider-total-cap 40 --expiry-hours 48
+node kovan.mjs agent draw --pool C…POOL --agent C…AGENT --amount 5 --key kovan-agent-1
+node kovan.mjs agent pay  --pool C…POOL --agent C…AGENT --amount 0.5 --to G…PROVIDER --key kovan-agent-1
+```
+
+Every command prints one JSON line. See [Agent tool](/docs/agent-tool) for all commands.
+
+## From code
+
+`@kovan/sdk` is a TypeScript package (Node.js 22+ and browser bundlers). It isn't on npm yet; build it from the repository:
+
+```bash
+git clone https://github.com/kovan-protocol/kovan && cd kovan/sdk
+npm ci && npm pack                      # → kovan-sdk-0.1.0.tgz
+cd /your/app && npm install /path/to/kovan-sdk-0.1.0.tgz @stellar/stellar-sdk@16.4.1
+```
+
+```ts
+import { Networks } from "@stellar/stellar-sdk";
+import { KovanClient } from "@kovan/sdk";
+
+const d = await (await fetch("https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json")).json();
+const kovan = new KovanClient({
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  networkPassphrase: Networks.TESTNET,
+  contracts: { usdc: d.usdc, policy: d.policy, verifier: d.verifier, poolWasmHash: d.pool_wasm_hash, accountWasmHash: d.account_wasm_hash },
+});
+
+// Owner: prepare → show the owner → sign (e.g. Freighter) → submit.
+const created = await kovan.signAndSend(await kovan.prepareCreatePool(owner), signOwner);
+const pool = kovan.pool(created.returnValue as string);
+await kovan.signAndSend(await pool.prepareOwner("fund", { amount: "1000000000" }, owner), signOwner); // 100 USDC
+```
+
+SDK amounts are **integer base units**: 7 decimals, so `"10000000"` is 1 USDC. Continue with [SDK](/docs/sdk) for creating agents and signing agent payments.
+
+## Check what happened
+
+```bash
+node kovan.mjs status --pool C…POOL --agent C…AGENT
+```
+
+Or open the pool on [stellar.expert](https://stellar.expert/explorer/testnet). Every owner and agent action is a normal testnet transaction.

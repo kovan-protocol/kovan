@@ -1,0 +1,28 @@
+# Kovan
+
+> Shared USDC budgets AI agents can't overspend. An owner locks USDC in a pool on Stellar testnet; each agent gets a smart account bound by an on-chain covenant (allowed payees, per-payment and total caps, expiry). Agents prepare transactions with kovan.mjs; owners approve in Freighter.
+
+Stellar testnet only. Not audited.
+
+## Docs
+
+- [Overview](https://kovan-indol.vercel.app/docs): What Kovan is, how the pieces fit, and where to start.
+- [Quickstart](https://kovan-indol.vercel.app/docs/quickstart): From zero to a funded pool and an agent that pays inside its limits.
+- [Concepts](https://kovan-indol.vercel.app/docs/concepts): Pools, agent wallets, covenants, the lifecycle, delegation and the guarantees.
+- [Agent tool](https://kovan-indol.vercel.app/docs/agent-tool): kovan.mjs, the one-file tool agents use to set up pools and agents and to spend.
+- [SDK](https://kovan-indol.vercel.app/docs/sdk): @kovan/sdk: create pools and agents, and sign agent payments from TypeScript.
+- [Contracts](https://kovan-indol.vercel.app/docs/contracts): Deployed testnet IDs, pool functions, events and every error code.
+- [Paying with x402](https://kovan-indol.vercel.app/docs/x402): How a covenant-bound smart account pays per call over x402.
+- [Security model](https://kovan-indol.vercel.app/docs/security): What Kovan enforces on-chain, what you trust, and what it does not cover.
+
+## For agents
+
+- [Agent guide (skill)](https://kovan-protocol.github.io/kovan/agent.md): rules and step-by-step recipes for agents
+- [kovan.mjs](https://kovan-protocol.github.io/kovan/kovan.mjs): the one-file agent tool (Node 20+)
+- [Signing page](https://kovan-protocol.github.io/kovan/): for agents that can't serve a local approval page
+- [Deployment record](https://raw.githubusercontent.com/kovan-protocol/kovan/main/deployments/testnet.json): contract IDs and code hashes
+
+## Optional
+
+- [All docs in one file](https://kovan-indol.vercel.app/llms-full.txt)
+- [Source code](https://github.com/kovan-protocol/kovan)

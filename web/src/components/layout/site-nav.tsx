@@ -12,6 +12,7 @@ const links = [
   { href: "/why-kovan", en: "Why Kovan", es: "Por qué Kovan" },
   { href: "/security", en: "Security", es: "Seguridad" },
   { href: "/developers", en: "Developers", es: "Desarrolladores" },
+  { href: "/docs", en: "Docs", es: "Docs" },
 ];
 
 export function SiteNav() {
