@@ -1,4 +1,5 @@
 import type { xdr, Transaction, rpc } from "@stellar/stellar-sdk";
+import type { PaymentBinding } from "./mandates.js";
 
 export type CovenantParams = {
   pool: string; usdc: string; providers: string[]; provider_per_transfer_cap: bigint; provider_total_cap: bigint;
@@ -20,7 +21,7 @@ export type TransactionSigner = (transactionXdr: string, context: { networkPassp
 export type DigestSigner = {
   /** Raw Ed25519 public key, 64 hex characters; never a secret. */
   publicKey: string;
-  sign: (digest: Uint8Array, context: { agent: string; networkPassphrase: string; expirationLedger: number; entryXdr: string }) => Uint8Array | Promise<Uint8Array>;
+  sign: (digest: Uint8Array, context: { agent: string; networkPassphrase: string; expirationLedger: number; entryXdr: string; payment?: PaymentBinding }) => Uint8Array | Promise<Uint8Array>;
 };
 export type RpcClient = Pick<rpc.Server, "getAccount" | "getNetwork" | "getLatestLedger" | "simulateTransaction" | "getContractWasmByContractId" | "sendTransaction" | "getTransaction">;
 export type PreparedTransaction = Readonly<{

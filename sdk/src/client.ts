@@ -3,6 +3,7 @@ import { Address, hash, Keypair, Operation, rpc, TransactionBuilder, xdr } from 
 import { buildAgentOp, buildCreatePoolOp, buildOwnerOp, type AgentAction, type AgentRequest, type OwnerArgs, type OwnerFn } from "./owner.js";
 import { signAgentAuthorization } from "./authpayload.js";
 import { addrVal, bytes32Val } from "./scval.js";
+import { nonzeroBytes32, paymentBindingToScVal, type MandateState, type PaymentBinding, type PaymentReceipt } from "./mandates.js";
 import { assemblePrepared, assertNetwork, checkedSimulation, KovanError, prepareOperation, signPrepared, simulateRead } from "./transport.js";
 import { submitSigned, type SubmitResult } from "./submit.js";
 import type { AgentRecord, ContractConfig, CovenantState, DigestSigner, PoolInfo, PreparedTransaction, RpcClient, TransactionSigner } from "./types.js";
@@ -73,6 +74,25 @@ export class PoolClient {
     return { ...rec, state };
   }
   balance(account = this.address): Promise<bigint> { return this.client.read(this.client.contracts.usdc, "balance", [addrVal(account)]); }
+  async requireMandates(agent?: string): Promise<void> {
+    if (await this.client.read<number>(this.address, "mandate_version") !== 1 || (agent && await this.client.read<number>(agent, "mandate_version") !== 1)) {
+      throw new KovanError("guard", "This pool/agent does not support mandate v1; deploy the new contracts");
+    }
+    if (agent) {
+      const code = await this.client.rpc.getContractWasmByContractId(agent);
+      if (hash(Buffer.from(code)).toString("hex") !== this.client.contracts.accountWasmHash.toLowerCase()) throw new KovanError("guard", "Mandate agent does not run the configured account code");
+    }
+  }
+  async getMandate(agent: string, id: string): Promise<MandateState | null> {
+    const records = await this.client.read<MandateState[]>(this.address, "get_mandate", [addrVal(agent), nonzeroBytes32(id)]);
+    if (!Array.isArray(records) || records.length > 1) throw new KovanError("guard", "Invalid mandate response");
+    return records[0] ?? null;
+  }
+  async getPayment(agent: string, id: string): Promise<PaymentReceipt | null> {
+    const records = await this.client.read<PaymentReceipt[]>(this.address, "get_payment", [addrVal(agent), nonzeroBytes32(id)]);
+    if (!Array.isArray(records) || records.length > 1) throw new KovanError("guard", "Invalid payment receipt response");
+    return records[0] ?? null;
+  }
   async getAgentSigner(agent: string): Promise<{ verifier: string; pubkeyHex: string }> {
     const rule = await this.client.read<{ signers: unknown[]; policies: string[] }>(agent, "get_context_rule", [xdr.ScVal.scvU32(0)]);
     const signer = rule.signers?.[0] as [string, string, Uint8Array] | undefined;
@@ -91,12 +111,14 @@ export class PoolClient {
     const p = await this.checkedPool();
     if (source !== p.owner) throw new KovanError("guard", "Connect the original pool owner to prepare an owner transaction");
     if (fn === "close_pool" && typeof p.closed !== "boolean") throw new KovanError("guard", "This legacy pool does not support permanent closure");
+    if (fn === "create_mandate" || fn === "revoke_mandate") await this.requireMandates((args as OwnerArgs["revoke_mandate"]).agent);
     return prepareOperation(this.client, { source, operation: buildOwnerOp(this.address, fn, args, p.usdc), maxFeeStroops: this.client.maxFeeStroops });
   }
   /** Signs only agent auth entries; the fee payer's envelope remains unsigned until signAndSend. */
   async prepareAgent(action: AgentAction, request: AgentRequest, options: { source: string; signer: DigestSigner; timeoutSeconds?: number }): Promise<PreparedTransaction> {
     const timeout = options.timeoutSeconds ?? 120;
     if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 300) throw new KovanError("guard", "Agent timeout must be between 1 and 300 seconds");
+    if (request.payment && (action !== "pay" || request.to === this.address)) throw new KovanError("guard", "Mandates apply only to outgoing payments, not recovery or funding");
     await this.checkedPool();
     const rec = await this.getAgent(request.agent);
     if (rec.covenant.pool !== this.address || rec.covenant.usdc !== this.client.contracts.usdc) throw new KovanError("guard", "Agent is not bound to this pool and asset");
@@ -104,6 +126,21 @@ export class PoolClient {
     if (expected.verifier !== this.client.contracts.verifier || expected.pubkeyHex !== options.signer.publicKey.toLowerCase()) throw new KovanError("guard", "Agent signer or verifier does not match the on-chain account");
     const operation = buildAgentOp(this.address, this.client.contracts.usdc, action, request);
     const latest = await this.client.rpc.getLatestLedger();
+    let expirationLedger = latest.sequence + Math.ceil(timeout / 5);
+    let payment: PaymentBinding | undefined;
+    if (request.payment) {
+      // Validate commitments before asking the external signer to authorize anything.
+      paymentBindingToScVal({ ...request.payment, validUntil: request.payment.validUntil ?? expirationLedger + 1 });
+      await this.requireMandates(request.agent);
+      const mandate = await this.getMandate(request.agent, request.payment.mandateId);
+      if (!mandate || mandate.revoked) throw new KovanError("guard", "Mandate is missing or revoked");
+      const deadline = Math.min(mandate.params.expiry, rec.covenant.expiry, expirationLedger + 1);
+      const validUntil = request.payment.validUntil ?? deadline;
+      if (!Number.isSafeInteger(validUntil) || validUntil <= latest.sequence || validUntil > mandate.params.expiry || validUntil > rec.covenant.expiry) throw new KovanError("guard", "Payment deadline exceeds the active mandate/covenant");
+      payment = Object.freeze({ ...request.payment, validUntil });
+      if (await this.getPayment(request.agent, payment.paymentId)) throw new KovanError("guard", "PaymentConsumed: this payment ID already settled; do not pay again");
+      expirationLedger = Math.min(expirationLedger, validUntil - 1);
+    }
     const source = await this.client.rpc.getAccount(options.source);
     const tx = new TransactionBuilder(source, { fee: "1000", networkPassphrase: this.client.networkPassphrase }).addOperation(operation).setTimeout(timeout).build();
     const context = { pool: this.address, usdc: this.client.contracts.usdc };
@@ -117,7 +154,7 @@ export class PoolClient {
         throw new KovanError("guard", "Simulation requested an unexpected authorization invocation");
       }
     }
-    const signed = await Promise.all(entries.map((entry) => signAgentAuthorization(entry, { agent: request.agent, verifier: expected.verifier, networkPassphrase: this.client.networkPassphrase, expirationLedger: latest.sequence + Math.ceil(timeout / 5), signer: options.signer })));
+    const signed = await Promise.all(entries.map((entry) => signAgentAuthorization(entry, { agent: request.agent, verifier: expected.verifier, networkPassphrase: this.client.networkPassphrase, expirationLedger, signer: options.signer, payment })));
     const source2 = await this.client.rpc.getAccount(options.source);
     const tx2 = new TransactionBuilder(source2, { fee: "1000", networkPassphrase: this.client.networkPassphrase })
       .addOperation(Operation.invokeHostFunction({ func: operation.body().invokeHostFunctionOp().hostFunction(), auth: signed })).setTimeout(timeout).build();

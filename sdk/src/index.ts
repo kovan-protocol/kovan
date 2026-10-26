@@ -6,3 +6,5 @@ export * from "./authpayload.js";
 export * from "./transport.js";
 export * from "./submit.js";
 export * from "./errors.js";
+export * from "./mandates.js";
+export * from "./deployments.js";

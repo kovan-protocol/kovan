@@ -10,6 +10,7 @@ import { Buffer } from "buffer";
 import { Address, buildAuthorizationEntryPreimage, hash, Keypair, StrKey, xdr } from "@stellar/stellar-sdk";
 import { structVal } from "./scval.js";
 import type { DigestSigner } from "./types.js";
+import { paymentBindingToScVal, paymentPayloadHash, type PaymentBinding } from "./mandates.js";
 
 const sym = (s: string) => xdr.ScVal.scvSymbol(s);
 
@@ -30,7 +31,11 @@ export function buildAuthPayload(verifier: string, pubkey: Buffer, signature: Bu
   return structVal({ signers, context_rule_ids: xdr.ScVal.scvVec(ruleIds.map((id) => xdr.ScVal.scvU32(id))) });
 }
 
-export type SignOpts = { verifier: string; secret: string; networkPassphrase: string; expirationLedger: number; ruleId?: number };
+export type SignOpts = { verifier: string; secret: string; networkPassphrase: string; expirationLedger: number; ruleId?: number; payment?: PaymentBinding };
+
+export function buildMandateAuthPayload(auth: xdr.ScVal, payment: PaymentBinding): xdr.ScVal {
+  return structVal({ auth, payment: paymentBindingToScVal(payment), version: xdr.ScVal.scvU32(1) });
+}
 
 function randomNonce(): xdr.Int64 {
   const b = Keypair.random().rawPublicKey().subarray(0, 8);
@@ -76,9 +81,10 @@ export function signAgentEntry(entry: xdr.SorobanAuthorizationEntry, opts: SignO
   const creds = agentCredentials(signed);
   const account = Address.fromScAddress(creds.address()).toString();
   const payloadHash = payloadHashFor(signed, opts.networkPassphrase);
-  const digest = authDigest(account, payloadHash, [ruleId]);
+  const digest = authDigest(account, opts.payment ? paymentPayloadHash(payloadHash, opts.payment) : payloadHash, [ruleId]);
   const sig = kp.sign(digest);
-  creds.signature(buildAuthPayload(opts.verifier, kp.rawPublicKey(), sig, [ruleId]));
+  const auth = buildAuthPayload(opts.verifier, kp.rawPublicKey(), sig, [ruleId]);
+  creds.signature(opts.payment ? buildMandateAuthPayload(auth, opts.payment) : auth);
   return signed;
 }
 
@@ -92,16 +98,21 @@ export const agentPubkeyHex = (secret: string) => Keypair.fromSecret(secret).raw
 /** Caller-owned key/HSM signer. No key generation, storage, or environment access. */
 export async function signAgentAuthorization(entry: xdr.SorobanAuthorizationEntry, opts: {
   agent: string; verifier: string; networkPassphrase: string; expirationLedger: number; signer: DigestSigner;
+  payment?: PaymentBinding;
 }): Promise<xdr.SorobanAuthorizationEntry> {
   onlyAgentEntry(entry, opts.agent, () => undefined);
   if (!/^[a-fA-F0-9]{64}$/.test(opts.signer.publicKey)) throw new Error("Expected raw Ed25519 public key hex");
   const signed = prepareEntry(entry, opts.expirationLedger);
-  const digest = authDigest(opts.agent, payloadHashFor(signed, opts.networkPassphrase), [0]);
+  const payment = opts.payment ? Object.freeze({ ...opts.payment }) : undefined;
+  const hostPayload = payloadHashFor(signed, opts.networkPassphrase);
+  const digest = authDigest(opts.agent, payment ? paymentPayloadHash(hostPayload, payment) : hostPayload, [0]);
   const publicKey = Buffer.from(opts.signer.publicKey, "hex");
   const signature = Buffer.from(await opts.signer.sign(Buffer.from(digest), {
     agent: opts.agent, networkPassphrase: opts.networkPassphrase, expirationLedger: opts.expirationLedger, entryXdr: signed.toXDR("base64"),
+    ...(payment ? { payment } : {}),
   }));
   if (signature.length !== 64 || !Keypair.fromPublicKey(StrKey.encodeEd25519PublicKey(publicKey)).verify(digest, signature)) throw new Error("Agent signer returned an invalid signature");
-  agentCredentials(signed).signature(buildAuthPayload(opts.verifier, publicKey, signature, [0]));
+  const auth = buildAuthPayload(opts.verifier, publicKey, signature, [0]);
+  agentCredentials(signed).signature(payment ? buildMandateAuthPayload(auth, payment) : auth);
   return signed;
 }

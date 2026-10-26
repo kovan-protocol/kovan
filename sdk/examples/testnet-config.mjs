@@ -1,8 +1,9 @@
-// Public cash-only v2 deployment artifacts. No existing pool or owner is selected.
+// Public native-mandate v1 / accounting-v3 artifacts, published 2026-10-26.
+// No existing pool or owner is selected. New outgoing payments require a mandate.
 // These code hashes and contracts must exist on the current testnet. Resets require review.
 export const testnetContracts = Object.freeze({
-  poolWasmHash: "cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464",
-  accountWasmHash: "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7",
-  policy: "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2",
+  poolWasmHash: "74c5789668a69ca5236e2b099d26509bd6ea445c048aa06970dcc9a088e6eccf",
+  accountWasmHash: "0f618da0dabad752b3229e80dade5eec7bd7b49a52cbc75a1916b585402c8a7d",
+  policy: "CAQAHBSHKEUQCXUMFCD65GNRTKDNE5A7HOHA7XVOKVKTV4H4O63OWJYB",
   verifier: "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4",
 });

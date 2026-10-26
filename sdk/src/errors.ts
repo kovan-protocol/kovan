@@ -30,6 +30,7 @@ export const POOL_ERRORS: Record<number, string> = {
   25: "YieldLiquidity",
   26: "YieldUnderfunded",
   27: "YieldArithmetic",
+  28: "UnsupportedMandate",
 };
 
 export const COVENANT_ERRORS: Record<number, string> = {
@@ -48,6 +49,14 @@ export const COVENANT_ERRORS: Record<number, string> = {
   3912: "SelfCallForbidden",
   3913: "NoSigner",
   3914: "NotPool",
+  3915: "MandateRequired",
+  3916: "MandateInvalid",
+  3917: "MandateExists",
+  3918: "MandateMissing",
+  3919: "MandateRevoked",
+  3920: "MandateExceeded",
+  3921: "PaymentConsumed",
+  3922: "PaymentMismatch",
 };
 
 export const SMART_ACCOUNT_ERRORS: Record<number, string> = {

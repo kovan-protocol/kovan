@@ -1,11 +1,14 @@
 import { Buffer } from "buffer";
 import { Address, Contract, Operation, xdr } from "@stellar/stellar-sdk";
 import { addrVal, amendmentToScVal, bytes32Val, covenantToScVal, positiveAmount, u32Val, type CovenantInput } from "./scval.js";
+import { mandateToScVal, nonzeroBytes32, type MandateInput, type PaymentRequest } from "./mandates.js";
 
-export const ownerFns = ["fund", "withdraw", "create_agent", "revoke", "amend", "close", "close_pool", "return_funds", "resolve_dispute"] as const;
+export const ownerFns = ["fund", "withdraw", "create_agent", "revoke", "amend", "close", "close_pool", "return_funds", "resolve_dispute", "create_mandate", "revoke_mandate"] as const;
 export type OwnerFn = (typeof ownerFns)[number];
 /** Integer token base units, never floating-point amounts. */
 export type OwnerArgs = {
+  create_mandate: { agent: string; params: MandateInput };
+  revoke_mandate: { agent: string; id: string };
   fund: { amount: string };
   withdraw: { amount: string };
   create_agent: { agent_pubkey: string; draw_limit: string; covenant: Omit<CovenantInput, "pool" | "usdc"> };
@@ -21,6 +24,14 @@ export type OwnerArgs = {
 export function buildOwnerOp<F extends OwnerFn>(pool: string, fn: F, args: OwnerArgs[F], usdc = pool): xdr.Operation {
   const c = new Contract(pool);
   switch (fn) {
+    case "create_mandate": {
+      const a = args as OwnerArgs["create_mandate"];
+      return c.call(fn, addrVal(a.agent), mandateToScVal(a.params));
+    }
+    case "revoke_mandate": {
+      const a = args as OwnerArgs["revoke_mandate"];
+      return c.call(fn, addrVal(a.agent), nonzeroBytes32(a.id));
+    }
     case "close_pool": return c.call(fn);
     case "fund": case "withdraw": return c.call(fn, positiveAmount((args as OwnerArgs["fund"]).amount));
     case "create_agent": {
@@ -61,7 +72,7 @@ export function buildCreatePoolOp(p: CreatePoolParams): xdr.Operation {
 }
 
 export type AgentAction = "draw" | "pay" | "return";
-export type AgentRequest = { agent: string; amount: string; to?: string };
+export type AgentRequest = { agent: string; amount: string; to?: string; payment?: PaymentRequest };
 export function buildAgentOp(pool: string, usdc: string, action: AgentAction, r: AgentRequest): xdr.Operation {
   const amount = positiveAmount(r.amount);
   switch (action) {

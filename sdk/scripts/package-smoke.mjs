@@ -13,14 +13,17 @@ const packed = await run("npm", ["pack", "--json", "--pack-destination", temp], 
 const metadata = JSON.parse(packed.stdout.slice(packed.stdout.indexOf("[")))[0];
 assert.ok(metadata.files.some(file => file.path === "dist/index.d.ts"));
 assert.ok(metadata.files.some(file => file.path === "examples/testnet-lifecycle.mjs"));
+assert.ok(metadata.files.some(file => file.path === "examples/mandate-payment.mjs"));
+assert.ok(metadata.files.some(file => file.path === "LICENSE"));
+assert.ok(metadata.files.some(file => file.path === "src/index.ts"));
 assert.ok(metadata.files.every(file => !/(^|\/)(\.env|\.keys|node_modules|test_snapshots)(\/|$|\.)/.test(file.path)));
 await run("npm", ["install", "--prefix", temp, "--ignore-scripts", "--no-audit", "--no-fund", join(temp, metadata.filename), "@stellar/stellar-sdk@16.4.1", "typescript@5", "@types/node@22"], { cwd: temp });
 await copyFile(join(sdk, "tests/type-consumer.mts"), join(temp, "consumer.mts"));
 await run(process.execPath, [join(temp, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "consumer.mts"], { cwd: temp });
 await run(process.execPath, ["--input-type=module", "-e", `
   import assert from "node:assert/strict";
-  import { buildOwnerOp, KovanClient, ownerFns, jsonSafe } from "@kovan/sdk";
-  import { buildYieldOp } from "@kovan/sdk/experimental";
+  import { buildOwnerOp, KovanClient, ownerFns, jsonSafe } from "@kovan-protocol/sdk";
+  import { buildYieldOp } from "@kovan-protocol/sdk/experimental";
   import { StrKey } from "@stellar/stellar-sdk";
   const pool = StrKey.encodeContract(Buffer.alloc(32, 1));
   assert.equal(buildOwnerOp(pool, "fund", {amount: "1000000"}).body().switch().name, "invokeHostFunction");
@@ -30,3 +33,4 @@ await run(process.execPath, ["--input-type=module", "-e", `
   assert.deepEqual(jsonSafe({amount: 9007199254740993n}), {amount: "9007199254740993"});
 `], { cwd: temp });
 console.log("PASS: packed SDK installs outside the repository; public ESM exports and TypeScript declarations work without the dashboard. No chain writes.");
+console.log(JSON.stringify({ tarball: join(temp, metadata.filename), integrity: metadata.integrity }));

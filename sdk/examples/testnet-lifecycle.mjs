@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { setDefaultResultOrder } from "node:dns";
 import { Asset, Keypair, Networks, rpc } from "@stellar/stellar-sdk";
-import { KovanClient, keypairTransactionSigner } from "@kovan/sdk";
+import { KovanClient, keypairTransactionSigner, paymentIdForRequest } from "@kovan-protocol/sdk";
 import { testnetContracts } from "./testnet-config.mjs";
 
 setDefaultResultOrder("ipv4first");
@@ -52,18 +52,33 @@ const agent = await send("create_agent", await pool.prepareOwner("create_agent",
 }, owner.publicKey()));
 assert.equal(typeof agent, "string");
 assert.deepEqual(await pool.listAgents(), [agent]);
-const prepareAgent = (action, amount, to) => pool.prepareAgent(action, { agent, amount, to }, { source: feePayer.publicKey(), signer: agentSigner });
+await pool.requireMandates(agent);
+const payment = { mandateId: "01".repeat(32), paymentId: paymentIdForRequest("testnet_native_purchase_0001"), reference: "02".repeat(32) };
+const prepareAgent = (action, amount, to, binding = payment) => pool.prepareAgent(action, { agent, amount, to, ...(action === "pay" && binding ? { payment: binding } : {}) }, { source: feePayer.publicKey(), signer: agentSigner });
 await send("draw", await prepareAgent("draw", "5000000"), feeSigner);
 assert.equal(await pool.balance(agent), 5000000n);
+await assert.rejects(() => prepareAgent("pay", "1000000", recipient.publicKey(), null), /MandateRequired/);
+await send("create_mandate", await pool.prepareOwner("create_mandate", { agent, params: {
+  id: payment.mandateId, intent_hash: "03".repeat(32), expiry: latest.sequence + 720,
+  scope: { kind: "budget", payees: [recipient.publicKey()], per_payment_cap: "2000000", total_cap: "3000000" },
+} }, owner.publicKey()));
 await assert.rejects(() => prepareAgent("pay", "3000000", recipient.publicKey()), /PerTransferCapExceeded/);
 console.log("Verified: above-cap payment refused before submission");
 const before = await pool.balance(recipient.publicKey());
 await send("pay", await prepareAgent("pay", "1000000", recipient.publicKey()), feeSigner);
+const receipt = await pool.getPayment(agent, payment.paymentId);
+assert.equal(receipt.terms.amount, 1000000n);
+assert.equal(receipt.terms.payee, recipient.publicKey());
+assert.equal((await pool.getMandate(agent, payment.mandateId)).spent, 1000000n);
+await assert.rejects(() => prepareAgent("pay", "1000000", recipient.publicKey()), /PaymentConsumed/);
+await send("revoke_mandate", await pool.prepareOwner("revoke_mandate", { agent, id: payment.mandateId }, owner.publicKey()));
+await assert.rejects(() => prepareAgent("pay", "1000000", recipient.publicKey(), { ...payment, paymentId: paymentIdForRequest("testnet_native_purchase_0002") }), /revoked/i);
+console.log("Verified: required mandate, receipt, duplicate ID and terminal revocation on the new deployment");
 assert.equal(await pool.balance(recipient.publicKey()), before + 1000000n);
 await send("return", await prepareAgent("return", "1000000"), feeSigner);
 assert.equal(await pool.balance(agent), 3000000n);
 await send("revoke", await pool.prepareOwner("revoke", { agent, by: owner.publicKey() }, owner.publicKey()));
-await assert.rejects(() => prepareAgent("pay", "1000000", recipient.publicKey()), /Revoked/);
+await assert.rejects(() => prepareAgent("pay", "1000000", recipient.publicKey()), /Revoked|revoked/);
 console.log("Verified: revoked agent cannot pay");
 await send("close_agent", await pool.prepareOwner("close", { agent, by: owner.publicKey() }, owner.publicKey()));
 assert.equal(await pool.balance(agent), 0n);
@@ -75,6 +90,6 @@ assert.equal(final.closed, true);
 assert.equal(final.sum_limits, 0n);
 assert.equal(await pool.balance(), 0n);
 assert.equal((await pool.getAgent(agent)).settled_spent, 1000000n);
-console.log(JSON.stringify({ result: "PASS", pool: poolAddress, agent, closed: true, agentBalance: "0", poolBalance: "0", spent: "1000000", returnedToOwner: "9000000", transactions }, null, 2));
+console.log(JSON.stringify({ result: "PASS", mandateVersion: 1, pool: poolAddress, agent, mandateId: payment.mandateId, paymentId: payment.paymentId, closed: true, agentBalance: "0", poolBalance: "0", spent: "1000000", returnedToOwner: "9000000", transactions }, null, 2));
 // Secrets exist only in this process and are never printed/saved. Do not send funds
 // to these disposable accounts. An interrupted run can strand worthless testnet XLM.
