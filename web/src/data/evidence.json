@@ -1,14 +1,14 @@
 {
   "historicalPool": "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ",
   "firstAgent": "CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ",
-  "testCount": 460,
+  "testCount": 468,
   "testSnapshot": {
     "date": "2026-10-26",
     "suites": {
       "contracts": 132,
       "dashboard": 251,
       "sdk": 48,
-      "signer": 29
+      "signer": 37
     },
     "ignored": 1
   },

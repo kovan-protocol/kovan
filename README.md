@@ -138,7 +138,7 @@ node examples/testnet-lifecycle.mjs
 
 ### Contracts and dashboard
 
-Verification snapshot (2026-10-26, current `main`): **460 tests** pass: 132 contract, 251 dashboard, 48 SDK and 29 signer tests. One optional DeFindex-bytecode integration test is ignored by the default contract run and excluded from this total. Earlier snapshots: [docs/POOL.md](docs/POOL.md#earlier-test-snapshots).
+Verification snapshot (2026-10-26, current `main`): **468 tests** pass: 132 contract, 251 dashboard, 48 SDK and 37 signer tests. One optional DeFindex-bytecode integration test is ignored by the default contract run and excluded from this total. Earlier snapshots: [docs/POOL.md](docs/POOL.md#earlier-test-snapshots).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
