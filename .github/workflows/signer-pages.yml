@@ -1,4 +1,9 @@
-name: Signer page
+name: Signer checks and Pages redirect
+
+# The website (Vercel) serves the signing page at /sign and the agent files.
+# This workflow checks that the committed copies are up to date, and keeps the
+# old GitHub Pages address working: it forwards to /sign and still serves
+# agent.md, kovan.mjs and wait-for-result.mjs.
 
 on:
   push:
@@ -8,6 +13,7 @@ on:
       - "sdk/**"
       - "deployments/testnet.json"
       - "skills/kovan/**"
+      - "web/public/**"
       - ".github/workflows/signer-pages.yml"
   workflow_dispatch:
 
@@ -31,16 +37,27 @@ jobs:
       - name: Build SDK
         working-directory: sdk
         run: npm ci && npm run build
-      - name: Test and build signer
+      - name: Test signer
         working-directory: signer
-        run: npm ci && npm test && npm run build
+        run: npm ci && npm test
       - name: Check the committed agent tool is up to date
         working-directory: signer
         run: npm run build:cli && git diff --exit-code ../skills/kovan/scripts/kovan.mjs
+      - name: Check the website's signing page and agent files are up to date
+        working-directory: signer
+        run: |
+          npm run build:vercel
+          git diff --exit-code -- ../web/public
+          test -z "$(git status --porcelain -- ../web/public)"
+      - name: Build the redirect site
+        run: |
+          mkdir -p _pages
+          cp signer/pages-redirect/index.html _pages/
+          cp web/public/agent.md web/public/kovan.mjs web/public/wait-for-result.mjs _pages/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: signer/dist
+          path: _pages
 
   deploy:
     needs: build
