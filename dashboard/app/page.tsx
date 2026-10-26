@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, ArrowUpRight, Bot, LayoutGrid, RefreshCw, ShieldCheck } from "lucide-react";
+import { ConsoleHeader } from "@/components/ConsoleHeader";
 import { AgentActions } from "@/components/AgentActions";
 import { AgentCard } from "@/components/AgentCard";
 import { AgentSigner } from "@/components/AgentSigner";
@@ -207,63 +209,86 @@ export default function Page() {
   const ownerDisabledReason = !address ? "Connect Freighter to sign as the owner." : !isOwner ? "Connected key is not the pool owner." : undefined;
 
   return (
-    <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-6 p-4 sm:p-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <>
+      <ConsoleHeader>
+        <WalletButton address={address} owner={state?.pool.owner ?? null} onConnect={setAddress} disabled={!!pendingOwner || creatingPool} />
+      </ConsoleHeader>
+    <main id="main" tabIndex={-1} className="console-container console-main">
+      <div className="console-intro">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Kovan console</h1>
-          <p className="text-sm text-muted-foreground">Humans configure, agents only execute inside limits. Stellar testnet.</p>
+          <p className="console-eyebrow"><span className="network-dot" aria-hidden="true" /> Stellar testnet · Demo console</p>
+          <h1>Your agents. <span>Your rules.</span></h1>
+          <p>One shared pool. Clear spending limits. Give your agents room to work, and keep control of every allocation.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <span className="console-mode">Testnet USDC · No real value</span>
+      </div>
+
+      <div className="console-toolbar">
+        <nav className="console-nav" aria-label="Dashboard sections">
+          <a href="#overview"><LayoutGrid size={15} aria-hidden="true" /> Overview</a>
+          <a href="#agents"><Bot size={16} aria-hidden="true" /> Agents</a>
+          <a href="#activity"><Activity size={15} aria-hidden="true" /> Activity</a>
+        </nav>
+        <div className="console-tools">
           <PoolSelector pools={pools} current={pool} onSelect={selectPool} onCreate={createPool} canCreate={!!address && !pendingOwner} creating={creatingPool} disabled={!!pendingOwner} />
-          <WalletButton address={address} owner={state?.pool.owner ?? null} onConnect={setAddress} disabled={!!pendingOwner || creatingPool} />
           <Button variant="outline" size="sm" onClick={refresh}>
-            Refresh
+            <RefreshCw size={14} aria-hidden="true" /> Refresh
           </Button>
         </div>
-      </header>
+      </div>
 
       {error ? (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-          <span>{error}</span>
+          <span className="min-w-0 break-words">{error}</span>
           <Button size="sm" variant="outline" onClick={() => { setError(null); refresh(); }}>
-            Dismiss
+            Try again
           </Button>
         </div>
       ) : null}
 
       <PoolPanel state={state}>
-        <form onSubmit={fund} className="flex flex-wrap items-end gap-3 border-t pt-4">
+        <div className="pool-transfers">
+        <form onSubmit={fund} className="pool-transfer-form">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fund-amount">Lock USDC in the pool</Label>
-            <Input id="fund-amount" inputMode="decimal" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} disabled={!!pendingOwner || poolClosed} className="w-40 font-mono" />
+            <Input id="fund-amount" inputMode="decimal" autoComplete="off" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} disabled={!!pendingOwner || poolClosed} className="font-mono" />
           </div>
           <Button type="submit" disabled={!isOwner || !!pendingOwner || poolClosed}>
             Fund
           </Button>
-          {ownerDisabledReason ? <span className="text-xs text-muted-foreground">{ownerDisabledReason}</span> : null}
+          {ownerDisabledReason ? <p className="text-xs text-muted-foreground">{ownerDisabledReason}</p> : null}
         </form>
-        <form onSubmit={withdraw} className="flex flex-wrap items-end gap-3 border-t pt-4">
+        <form onSubmit={withdraw} className="pool-transfer-form">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="withdraw-amount">Withdraw available USDC</Label>
-            <Input id="withdraw-amount" inputMode="decimal" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} disabled={!!pendingOwner} className="w-40 font-mono" />
+            <Input id="withdraw-amount" inputMode="decimal" autoComplete="off" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} disabled={!!pendingOwner} className="font-mono" />
           </div>
           <Button type="submit" variant="outline" disabled={!isOwner || !!pendingOwner || !state || withdrawable(state) === 0n}>
             Withdraw
           </Button>
         </form>
+        </div>
         {state ? <YieldPanel key={`yield-${state.ids.pool}`} state={state} isOwner={isOwner} busy={!!pendingOwner || creatingPool} onRun={owner} /> : null}
         {state ? <PoolRecovery key={state.ids.pool} state={state} isOwner={isOwner} busy={!!pendingOwner || creatingPool} onRun={recoverPool} /> : null}
         {pendingOwner ? <p role="status" className="text-sm text-muted-foreground">Waiting for wallet approval or confirmation: {pendingOwner}</p> : null}
       </PoolPanel>
 
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <section className="flex flex-col gap-4">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">Agents</h2>
+        <section id="agents" aria-labelledby="agents-heading" className="flex min-w-0 flex-col gap-4">
+          <div className="console-section-heading">
+            <div><h2 id="agents-heading">Your agents</h2><p>Individual wallets. On-chain boundaries.</p></div>
+            {state ? <span className="console-count">{state.agents.length} total</span> : null}
+          </div>
           {!state ? (
             <div className="h-48 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" />
           ) : state.agents.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">{poolClosed ? "This closed pool has no agent history. Create a new pool to continue." : "No agents yet. Create one with the form."}</CardContent>
+              <CardContent className="console-empty">
+                <span className="empty-icon"><Bot size={22} aria-hidden="true" /></span>
+                <h3>{poolClosed ? "No agent history" : "Your first agent starts here"}</h3>
+                <p>{poolClosed ? "This pool is closed. Use New pool to start again." : "Choose a signer, set a budget, and decide who your agent can pay."}</p>
+                {!poolClosed ? <a href="#create-agent" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-secondary-foreground">Set up an agent <ArrowUpRight size={16} aria-hidden="true" /></a> : null}
+              </CardContent>
             </Card>
           ) : (
             state.agents.map((a) => (
@@ -312,9 +337,11 @@ export default function Page() {
         </section>
 
         <aside className="flex min-w-0 flex-col gap-4">
-          <Card>
+          <Card id="create-agent">
             <CardHeader>
-              <CardTitle>Create agent</CardTitle>
+              <div className="mb-2 flex items-center gap-2 text-secondary-foreground"><ShieldCheck size={17} aria-hidden="true" /><span className="console-eyebrow">Define the boundaries</span></div>
+              <CardTitle><h2>Create an agent</h2></CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">Set the permissions. Let your agent do the rest.</p>
             </CardHeader>
             <CardContent>
               <CreateAgentForm latestLedger={state?.latestLedger ?? 0} disabled={!isOwner || !!pendingOwner || poolClosed} disabledReason={poolClosed ? "This pool is permanently closed. Use New pool to continue." : pendingOwner ? "Wait for the current owner transaction." : ownerDisabledReason} onSubmit={createAgent} owner={isOwner ? address : null} pool={state?.ids.pool ?? null} />
@@ -324,6 +351,11 @@ export default function Page() {
           <LogPanel session={log} pool={pool} />
         </aside>
       </div>
+      <footer className="console-footer">
+        <div><p>Agent autonomy. Human control.</p><p className="mt-1">Stellar testnet demo · Not audited.</p></div>
+        <a href="https://kovan-indol.vercel.app">Back to Kovan <ArrowUpRight size={15} className="ml-2" aria-hidden="true" /></a>
+      </footer>
     </main>
+    </>
   );
 }

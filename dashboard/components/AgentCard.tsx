@@ -4,12 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { statusOf, type StateAgent } from "@/lib/client";
 import { shortId, usdc } from "@/lib/format";
+import { Bot } from "lucide-react";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 py-1.5 last:border-0">
+    <div className="agent-stat-row">
       <span className="text-xs text-muted-foreground">{k}</span>
       <span className="font-mono text-sm tabular-nums">{v}</span>
     </div>
@@ -38,8 +39,10 @@ export function AgentCard({ agent, latestLedger, actions }: { agent: StateAgent;
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle className="truncate font-mono text-base">{shortId(agent.id, 8)}</CardTitle>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="agent-icon"><Bot size={21} aria-hidden="true" /></span>
+          <div className="min-w-0">
+          <CardTitle className="truncate font-mono text-sm">{shortId(agent.id, 8)}</CardTitle>
           <a
             className="text-xs text-muted-foreground underline-offset-4 hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             href={`${EXPLORER}/contract/${agent.id}`}
@@ -48,6 +51,7 @@ export function AgentCard({ agent, latestLedger, actions }: { agent: StateAgent;
           >
             view on explorer
           </a>
+          </div>
         </div>
         <div className="flex flex-col items-end gap-1">
           <Badge variant={tone}>{expired && status === "Active" ? "Expired" : status}</Badge>

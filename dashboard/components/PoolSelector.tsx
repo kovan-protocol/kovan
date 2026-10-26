@@ -33,7 +33,7 @@ export function PoolSelector({ pools, current, onSelect, onCreate, canCreate, cr
       </label>
       <select
         id="pool-select"
-        className="h-8 rounded-md border bg-background px-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-10 min-w-0 max-w-48 rounded-md border border-input bg-card px-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         value={current ?? ""}
         disabled={disabled || creating}
         onChange={(e) => onSelect(e.target.value)}

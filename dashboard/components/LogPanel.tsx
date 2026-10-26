@@ -70,9 +70,9 @@ export function LogPanel({ session, pool }: { session: LogEntry[]; pool?: string
   }, [load, session.length]);
 
   return (
-    <Card>
+    <Card id="activity">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Log</CardTitle>
+        <CardTitle><h2>Activity</h2></CardTitle>
         <Button variant="ghost" size="sm" onClick={load}>
           Reload
         </Button>
