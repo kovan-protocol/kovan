@@ -24,10 +24,10 @@ export function Hero() {
     { k: "kovan-pool", v: shortId(deployment.pool), href: contractUrl(deployment.pool) },
     { k: "covenant policy", v: shortId(deployment.policy), href: contractUrl(deployment.policy) },
     fund
-      ? { k: "fund · 5 testnet USDC", v: `tx ${txTail(fund.hash)}`, href: txUrl(fund.hash) }
+      ? { k: "legacy fund · 5 testnet USDC", v: `tx ${txTail(fund.hash)}`, href: txUrl(fund.hash) }
       : null,
     created
-      ? { k: "create_agent · $0.50 limit", v: `tx ${txTail(created.hash)}`, href: txUrl(created.hash) }
+      ? { k: "legacy create_agent · $0.50 limit", v: `tx ${txTail(created.hash)}`, href: txUrl(created.hash) }
       : null,
     { k: "ed25519 verifier", v: shortId(deployment.verifier), href: contractUrl(deployment.verifier) },
   ].filter((item): item is { k: string; v: string; href: string } => item !== null);

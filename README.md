@@ -31,9 +31,9 @@ A developer running an agent that pays data or RPC providers per call over x402.
 
 *Humans configure, agents only execute inside limits.*
 
-### Pool accounting v2
+### Deployed cash-pool accounting v2
 
-The current source implements the complete draw → spend → recover → close → withdraw lifecycle. AP2 mandates, intent records, and escrow are deferred; this keeps the existing pool, policy, and agent accounts.
+The deployed v2 pool implements the complete draw → spend → recover → close → withdraw lifecycle. AP2 mandates, intent records, and escrow are deferred; this keeps the existing pool, policy, and agent accounts.
 
 - `locked` = the pool's actual USDC balance + outstanding agent advances. It is an accounting total, **not** the pool's cash balance. An advance includes money already spent until it is settled at closure.
 - `sum_limits` = draw limits of all non-closed agents. Available funds are `locked - sum_limits`, always backed by cash in the pool.
@@ -49,7 +49,15 @@ The console's **Close pool** replaces **Free pool**: revoke agents, recover and 
 
 This is irreversible deactivation, not deletion of the contract or its history. There is no reopen/upgrade function. The pool rejects new funding, agents, draws, delegation, amendments, and other operational changes. `return_funds`, owner-only `withdraw`, and reads remain available so late USDC deposits can be recovered without reopening it. Closing agents and closing their pool are distinct operations; draining cash alone does not close a pool.
 
-**Deployment:** the IDs and transaction evidence below are the earlier testnet deployment. They are not upgraded by changing this source. Accounting v2 and permanent pool shutdown need a fresh pool deployment and new agent accounts; there is no in-place migration. Preserve the old deployment record and recover available old funds before switching the dashboard configuration. `make deploy` deploys fresh contracts and writes the pool WASM hash required by the dashboard's Create pool flow. Earlier v2 pools also lack shutdown; the console requires the explicit boolean `closed` field before offering permanent closure. Old pools retain **Recover funds** and **Return to wallet**, with no claim that the pool was destroyed.
+**Deployment:** accounting v2 and permanent shutdown are deployed on testnet (2026-10-25, 22:30:42 UTC). The default pool and the dashboard's **New pool** flow use pool WASM `cc1aadcf38ffeee5d15717e04f48f325024b7a47e57ca1548a8e9d49b731b464`. The policy, verifier, and agent-account WASM are unchanged and were checked byte-for-byte against the current build. The new pool was deployed empty; no old balances or agents were moved.
+
+Existing pools are immutable and cannot be upgraded in place. The [previous deployment record](deployments/history/testnet-2026-10-25-legacy.json) is preserved, and the dashboard keeps its old default plus browser-saved pools selectable. Explicit legacy WASM hashes remain allowed for access and recovery, never for new deployments. Old pools retain **Recover funds** and **Return to wallet**; the console only offers permanent closure when `get_pool` includes the boolean `closed` field. Create a new pool owned by your connected wallet, fund it, and create new agents to use the new lifecycle. Moving funds from an old pool still requires its owner's separate signatures.
+
+### Optional yield — v3 source, not yet activated
+
+The new pool source supports both **investing pool USDC into a DeFindex vault** and **locking an existing transferable vault-share position**. It uses actual share custody, discounts estimated backing by 10%, redeems only missing cash during an agent draw, and returns shares in kind during closure. The console separates cash from estimated vault backing and requires owner-signed opt-in and bounded quotes. This buffer is not insurance; investment losses and unavailable liquidity can stop draws.
+
+**The manifest and New pool flow still deploy cash-only v2.** The published DeFindex testnet vault uses a different USDC contract, so it is deliberately not enabled. Existing funds are untouched. See [yield design, trust boundaries, tests and activation requirements](docs/YIELD.md). A compatible reviewed vault and fresh v3 rollout are required before using yield on chain.
 
 ### Agent signer choice
 
@@ -68,9 +76,9 @@ The console supports **app-managed signers** and **your own runtime's public key
 
 | Component | Stellar feature | Contract ID (testnet) |
 |---|---|---|
-| `kovan-pool` | Soroban contract; USDC SAC transfers; deploys agent accounts via `deployer()` | [`CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ`](https://stellar.expert/explorer/testnet/contract/CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ) |
+| `kovan-pool` | Accounting v2; USDC recovery; irreversible pool shutdown; deploys agent accounts via `deployer()` | [`CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`](https://stellar.expert/explorer/testnet/contract/CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR) |
 | `kovan-covenant-policy` | OpenZeppelin smart-account policy (`stellar-accounts` 0.8.0) | [`CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2`](https://stellar.expert/explorer/testnet/contract/CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2) |
-| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; first agent [`CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ`](https://stellar.expert/explorer/testnet/contract/CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ) |
+| `kovan-agent-account` (per agent) | OpenZeppelin smart account, frozen at creation | unchanged wasm hash `25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7`; created on demand, not migrated |
 | `kovan-ed25519-verifier` | OZ verifier for External signers | [`CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4`](https://stellar.expert/explorer/testnet/contract/CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4) |
 | USDC | Stellar Asset Contract | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` |
 | Payments | x402 (facilitator-settled `transfer` from the agent account) | see evidence |
@@ -78,6 +86,15 @@ The console supports **app-managed signers** and **your own runtime's public key
 Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ### Testnet transaction evidence
+
+Current pool rollout (confirmed by Stellar RPC):
+
+| Step | What it shows | Tx |
+|---|---|---|
+| upload pool v2 | Current pool WASM uploaded at ledger 5388770 | [`74ca13…`](https://stellar.expert/explorer/testnet/tx/74ca13c5799421ec314cf5fa3fd946e4f0cb91be4f990849592ed6338ac4186f) |
+| deploy pool v2 | Fresh pool at ledger 5388771; verified `accounting_version: 2`, `closed: false`, zero balance and zero agents | [`b2b2f1…`](https://stellar.expert/explorer/testnet/tx/b2b2f1f8fd3911504f91a5d9f959ffdb61a24e1b9a9fa9c29b56965eb26074f5) |
+
+Historical lifecycle evidence below belongs to the legacy pool [`CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ`](https://stellar.expert/explorer/testnet/contract/CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ), including its first agent [`CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ`](https://stellar.expert/explorer/testnet/contract/CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ). These are not funding/agent records for the new pool. Shared verifier and policy deployments remain in use.
 
 | Step | What it shows | Tx |
 |---|---|---|
@@ -95,13 +112,33 @@ Full deployment record: [deployments/testnet.json](deployments/testnet.json).
 
 ## Setup
 
-Verification snapshot (2026-10-25): **221 tests** pass in the current source — 107 contract tests and 114 dashboard tests. This verifies the repository, not a deployment of its latest contracts.
+### Developer SDK
+
+[`@kovan/sdk`](sdk/README.md) is a standalone local TypeScript/ESM package for deploying/funding pools, creating agents, authorized payments and recovery/closure. The dashboard uses the same SDK. Applications supply their own configuration and owner/agent/fee-payer signers; no Kovan backend or keystore is required. It is **not yet published to npm**. Yield remains experimental and inactive on the default v2 deployment.
+
+A standalone example completed the full cash lifecycle on a new isolated testnet pool using faucet XLM, including cap/revocation refusals, recovery and shutdown. See [execution evidence and scope](docs/SDK.md). This is separate from the historical USDC demo and does not activate yield or move existing funds.
+
+```bash
+cd sdk
+npm ci
+npm run build
+npm test
+# Read-only by default; --execute creates disposable testnet accounts and a new pool.
+node examples/testnet-lifecycle.mjs
+```
+
+### Contracts and dashboard
+
+Cash-only deployment verification snapshot (2026-10-25, before the v3 yield work): **231 tests** passed — 107 contract tests and 124 dashboard tests. Separately, RPC confirmed the new pool's deployed WASM hash and initial v2/shutdown state. The full spending/recovery lifecycle is covered by tests; it has not yet been replayed with funds on this new default pool. The newer local v3 suite has 132 regular contract tests and 144 dashboard tests, plus one separately run DeFindex-bytecode integration test; see [yield verification](docs/YIELD.md#verification).
 
 ```bash
 rustup target add wasm32v1-none      # stellar CLI 26.1.0, cargo 1.95
 make test                            # builds WASM and runs the contract tests
-OWNER=<identity> make deploy         # testnet only
+node dashboard/scripts/deploy-pool.mjs --check --source <identity> # read-only preflight (after build)
+OWNER=<identity> make deploy         # testnet only; pool-only rollout when manifest exists
 ```
+
+Run `make setup-js` to install/build the SDK and install the dashboard's local package dependency. `make test-js` rebuilds the SDK, refreshes that installed copy and checks both packages. With an existing manifest, deployment verifies the owner and unchanged shared code, archives the old manifest, deploys and verifies the new pool, and atomically updates the record while retaining legacy access. It does not move funds. It refuses changed shared dependencies rather than silently mixing bindings. Update the README's deployment evidence after a rollout, then run `cd web && npm run build` to synchronize the website snapshot. A bootstrap without any manifest uses the original full deployment path.
 
 ## Env vars
 

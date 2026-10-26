@@ -53,9 +53,10 @@ export function PoolPanel({ state, children }: { state: State | null; children?:
         <Badge variant="outline">testnet · ledger {state.latestLedger.toLocaleString("en-US")}</Badge>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        <p className="text-xs text-muted-foreground">{typeof state.pool.closed === "boolean" ? `Accounting v${state.pool.accounting_version ?? 2} · permanent shutdown supported${(state.pool.accounting_version ?? 1) >= 3 ? " · opt-in yield capable" : " · cash-only"}` : "Legacy contract · no permanent shutdown; use New pool for the current contract"}</p>
         {state.pool.closed ? <p role="status" className="rounded-md border p-3 text-sm"><strong>Permanently closed.</strong> Funding and new agents are disabled on-chain. This pool is kept here for history and late refunds. Use New pool to start again.</p> : null}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="In the pool" value={state.pool.balance === undefined ? "—" : usdc(state.pool.balance)} hint="USDC held by the pool" />
+          <Stat label="Liquid in the pool" value={state.pool.balance === undefined ? "—" : usdc(state.pool.balance)} hint="USDC cash, excluding vault shares" />
           <Stat label="Allocated limits" value={usdc(sum)} hint="includes advances until closed" />
           <Stat label="Free to withdraw" value={state.pool.balance === undefined ? "—" : usdc(withdrawable(state))} />
           <Stat label="Settled spending" value={state.pool.settled_spent === undefined ? "—" : usdc(state.pool.settled_spent)} hint="net funding consumed by closed agents" />

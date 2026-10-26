@@ -5,6 +5,7 @@
 pub mod contract;
 pub mod events;
 pub mod storage;
+pub mod yield_source;
 
 #[cfg(test)]
 mod test;

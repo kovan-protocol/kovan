@@ -47,6 +47,7 @@ pub struct PoolInfo {
     pub sum_limits: i128,
     pub settled_spent: i128,
     pub balance: i128,
+    pub outstanding: i128,
     pub agent_count: u32,
 }
 
@@ -65,6 +66,7 @@ pub enum PoolKey {
     Agents,
     Closed,
     OpenAgents,
+    YieldConfig,
 }
 
 #[contracterror]
@@ -89,6 +91,15 @@ pub enum PoolError {
     Expired = 16,
     PoolClosed = 17,
     PoolNotEmpty = 18,
+    YieldNotConfigured = 19,
+    YieldAlreadyConfigured = 20,
+    YieldInvalidVault = 21,
+    YieldCodeChanged = 22,
+    YieldQuoteExpired = 23,
+    YieldSlippage = 24,
+    YieldLiquidity = 25,
+    YieldUnderfunded = 26,
+    YieldArithmetic = 27,
 }
 
 /// Children per parent, so `revoke` and `close` stay within one transaction's budget.

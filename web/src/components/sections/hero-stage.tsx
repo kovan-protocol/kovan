@@ -253,13 +253,13 @@ export function HeroStage() {
       <p className="hs-cap">
         <Tag>Example</Tag>
         <span>
-          Illustrative UI. Live on Stellar testnet: 1 pool with {locked} USDC locked and 1 agent (monitor) with
-          a {draw} USDC draw limit (
+          Illustrative UI based on legacy testnet evidence: {locked} USDC funded and a
+          {draw} USDC agent draw limit. These are not the current pool&apos;s balances (
           <a href={poolHref} target="_blank" rel="noopener noreferrer">
             pool on Stellar Expert
           </a>
-          ). The other agents, the payments and the blocked payment are examples. The owner dashboard is still
-          being built.
+          ). The current pool was deployed empty with accounting v2 and permanent shutdown.
+          The agents, payments and blocked payment shown here are examples.
         </span>
       </p>
     </div>

@@ -3,18 +3,18 @@
 import { Button } from "@/components/ui/button";
 import { shortId } from "@/lib/format";
 
-/** Pools this browser knows about: the deployed default plus any created here (localStorage). */
+/** Current and historical deployments plus pools saved by this browser. */
 export const POOLS_KEY = "kovan.pools";
 
-export function loadPools(defaultPool: string | null): string[] {
-  if (typeof window === "undefined") return defaultPool ? [defaultPool] : [];
+export function loadPools(defaultPool: string | null, known: string[] = []): string[] {
   let saved: string[] = [];
   try {
-    saved = JSON.parse(window.localStorage.getItem(POOLS_KEY) ?? "[]");
+    const value: unknown = typeof window === "undefined" ? [] : JSON.parse(window.localStorage.getItem(POOLS_KEY) ?? "[]");
+    if (Array.isArray(value)) saved = value.filter((p): p is string => typeof p === "string" && /^C[A-Z2-7]{55}$/.test(p));
   } catch {
     saved = [];
   }
-  const all = [...(defaultPool ? [defaultPool] : []), ...saved];
+  const all = [...(defaultPool ? [defaultPool] : []), ...known, ...saved];
   return Array.from(new Set(all));
 }
 

@@ -1,6 +1,7 @@
 {
+  "historicalPool": "CAS7ARNTLTRAD4WLYGIXC5EVMFZBETIQROJ2UWOJGU4QQY5XQT3K2LKJ",
   "firstAgent": "CAL7PY3A56BEDAN4QKNR5GPKK2UGXRHXG2Y3BX3XH5OHRPWGZS6JCCLZ",
-  "testCount": 221,
+  "testCount": 231,
   "fundUsdc": "5",
   "drawLimit": "0.50",
   "transactions": [
@@ -17,22 +18,25 @@
       "label": "policy"
     },
     {
-      "id": "deploy-pool",
+      "id": "deploy-legacy-pool",
       "hash": "aeb089402970cc503063bf223978f875aa829ec1b0e0d9adcaaff70d2f4b476c",
       "group": "deploy",
-      "label": "pool"
+      "label": "legacy pool deployment",
+      "historical": true
     },
     {
       "id": "fund",
       "hash": "647e1a6bcdd1c85dc7bb31a708ba04f745aa14ed35ba71e63308e399fcc9f8ff",
       "group": "fund",
-      "label": "fund"
+      "label": "fund (legacy pool)",
+      "historical": true
     },
     {
       "id": "create-agent",
       "hash": "6ff00f25f92b27da9034383d606e9e56428d480ad30c10019ace6323649f1033",
       "group": "create_agent",
-      "label": "create_agent"
+      "label": "create_agent (legacy pool)",
+      "historical": true
     }
   ]
 }

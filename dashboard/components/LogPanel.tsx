@@ -9,7 +9,7 @@ import { shortId, usdc } from "@/lib/format";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 
-type ChainEvent = { ledger: number; txHash: string; source: "pool" | "covenant" | "other"; kind: string; agent?: string; data: Record<string, string> | unknown };
+type ChainEvent = { ledger: number; txHash: string; source: "pool" | "covenant" | "other"; kind: string; agent?: string; vault?: string; action?: string; data: Record<string, string> | unknown };
 type EventsPage = { events: ChainEvent[]; latestLedger: number; oldestLedger: number; truncated: boolean };
 
 function describe(ev: ChainEvent): string {
@@ -38,6 +38,10 @@ function describe(ev: ChainEvent): string {
       return "spending stopped; awaiting closure";
     case "pool_closed":
       return `pool permanently closed · returned ${amt("returned")} to owner`;
+    case "yield_configured":
+      return "owner enabled a fixed vault binding";
+    case "yield_movement":
+      return `${ev.action ?? "yield"} · ${usdc(d.shares ?? "0").replace(" USDC", " shares")}${ev.action === "release" ? " returned in kind" : ` · ${amt("assets")}`}`;
     default:
       return typeof ev.data === "object" && ev.data ? Object.keys(ev.data as object).join(", ") : "";
   }
@@ -117,6 +121,7 @@ export function LogPanel({ session, pool }: { session: LogEntry[]; pool?: string
                     </Badge>
                     <span>{ev.kind}</span>
                     {ev.agent ? <span className="text-muted-foreground">{shortId(ev.agent, 4)}</span> : null}
+                    {ev.vault ? <span className="text-muted-foreground">vault {shortId(ev.vault, 4)}</span> : null}
                   </span>
                   <span className="text-muted-foreground">
                     {describe(ev)} ·{" "}

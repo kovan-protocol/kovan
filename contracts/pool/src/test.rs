@@ -12,6 +12,8 @@ use crate::contract::{KovanPool, KovanPoolClient};
 use crate::storage::Status;
 
 mod lifecycle;
+mod yield_tests;
+mod defindex_wasm;
 
 mod account_wasm {
     soroban_sdk::contractimport!(file = "../target/wasm32v1-none/release/kovan_agent_account.wasm");
@@ -47,6 +49,10 @@ pub fn covenant(fx: &Fx) -> CovenantParams {
 }
 
 pub fn setup() -> Fx {
+    setup_with_pool_wasm(None)
+}
+
+pub fn setup_with_pool_wasm(pool_wasm: Option<&[u8]>) -> Fx {
     let e = Env::default();
     e.mock_all_auths();
     let owner = Address::generate(&e);
@@ -57,7 +63,11 @@ pub fn setup() -> Fx {
     let policy = e.register(CovenantPolicyContract, ());
     let verifier = e.register(Ed25519VerifierContract, ());
     let wasm_hash = e.deployer().upload_contract_wasm(account_wasm::WASM);
-    let pool_addr = e.register(KovanPool, (owner.clone(), usdc.clone(), wasm_hash, policy.clone(), verifier.clone()));
+    let args = (owner.clone(), usdc.clone(), wasm_hash, policy.clone(), verifier.clone());
+    let pool_addr = match pool_wasm {
+        Some(wasm) => e.register(wasm, args),
+        None => e.register(KovanPool, args),
+    };
     let pool = KovanPoolClient::new(&e, &pool_addr);
     // Leak the env so the client can borrow it for 'static in the fixture.
     let pool = unsafe { core::mem::transmute::<KovanPoolClient<'_>, KovanPoolClient<'static>>(pool) };

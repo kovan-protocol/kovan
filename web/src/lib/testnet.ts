@@ -11,6 +11,8 @@ export type Deployment = {
   usdc: string;
   owner: string;
   deployed_at: string;
+  pool_deploy_tx: string;
+  pool_wasm_hash: string;
 };
 
 export type TxRecord = {
@@ -18,11 +20,13 @@ export type TxRecord = {
   hash: string;
   group: "deploy" | "fund" | "create_agent" | "blocked";
   label: string;
+  historical?: boolean;
 };
 
 export const deployment = deploymentJson as Deployment;
 
 const evidence = evidenceJson as {
+  historicalPool: string;
   firstAgent: string;
   testCount: number;
   fundUsdc: string;
@@ -56,20 +60,23 @@ export function formatDeployed(iso: string) {
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
 }
 
+// Historical demonstration evidence, not balances/agents of the current pool.
+export const historicalPool = evidence.historicalPool;
 export const firstAgent = evidence.firstAgent;
 export const testCount = evidence.testCount;
 export const fundUsdc = evidence.fundUsdc;
 export const drawLimit = evidence.drawLimit;
 
-/** Pool, covenant policy, ed25519 verifier, and the first agent account. */
+/** Current pool/shared contracts and a clearly labeled historical agent. */
 export const sorobanContracts = [
   { name: "kovan-pool", id: deployment.pool },
   { name: "covenant policy", id: deployment.policy },
   { name: "ed25519 verifier", id: deployment.verifier },
-  { name: "first agent account", id: firstAgent },
+  { name: "historical agent account (legacy pool)", id: firstAgent },
 ] as const;
 
 export const verifiedTransactions: TxRecord[] = [
+  { id: "deploy-pool", hash: deployment.pool_deploy_tx, group: "deploy", label: "pool v2 + permanent shutdown" },
   ...evidence.transactions,
   ...(BLOCKED_PAYMENT_HASH
     ? [

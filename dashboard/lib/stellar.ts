@@ -31,18 +31,26 @@ export function ids(poolOverride?: string | null): Ids {
   };
 }
 
-const verifiedPools = new Set<string>();
+export function knownPools(): string[] {
+  const d = deployments();
+  return [...new Set([ids().pool, d.pool, ...(d.legacy_pools ?? []).map((p) => p.pool)])];
+}
+
+const verifiedPools = new Map<string, string>();
 /**
- * A pool override is only honoured if the contract runs the Kovan pool wasm.
+ * A pool override must run current or explicitly retained legacy Kovan code.
+ * Legacy code is accepted for access/recovery, never used for new deployments.
  * Stops a crafted "pool" from borrowing the fee payer's or owner's signature.
  */
 export async function assertKovanPool(pool: string): Promise<void> {
   const d = deployments();
-  if (pool === d.pool || verifiedPools.has(pool)) return;
+  const allowed = new Set([d.pool_wasm_hash, ...(d.legacy_pools ?? []).map((p) => p.pool_wasm_hash)].filter(Boolean));
+  const cached = verifiedPools.get(pool);
+  if (cached && allowed.has(cached)) return;
   const wasm = await withRetry(() => rpcServer().getContractWasmByContractId(pool));
   const h = (await import("node:crypto")).createHash("sha256").update(wasm).digest("hex");
-  if (h !== d.pool_wasm_hash) throw new Error(`pool ${pool.slice(0, 8)}… is not a Kovan pool (wasm ${h.slice(0, 8)}…)`);
-  verifiedPools.add(pool);
+  if (!allowed.has(h)) throw new Error(`pool ${pool.slice(0, 8)}… is not a Kovan pool (wasm ${h.slice(0, 8)}…)`);
+  verifiedPools.set(pool, h);
 }
 
 /** POST handlers are local tools; refuse cross-site and non-JSON requests. */

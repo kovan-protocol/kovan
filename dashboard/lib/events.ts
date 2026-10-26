@@ -11,6 +11,8 @@ export type LogEvent = {
   source: "pool" | "covenant" | "other";
   kind: string;
   agent?: string;
+  vault?: string;
+  action?: string;
   data: Record<string, unknown> | unknown;
 };
 
@@ -35,18 +37,25 @@ export function normalizeEvent(e: RawEvent, idsIn: { pool: string; policy: strin
   const source: LogEvent["source"] = e.contractId === idsIn.pool ? "pool" : e.contractId === idsIn.policy ? "covenant" : "other";
   let kind = "other";
   let agent: string | undefined;
+  let vault: string | undefined;
+  let action: string | undefined;
   try {
     const t0 = xdr.ScVal.fromXDR(e.topic[0], "base64");
     if (t0.switch() === xdr.ScValType.scvSymbol()) kind = t0.sym().toString();
     if (e.topic[1] && kind !== "pool_closed") {
       const t1 = xdr.ScVal.fromXDR(e.topic[1], "base64");
-      if (t1.switch() === xdr.ScValType.scvAddress()) agent = Address.fromScVal(t1).toString();
+      if (t1.switch() === xdr.ScValType.scvAddress()) {
+        const address = Address.fromScVal(t1).toString();
+        if (kind === "yield_configured" || kind === "yield_movement") vault = address;
+        else agent = address;
+      }
     }
+    if (kind === "yield_movement" && e.topic[2]) action = String(native(e.topic[2]));
   } catch {
     kind = "other";
   }
   if (source === "other") kind = "other";
-  return { ledger: e.ledger, txHash: e.txHash, source, kind, agent, data: jsonSafe(native(e.value)) };
+  return { ledger: e.ledger, txHash: e.txHash, source, kind, agent, vault, action, data: jsonSafe(native(e.value)) };
 }
 
 export type EventsPage = { events: LogEvent[]; latestLedger: number; oldestLedger: number; truncated: boolean };

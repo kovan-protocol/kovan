@@ -118,10 +118,12 @@ export async function runPoolRecovery({ mode, pool, owner, read, run }: Recovery
     let step = nextRecoveryStep(state);
     if (!step) {
       if (mode !== "close") return { state, transactions };
-      if (state.agents.some((a) => statusOf(a.status) !== "Closed") || BigInt(state.pool.sum_limits) !== 0n || BigInt(state.pool.locked) !== BigInt(state.pool.balance!)) {
+      const outstanding = state.pool.outstanding === undefined
+        ? BigInt(state.pool.locked) - BigInt(state.pool.balance!) : BigInt(state.pool.outstanding);
+      if (state.agents.some((a) => statusOf(a.status) !== "Closed") || BigInt(state.pool.sum_limits) !== 0n || outstanding !== 0n) {
         throw new Error("Pool still has open allocations or outstanding advances. It has not been closed.");
       }
-      step = { fn: "close_pool", args: {}, label: `Permanently close pool · return ${usdc(state.pool.balance!)} to owner` };
+      step = { fn: "close_pool", args: {}, label: `Permanently close pool · return ${usdc(state.pool.balance!)}${state.yield?.vault ? " + remaining vault shares in kind" : ""} to owner` };
     }
     // A refreshed ledger number can change the proposed legacy expiry without
     // advancing the allocation itself. Do not ask the owner to sign it twice.

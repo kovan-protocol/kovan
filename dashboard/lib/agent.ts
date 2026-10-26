@@ -2,20 +2,19 @@
 //   build (fee payer as source) → simulate → sign the agent's auth entry →
 //   re-simulate with the signed entry (covenant runs here; a refusal is decoded
 //   before anything is submitted) → assemble → fee payer signs → submit.
-import { Address, Contract, Keypair, Operation, rpc, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import { agentPubkeyHex, signAgentEntry } from "./authpayload";
+import { Keypair } from "@stellar/stellar-sdk";
+import { KovanError, keypairTransactionSigner } from "@kovan/sdk";
+export { onlyAgentEntry } from "@kovan/sdk";
+import { kovanClient } from "./kovan";
+import { agentPubkeyHex } from "./authpayload";
 import { simulateRead } from "./contracts";
-import { explainError } from "./errors";
-import { addrVal, i128Val } from "./scval";
-import { assertKovanPool, ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
-import { submitSigned, type SubmitResult } from "./submit";
+import { ids } from "./stellar";
+import { xdr } from "@stellar/stellar-sdk";
+import type { SubmitResult } from "./submit";
 import { defaultKeystore } from "./keystore";
 
 export type AgentAction = "draw" | "pay" | "return";
 export type AgentRequest = { agent: string; amount: string; to?: string; pool?: string };
-
-/** Auth entries expire this many ledgers after the latest one (~5 min). */
-const EXPIRY_LEDGERS = 60;
 
 const FEE_PAYER_LABEL = "fee-payer";
 
@@ -41,25 +40,6 @@ export function env(name: string): string {
   if (!v) throw new Error(`${name} is not set in dashboard/.env.local`);
   if (!/^S[A-Z2-7]{55}$/.test(v)) throw new Error(`${name} is not a Stellar secret key (S…)`);
   return v;
-}
-
-/**
- * The only auth entries we sign are the agent account's own (legacy Address
- * credentials). Anything else would be satisfied by the fee payer's envelope
- * signature, so it is refused outright.
- */
-export function onlyAgentEntry(
-  e: xdr.SorobanAuthorizationEntry,
-  agent: string,
-  sign: (entry: xdr.SorobanAuthorizationEntry) => xdr.SorobanAuthorizationEntry,
-): xdr.SorobanAuthorizationEntry {
-  const kind = e.credentials().switch();
-  if (kind !== xdr.SorobanCredentialsType.sorobanCredentialsAddress()) {
-    throw new Error(`refusing to sign: simulation requires ${kind.name} credentials, which the fee payer would satisfy`);
-  }
-  const who = Address.fromScAddress(e.credentials().address().address()).toString();
-  if (who !== agent) throw new Error(`refusing to sign: simulation requires authorization from ${who.slice(0, 8)}…, not the agent`);
-  return sign(e);
 }
 
 /** Reads the account's rule-0 External signer: (verifier, pubkey hex). */
@@ -99,54 +79,21 @@ export async function assertAgentKeyMatches(agent: string, secret: string, verif
   if (agentPubkeyHex(secret) !== chain.pubkeyHex) throw new Error(`agent key does not match account: on-chain signer ${chain.pubkeyHex.slice(0, 8)}…`);
 }
 
-function buildOp(action: AgentAction, r: AgentRequest): xdr.Operation {
-  const { pool, usdc } = ids(r.pool);
-  switch (action) {
-    case "draw":
-      return new Contract(pool).call("draw", addrVal(r.agent), i128Val(r.amount));
-    case "pay":
-      if (!r.to) throw new Error("`to` is required for pay");
-      return new Contract(usdc).call("transfer", addrVal(r.agent), addrVal(r.to), i128Val(r.amount));
-    case "return":
-      return new Contract(pool).call("return_funds", addrVal(r.agent), addrVal(r.agent), i128Val(r.amount));
-    default:
-      throw new Error(`unknown agent action ${String(action)}`);
-  }
-}
-
 export type AgentRunResult = SubmitResult & { stage: "guard" | "simulate" | "submit" };
 
 export async function runAgentAction(action: AgentAction, r: AgentRequest): Promise<AgentRunResult> {
   const feePayer = await feePayerKeypair();
-  const server = rpcServer();
-  const { verifier, pool, usdc } = ids(r.pool);
-  const ctx = { usdc, pool };
-  if (r.pool) await assertKovanPool(pool);
-
-  const secret = await resolveAgentSecret(r.agent, verifier);
-
-  const latest = (await withRetry(() => server.getLatestLedger())).sequence;
-  const source = await withRetry(() => server.getAccount(feePayer.publicKey()));
-  const op = buildOp(action, r);
-  const tx1 = new TransactionBuilder(source, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE }).addOperation(op).setTimeout(120).build();
-  const sim1 = await withRetry(() => server.simulateTransaction(tx1));
-  if (rpc.Api.isSimulationError(sim1)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim1.error, ctx), raw: sim1.error };
-
-  // Sign every entry that belongs to the agent account; leave any other as is.
-  const entries = (sim1 as rpc.Api.SimulateTransactionSuccessResponse).result?.auth ?? [];
-  const signed = entries.map((e) => onlyAgentEntry(e, r.agent, (entry) => signAgentEntry(entry, { verifier, secret, networkPassphrase: NETWORK_PASSPHRASE, expirationLedger: latest + EXPIRY_LEDGERS })));
-
-  const hf = op.body().invokeHostFunctionOp().hostFunction();
-  const source2 = await withRetry(() => server.getAccount(feePayer.publicKey()));
-  const tx2 = new TransactionBuilder(source2, { fee: "10000", networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(Operation.invokeHostFunction({ func: hf, auth: signed }))
-    .setTimeout(120)
-    .build();
-  const sim2 = await withRetry(() => server.simulateTransaction(tx2));
-  if (rpc.Api.isSimulationError(sim2)) return { hash: "", status: "ERROR", stage: "simulate", error: explainError(sim2.error, ctx), raw: sim2.error };
-
-  const prepared = rpc.assembleTransaction(tx2, sim2).build();
-  prepared.sign(feePayer);
-  const res = await submitSigned(prepared.toXDR());
-  return { ...res, stage: "submit" };
+  const { verifier, pool } = ids(r.pool);
+  const key = Keypair.fromSecret(await resolveAgentSecret(r.agent, verifier));
+  const client = kovanClient(r.pool);
+  try {
+    const prepared = await client.pool(pool).prepareAgent(action, r, {
+      source: feePayer.publicKey(),
+      signer: { publicKey: key.rawPublicKey().toString("hex"), sign: (digest) => key.sign(Buffer.from(digest)) },
+    });
+    return { ...await client.signAndSend(prepared, keypairTransactionSigner(feePayer)), stage: "submit" };
+  } catch (e) {
+    if (e instanceof KovanError) return { hash: "", status: "ERROR", stage: e.stage, error: e.message, raw: e.raw };
+    throw e;
+  }
 }

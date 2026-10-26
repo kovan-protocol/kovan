@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Address, xdr } from "@stellar/stellar-sdk";
 import { buildCreatePoolOp } from "@/lib/owner";
+import { deployments } from "@/lib/deployments";
 
 const OWNER = "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC";
 const USDC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
 const POLICY = "CDEQUCR4OHOQHWPIP5RONRR46G7DTJMFZKNKRIQJCLYACDDZGWKAISD2";
 const VERIFIER = "CAEU4VYRTV4ZDHFGCRYQNPN6URDOYLP4TS4OMRAJX5RD7AMLWBTYW6G4";
-const POOL_WASM = "5b109988479d4dd9ad430944b890edfdb3445139a9a2f9a76593a77ad673745a";
+const POOL_WASM = deployments().pool_wasm_hash!;
 const ACCOUNT_WASM = "25dabe1afc7a1ef93a0bc7b40ffa784e0a70463db91c4b1812fc155768ead2d7";
 
 describe("buildCreatePoolOp", () => {

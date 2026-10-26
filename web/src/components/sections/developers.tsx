@@ -21,7 +21,7 @@ const ids = [
   { name: "kovan-pool", id: deployment.pool },
   { name: "covenant policy", id: deployment.policy },
   { name: "ed25519 verifier", id: deployment.verifier },
-  { name: "first agent account", id: firstAgent },
+  { name: "historical agent account (legacy pool)", id: firstAgent },
 ];
 
 export function Developers() {
@@ -185,7 +185,7 @@ export function Developers() {
               <div className="lrow">
                 <span className="st" />
                 <span className="what">
-                  deploy verifier, policy, pool<small>second deployment, after review fixes</small>
+                  deploy pool v2<small>shared contracts reused; older pool deployment retained as history</small>
                 </span>
                 <span>
                   {deploy.map((tx) => (
@@ -199,7 +199,7 @@ export function Developers() {
                 <div className="lrow">
                   <span className="st" />
                   <span className="what">
-                    fund<small>owner locks 5 testnet USDC</small>
+                    fund (legacy pool)<small>owner locked 5 testnet USDC; not the current pool balance</small>
                   </span>
                   <a href={txUrl(fund.hash)} target="_blank" rel="noopener noreferrer">
                     {shortHash(fund.hash)} ↗

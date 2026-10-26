@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Deploys Kovan to Stellar TESTNET. Testnet only. Never point this at mainnet.
 # Usage: OWNER=kova-deployer scripts/deploy.sh
+# Existing deployment: roll out only the pool, retain unchanged shared contracts
+# and legacy access. Bootstrap all contracts only when no manifest exists.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -9,6 +11,10 @@ OWNER=${OWNER:-kova-deployer}
 USDC_SAC_ID=${USDC_SAC_ID:-CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA}
 WASM=contracts/target/wasm32v1-none/release
 OUT=deployments/testnet.json
+
+if [[ -f "$OUT" ]]; then
+  exec node dashboard/scripts/deploy-pool.mjs --source "$OWNER"
+fi
 
 make build >/dev/null
 OWNER_ADDR=$(stellar keys address "$OWNER")

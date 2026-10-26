@@ -16,6 +16,14 @@ function raw(contractId: string, topics: xdr.ScVal[], value: xdr.ScVal, over: Pa
 }
 
 describe("normalizeEvent", () => {
+  it.each(["yield_configured", "yield_movement"])("identifies a vault, not an agent, for %s", (kind) => {
+    const ev = normalizeEvent(raw(POOL, [sym(kind), new Address(AGENT).toScVal(), sym("invest")],
+      map({ shares: nativeToScVal(100n, { type: "i128" }), assets: nativeToScVal(200n, { type: "i128" }) })), { pool: POOL, policy: POLICY });
+    expect(ev.agent).toBeUndefined();
+    expect(ev.vault).toBe(AGENT);
+    if (kind === "yield_movement") expect(ev.action).toBe("invest");
+    expect(ev.data).toMatchObject({ shares: "100", assets: "200" });
+  });
   it("does not label the pool closure's owner topic as an agent", () => {
     const owner = "GCNN4XIU3KU3QA6B3ENL752Q4J6ZBPOERRT54WV2P2N7GBLHCBNMHBOC";
     const ev = normalizeEvent(raw(POOL, [sym("pool_closed"), new Address(owner).toScVal()], map({ returned: nativeToScVal(99n, { type: "i128" }) })), { pool: POOL, policy: POLICY });

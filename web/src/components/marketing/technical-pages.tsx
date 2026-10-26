@@ -96,18 +96,19 @@ export function DevelopersContent() {
   const { locale } = usePreferences();
   const deployed = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(deployment.deployed_at));
   const contractDescriptions = [
-    [t("Shared pool", "Fondo común"), t("Budgets and agent lifecycle", "Presupuestos y ciclo de los agentes")],
+    [t("Shared pool · v2", "Fondo común · v2"), t("Reconciled accounting and permanent shutdown", "Contabilidad conciliada y cierre permanente")],
     [t("Covenant policy", "Política de gasto"), t("Payment permissions and limits", "Permisos y límites de pago")],
     [t("Signature verifier", "Verificador de firmas"), "ed25519"],
-    [t("First agent account", "Primera cuenta de agente"), t("OpenZeppelin smart account", "Cuenta inteligente de OpenZeppelin")],
+    [t("Historical agent account", "Cuenta de agente histórica"), t("Legacy pool · OpenZeppelin smart account", "Fondo anterior · cuenta de OpenZeppelin")],
   ];
   function transactionLabel(id: string, fallback: string) {
     const labels: Record<string, string> = {
       "deploy-verifier": t("Deploy signature verifier", "Desplegar verificador de firmas"),
       "deploy-policy": t("Deploy covenant policy", "Desplegar política de gasto"),
-      "deploy-pool": t("Deploy shared pool", "Desplegar fondo común"),
-      fund: t(`Fund pool · ${fundUsdc} testnet USDC`, `Fondear el fondo · ${fundUsdc} USDC de testnet`),
-      "create-agent": t(`Create agent · ${drawLimit} USDC limit`, `Crear agente · límite de ${drawLimit} USDC`),
+      "deploy-pool": t("Deploy pool v2 · permanent shutdown", "Desplegar fondo v2 · cierre permanente"),
+      "deploy-legacy-pool": t("Deploy legacy pool", "Desplegar fondo anterior"),
+      fund: t(`Fund legacy pool · ${fundUsdc} testnet USDC`, `Fondear el fondo anterior · ${fundUsdc} USDC de testnet`),
+      "create-agent": t(`Legacy agent · ${drawLimit} USDC limit`, `Agente anterior · límite de ${drawLimit} USDC`),
       "blocked-payment": t("Blocked payment", "Pago rechazado"),
     };
     return labels[id] ?? fallback;
@@ -134,6 +135,7 @@ export function DevelopersContent() {
         </header>
 
         <section>
+          <p className="page-lede">{t("The current pool was deployed empty with accounting v2 and permanent shutdown. The unchanged policy, verifier and agent-account code are reused. Older funding and agent records below belong to the legacy pool; this rollout did not move funds or migrate agents.", "El fondo actual se desplegó vacío, con contabilidad v2 y cierre permanente. Se reutilizan la política, el verificador y el código de las cuentas. Los registros anteriores de fondos y agentes pertenecen al fondo anterior; este despliegue no movió fondos ni migró agentes.")}</p>
           <Reveal className="section-heading">
             <div><p className="eyebrow">STELLAR TESTNET</p><h2>{t("Inspect the contracts.", "Revisa los contratos.")}</h2></div>
             <p>{t(`${testCount} tests in the repository.`, `${testCount} pruebas en el repositorio.`)}</p>
@@ -157,7 +159,7 @@ export function DevelopersContent() {
           <Reveal className="evidence-list">
             {verifiedTransactions.map((transaction) => (
               <a className="evidence-row" key={transaction.id} href={txUrl(transaction.hash)} target="_blank" rel="noopener noreferrer">
-                <div><strong>{transactionLabel(transaction.id, transaction.label)}</strong><small>Stellar Expert · testnet</small></div>
+                <div><strong>{transactionLabel(transaction.id, transaction.label)}</strong><small>Stellar Expert · testnet{transaction.historical ? t(" · historical / legacy pool", " · histórico / fondo anterior") : ""}</small></div>
                 <code title={transaction.hash}>{shortId(transaction.hash, 8, 6)}</code>
                 <ArrowUpRight size={18} aria-hidden="true" />
               </a>

@@ -1,100 +1,25 @@
-// Typed read helpers. Reads are simulations against a null source account;
-// nothing is signed or submitted here.
-import {
-  Account,
-  Address,
-  Contract,
-  nativeToScVal,
-  scValToNative,
-  TransactionBuilder,
-  xdr,
-} from "@stellar/stellar-sdk";
-import { rpc } from "@stellar/stellar-sdk";
+// Dashboard configuration facade over the standalone SDK's read helpers.
+import { simulateRead as sdkRead, type PoolInfo, type AgentRecord, type CovenantState } from "@kovan/sdk";
+import type { YieldInfo } from "@kovan/sdk/experimental";
+import type { xdr } from "@stellar/stellar-sdk";
+import { addrVal } from "./scval";
 import { ids, NETWORK_PASSPHRASE, rpcServer, withRetry } from "./stellar";
+export { addrVal as addr, i128Val as i128, jsonSafe, type CovenantParams, type CovenantState, type AgentRecord, type PoolInfo } from "@kovan/sdk";
+export type { YieldInfo } from "@kovan/sdk/experimental";
 
-/** Any funded-looking account works for simulation of read-only calls. */
-const NULL_ACCOUNT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
-
-export type CovenantParams = {
-  pool: string;
-  usdc: string;
-  providers: string[];
-  provider_per_transfer_cap: bigint;
-  provider_total_cap: bigint;
-  recipients: string[];
-  recipient_per_transfer_cap: bigint;
-  recipient_total_cap: bigint;
-  calls: { contract: string; fn_name: string; amount_arg: number | undefined; amount_cap: bigint }[];
-  expiry: number;
-};
-
-export type CovenantState = {
-  params: CovenantParams;
-  rule_id: number;
-  provider_spent: bigint;
-  recipient_spent: bigint;
-  revoked: boolean;
-};
-
-export type AgentRecord = {
-  covenant: CovenantParams;
-  draw_limit: bigint;
-  drawn: bigint;
-  settled_spent?: bigint;
-  status: string;
-  parent: string | undefined;
-  children: string[];
-  dispute: { by: string; evidence: Buffer; outcome: number | undefined }[];
-};
-
-export type PoolInfo = { owner: string; usdc: string; locked: bigint; sum_limits: bigint; agent_count: number; accounting_version?: number; settled_spent?: bigint; balance?: bigint; closed?: boolean };
-
-/** Simulates `contract.fn(args)` and returns the decoded return value. */
-export async function simulateRead<T>(contractId: string, fn: string, args: xdr.ScVal[] = []): Promise<T> {
-  const server = rpcServer();
-  const tx = new TransactionBuilder(new Account(NULL_ACCOUNT, "0"), { fee: "100", networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(new Contract(contractId).call(fn, ...args))
-    .setTimeout(30)
-    .build();
-  const sim = await withRetry(() => server.simulateTransaction(tx));
-  if (rpc.Api.isSimulationError(sim)) throw new Error(sim.error);
-  const retval = (sim as rpc.Api.SimulateTransactionSuccessResponse).result?.retval;
-  if (!retval) throw new Error(`no return value from ${fn}`);
-  return scValToNative(retval) as T;
+export function simulateRead<T>(contractId: string, fn: string, args: xdr.ScVal[] = []): Promise<T> {
+  return withRetry(() => sdkRead<T>({ rpc: rpcServer(), networkPassphrase: NETWORK_PASSPHRASE }, contractId, fn, args));
 }
-
-export const addr = (a: string) => new Address(a).toScVal();
-export const i128 = (v: bigint) => nativeToScVal(v, { type: "i128" });
-
+export function readYield(pool: string): Promise<YieldInfo> { return simulateRead(pool, "get_yield"); }
 export async function readPool(pool?: string | null): Promise<PoolInfo> {
-  const p = await simulateRead<PoolInfo & { agent_count: number | bigint }>(ids(pool).pool, "get_pool");
+  const p = await simulateRead<PoolInfo>(ids(pool).pool, "get_pool");
   return { ...p, agent_count: Number(p.agent_count) };
 }
-
-export async function listAgents(pool?: string | null): Promise<string[]> {
-  return simulateRead<string[]>(ids(pool).pool, "list_agents");
-}
-
+export function listAgents(pool?: string | null): Promise<string[]> { return simulateRead(ids(pool).pool, "list_agents"); }
 export async function readAgent(agent: string, pool?: string | null): Promise<AgentRecord & { state: CovenantState | null }> {
-  const rec = await simulateRead<AgentRecord>(ids(pool).pool, "get_agent", [addr(agent)]);
+  const rec = await simulateRead<AgentRecord>(ids(pool).pool, "get_agent", [addrVal(agent)]);
   let state: CovenantState | null = null;
-  try {
-    state = await simulateRead<CovenantState>(ids().policy, "get_covenant", [addr(agent)]);
-  } catch {
-    state = null;
-  }
+  try { state = await simulateRead<CovenantState>(ids().policy, "get_covenant", [addrVal(agent)]); } catch { /* Unavailable policy state is explicit. */ }
   return { ...rec, state };
 }
-
-export async function usdcBalance(account: string): Promise<bigint> {
-  return simulateRead<bigint>(ids().usdc, "balance", [addr(account)]);
-}
-
-/** JSON-safe: bigint → string recursively. */
-export function jsonSafe<T>(v: T): unknown {
-  if (typeof v === "bigint") return v.toString();
-  if (Buffer.isBuffer(v)) return v.toString("hex");
-  if (Array.isArray(v)) return v.map(jsonSafe);
-  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, jsonSafe(x)]));
-  return v;
-}
+export function usdcBalance(account: string): Promise<bigint> { return simulateRead(ids().usdc, "balance", [addrVal(account)]); }

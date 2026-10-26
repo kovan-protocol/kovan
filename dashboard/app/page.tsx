@@ -8,6 +8,7 @@ import { CreateAgentForm } from "@/components/CreateAgentForm";
 import { LogPanel } from "@/components/LogPanel";
 import { PoolPanel } from "@/components/PoolPanel";
 import { PoolRecovery } from "@/components/PoolRecovery";
+import { YieldPanel } from "@/components/YieldPanel";
 import { loadPools, PoolSelector, savePool } from "@/components/PoolSelector";
 import { WalletButton } from "@/components/WalletButton";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export default function Page() {
       setState(st);
       setError(null);
       // first load: learn the default pool id from the server and merge saved pools
-      setPools((prev) => (prev.length ? prev : loadPools(st.ids.pool)));
+      setPools((prev) => (prev.length ? prev : loadPools(st.ids.pool, st.knownPools)));
       setPool((prev) => prev ?? st.ids.pool);
     } catch (e) {
       setError((e as Error).message);
@@ -103,7 +104,7 @@ export default function Page() {
 
   async function owner<F extends OwnerFn>(fn: F, args: OwnerArgs[F], label: string) {
     if (!address || !isOwner || !state) throw new Error("Connect the pool owner's wallet first");
-    if (poolClosed && fn !== "withdraw" && fn !== "return_funds") throw new Error("This pool is permanently closed. Create a new pool to continue.");
+    if (poolClosed && !["withdraw", "return_funds", "release_shares", "redeem_shares"].includes(fn)) throw new Error("This pool is permanently closed. Create a new pool to continue.");
     if (ownerInFlight.current) throw new Error("Wait for the current owner transaction to finish");
     ownerInFlight.current = true;
     try {
@@ -134,7 +135,7 @@ export default function Page() {
         run: (step) => submitOwner(step.fn, step.args, step.label, source, poolId),
       });
       if (mode === "withdraw") return "Available USDC returned to the original pool owner’s wallet. See the session log for the transaction.";
-      if (mode === "close") return "Pool permanently closed. Remaining pool USDC returned to its original owner. This pool cannot be reused; create a new pool to continue.";
+      if (mode === "close") return "Pool permanently closed. Remaining pool USDC and any supported vault shares returned to its original owner. Shares are returned in kind, not redeemed. This pool cannot be reused; create a new pool to continue.";
       const remaining = result.state.agents.filter((a) => statusOf(a.status) !== "Closed").length;
       return remaining
         ? `Unspent funds recovered and unused limits released. ${remaining} legacy allocation(s) remain revoked, not closed. ${usdc(withdrawable(result.state))} is available via Return to wallet.`
@@ -250,6 +251,7 @@ export default function Page() {
             Withdraw
           </Button>
         </form>
+        {state ? <YieldPanel key={`yield-${state.ids.pool}`} state={state} isOwner={isOwner} busy={!!pendingOwner || creatingPool} onRun={owner} /> : null}
         {state ? <PoolRecovery key={state.ids.pool} state={state} isOwner={isOwner} busy={!!pendingOwner || creatingPool} onRun={recoverPool} /> : null}
         {pendingOwner ? <p role="status" className="text-sm text-muted-foreground">Waiting for wallet approval or confirmation: {pendingOwner}</p> : null}
       </PoolPanel>

@@ -19,7 +19,7 @@ if (!existsSync(dest)) {
 }
 
 const deployment = JSON.parse(readFileSync(dest, "utf8"));
-for (const key of ["network", "verifier", "policy", "pool", "usdc", "owner", "deployed_at", "account_wasm_hash"]) {
+for (const key of ["network", "verifier", "policy", "pool", "usdc", "owner", "deployed_at", "account_wasm_hash", "pool_wasm_hash", "pool_deploy_tx"]) {
   if (!deployment[key]) {
     console.error("testnet.json missing", key);
     process.exit(1);
@@ -39,6 +39,8 @@ if (existsSync(readmePath)) {
     deployment.policy,
     deployment.verifier,
     deployment.usdc,
+    deployment.pool_deploy_tx,
+    evidence.historicalPool,
     evidence.firstAgent,
     `${evidence.testCount} tests`,
     ...evidence.transactions.map((tx) => tx.hash),

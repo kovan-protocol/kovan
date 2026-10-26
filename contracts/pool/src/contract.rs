@@ -2,10 +2,10 @@
 //!
 //! The pool is the bank. It enforces one thing: how much each agent may draw.
 //! What an agent does with drawn funds is the covenant's job (see the policy
-//! crate). `locked` is pool cash plus outstanding advances, which remain
-//! reserved until closure. The sum of non-closed agents' draw limits must
-//! never exceed `locked`. Cash comes from the token balance so direct deposits
-//! cannot become stranded outside the pool's accounting.
+//! crate). In v3, `locked` is cash + outstanding advances + discounted vault
+//! value. Investment losses can breach backing: new allocation/increased limits,
+//! cash extraction and draws are then blocked; revocation/recovery still work.
+//! Cash-only is the default. The owner must explicitly opt in before opening agents.
 use kovan_covenant_types::{Amendment, CovenantParams};
 use soroban_sdk::{
     contract, contractclient, contractimpl, panic_with_error, token, xdr::ToXdr, Address, BytesN, ContractExecutable, Env,
@@ -14,6 +14,7 @@ use soroban_sdk::{
 
 use crate::events::{AgentCreated, Amended, Closed, Delegated, Drawn, Funded, PoolClosed, Returned, Revoked, SettlementRequested, Withdrawn};
 use crate::storage::{self as st, AgentRecord, Dispute, PoolError, PoolInfo, PoolKey, Status, MAX_CHILDREN};
+use crate::yield_source::{self as yield_source, YieldInfo};
 
 /// The two pool-only calls on the covenant policy contract.
 #[contractclient(name = "CovenantPolicyClient")]
@@ -36,6 +37,37 @@ impl KovanPool {
     }
 
     // ---- owner ----------------------------------------------------------
+
+    /// One explicit opt-in before opening agents; no vault replacement or upgrades.
+    pub fn configure_yield(e: &Env, vault: Address, wasm_hash: BytesN<32>) {
+        Self::owner(e).require_auth();
+        Self::require_open(e);
+        yield_source::configure(e, vault, wasm_hash);
+    }
+
+    pub fn invest(e: &Env, amount: i128, min_shares: i128, valid_until: u32) {
+        Self::owner(e).require_auth();
+        Self::require_open(e);
+        yield_source::invest(e, amount, min_shares, valid_until);
+    }
+
+    pub fn lock_shares(e: &Env, shares: i128, min_assets: i128, valid_until: u32) {
+        Self::owner(e).require_auth();
+        Self::require_open(e);
+        yield_source::lock(e, shares, min_assets, valid_until);
+    }
+
+    pub fn redeem_shares(e: &Env, shares: i128, min_assets: i128, valid_until: u32) {
+        Self::owner(e).require_auth();
+        yield_source::redeem(e, shares, min_assets, valid_until);
+    }
+
+    pub fn release_shares(e: &Env, shares: i128) {
+        Self::owner(e).require_auth();
+        yield_source::release(e, shares);
+    }
+
+    pub fn get_yield(e: &Env) -> YieldInfo { yield_source::info(e) }
 
     /// Locks USDC in the pool.
     pub fn fund(e: &Env, amount: i128) {
@@ -79,6 +111,7 @@ impl KovanPool {
             panic_with_error!(e, PoolError::PoolNotEmpty);
         }
         e.storage().instance().set(&PoolKey::Closed, &true);
+        yield_source::release_all(e);
         let returned = usdc(e).balance(&e.current_contract_address());
         if returned > 0 {
             usdc(e).transfer(&e.current_contract_address(), &owner, &returned);
@@ -132,10 +165,15 @@ impl KovanPool {
         if rec.drawn + amount > rec.draw_limit {
             panic_with_error!(e, PoolError::ExceedsDrawLimit);
         }
+        if yield_source::config(e).is_some() {
+            yield_source::require_backed(e);
+            yield_source::ensure_cash(e, amount);
+        }
         usdc(e).transfer(&e.current_contract_address(), &agent, &amount);
         rec.drawn += amount;
         st::set_i128(e, PoolKey::Outstanding, st::get_i128(e, PoolKey::Outstanding) + amount);
         st::set_agent(e, &agent, &rec);
+        if yield_source::config(e).is_some() { yield_source::require_backed(e); }
         Drawn { agent, amount, drawn: rec.drawn }.publish(e);
     }
 
@@ -181,7 +219,7 @@ impl KovanPool {
         }
         let sum = st::get_i128(e, PoolKey::SumLimits);
         let new_sum = sum - rec.draw_limit + draw_limit;
-        if new_sum > Self::accounted_funds(e) {
+        if new_sum > sum && new_sum > Self::accounted_funds(e) {
             panic_with_error!(e, PoolError::ExceedsLocked);
         }
         rec.draw_limit = draw_limit;
@@ -337,14 +375,15 @@ impl KovanPool {
     pub fn get_pool(e: &Env) -> PoolInfo {
         let balance = usdc(e).balance(&e.current_contract_address());
         PoolInfo {
-            accounting_version: 2,
+            accounting_version: 3,
             closed: st::is_closed(e),
             owner: Self::owner(e),
             usdc: st::get_address(e, PoolKey::Usdc),
-            locked: balance + st::get_i128(e, PoolKey::Outstanding),
+            locked: Self::accounted_funds(e),
             sum_limits: st::get_i128(e, PoolKey::SumLimits),
             settled_spent: st::get_i128(e, PoolKey::SettledSpent),
             balance,
+            outstanding: st::get_i128(e, PoolKey::Outstanding),
             agent_count: st::list_agents(e).len(),
         }
     }
@@ -362,7 +401,7 @@ impl KovanPool {
     }
 
     fn accounted_funds(e: &Env) -> i128 {
-        usdc(e).balance(&e.current_contract_address()) + st::get_i128(e, PoolKey::Outstanding)
+        yield_source::accounted(e)
     }
 
     /// Repaid principal reduces outstanding funding. Earnings or deposits above

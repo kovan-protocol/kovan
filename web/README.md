@@ -16,6 +16,8 @@ Open http://localhost:3000. `npm run build` and `npm run lint` are the productio
 
 `predev` and `prebuild` run `scripts/sync-testnet.mjs`. When `../deployments/testnet.json` and `../README.md` exist, the script refreshes `src/data/testnet.json` and checks the contract IDs, transaction hashes, and the test count. A Vercel build that only contains `web/` keeps the committed snapshot.
 
+The current pool and its deployment transaction come from the deployment snapshot. `src/data/evidence.json` preserves historical funding/agent records with an explicit `historicalPool` and per-transaction historical labels. Those amounts are not the new pool's balance. The new pool was deployed empty with accounting v2 and permanent shutdown; the policy, verifier and agent-account code were reused. Rebuild/redeploy the marketing site to publish a changed snapshot; this does not migrate funds or agents.
+
 ## Config
 
 `src/config/site.ts`

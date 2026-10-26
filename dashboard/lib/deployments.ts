@@ -13,6 +13,10 @@ export type Deployments = {
   owner: string;
   first_agent?: string;
   pool_wasm_hash?: string;
+  // Same policy/verifier/account/token bindings; retained for recovery after a pool-only rollout.
+  legacy_pools?: { pool: string; pool_wasm_hash: string }[];
+  /** Explicitly reviewed single-USDC DeFindex integrations. Empty = no activation. */
+  yield_vaults?: { name: string; vault: string; wasm_hash: string; usdc: string }[];
 };
 
 export function deployments(): Deployments {

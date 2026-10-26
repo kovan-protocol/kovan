@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { jsonSafe, listAgents, readAgent, readPool, usdcBalance } from "@/lib/contracts";
-import { assertKovanPool, ids, rpcServer, withRetry } from "@/lib/stellar";
+import { jsonSafe, listAgents, readAgent, readPool, readYield, usdcBalance } from "@/lib/contracts";
+import { configuredVaults } from "@/lib/yield";
+import { assertKovanPool, ids, knownPools, rpcServer, withRetry } from "@/lib/stellar";
 import { defaultKeystore } from "@/lib/keystore";
 import { onchainSigner } from "@/lib/agent";
 import { agentSigning } from "@/lib/key-access";
@@ -23,7 +24,14 @@ export async function GET(req: Request) {
       }),
     );
     const balance = pool.balance ?? await usdcBalance(ids(poolId).pool);
-    return NextResponse.json(jsonSafe({ ids: ids(poolId), latestLedger: latest.sequence, pool: { ...pool, balance }, agents }));
+    let yieldInfo;
+    let yieldError;
+    if ((pool.accounting_version ?? 1) >= 3) {
+      try { yieldInfo = await readYield(ids(poolId).pool); }
+      catch { yieldError = "Yield state unavailable. Cash and agent recovery remain available; refresh to retry."; }
+    }
+    return NextResponse.json(jsonSafe({ ids: ids(poolId), knownPools: knownPools(), latestLedger: latest.sequence, pool: { ...pool, balance }, agents,
+      yield: yieldInfo, yieldError, yieldVaults: configuredVaults(pool.usdc) }));
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

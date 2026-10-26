@@ -59,6 +59,7 @@ export function PoolRecovery({ state, isOwner, busy, onRun }: Props) {
       </div>
       {!supportsClose ? <p className="text-xs text-muted-foreground">This deployed contract has no permanent shutdown function. Recover funds, then return them to your wallet. The old pool cannot be destroyed or marked closed on-chain; permanent closure requires a new deployment.</p> : null}
       <p className="text-xs text-muted-foreground">Available now: <span className="font-mono text-foreground">{usdc(cash)}</span></p>
+      {state.yield?.vault ? <p className="text-xs text-muted-foreground">Closing returns vault shares in kind to the same owner; it does not redeem them for USDC. Redemption can be paused without preventing share recovery, provided the vault still permits transfers.</p> : null}
       <div className="min-w-0 text-xs text-muted-foreground">Destination · pool owner<a className="mt-1 block break-all font-mono underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring" href={`https://stellar.expert/explorer/testnet/account/${state.pool.owner}`} target="_blank" rel="noreferrer">{state.pool.owner}</a></div>
       {!isOwner ? <p className="text-xs text-muted-foreground">Connect the pool owner’s wallet to recover or withdraw funds.</p> : null}
       {!needsRecovery && cash === 0n ? <p className="text-sm text-muted-foreground">{supportsClose && !closed ? "The pool is empty. You can still close it permanently." : "No funds or open allocations to recover."}</p> : null}

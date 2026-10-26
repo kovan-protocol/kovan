@@ -2,14 +2,22 @@
 
 ## Getting Started
 
-Run from `dashboard/` with Node.js 22 or newer:
+Build the SDK first, then run from `dashboard/` with Node.js 22 or newer:
 
 ```bash
+npm --prefix ../sdk ci
+npm --prefix ../sdk run build
 npm ci
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), switch Freighter to Stellar testnet, and connect the pool owner's wallet. Contract IDs come from `../deployments/testnet.json`. The console can create/select pools, lock USDC, create agents, and show balances and events. App-managed agents can draw, pay directly or over x402, and return funds.
+
+## Shared SDK
+
+The console consumes [`@kovan/sdk`](../sdk/README.md) for operations, custom authorization, reads, preparation/submission and agent execution. Local keystore access, deployment configuration, wallet UI and yield allowlisting stay here; the SDK does not depend on this app.
+
+`file:../sdk` is installed as a package copy (`install-links=true`), sharing this app's Stellar SDK peer dependency. After SDK edits, rebuild it and run `npm ci` here to refresh the copy: plain `npm install` can retain an old same-version package. Tests/builds use the installed package, not a source alias.
 
 ## Pool lifecycle
 
@@ -25,7 +33,19 @@ These are separate, individually signed transactions, not an atomic batch. Every
 
 On legacy pools, spent advances cannot be closed. Recovery reduces revoked agents' draw limits to their outstanding advances, releasing unused allocation without pretending those agents are closed. A parent blocked by a spent child may retain the minimum positive allocation of one USDC base unit (`0.0000001 USDC`). Expired legacy numeric policies may have their expiry advanced to permit this reduction, but stay revoked. With a 10 USDC pool and a single agent that drew 0.50 and spent 0.01, recovery makes 9.99 USDC withdrawable while leaving the 0.01 legacy accounting record. Recovery still depends on the pool's existing token allowance; an expired allowance will stop the sequence.
 
-The checked-in testnet deployment still uses earlier accounting. Permanent pool shutdown requires a fresh deployment of the new source and an updated deployment configuration/WASM hash; existing pools cannot be upgraded. Even earlier accounting-v2 deployments lack `close_pool`. The console detects shutdown support by the explicit boolean `closed` field in `get_pool`, not by accounting version alone. Unsupported pools offer **Recover funds** plus **Return to wallet**, never a misleading successful closure. See the root README for deployment and accounting details. A token-balance read failure is surfaced rather than displayed as a zero balance.
+The checked-in testnet default is now `CDP6UNP5YZ6NIMJ2XVQGYLBUAA5RP2LD7SPIRBP4VTVZLKPKCHFX42BR`, deployed with accounting v2 and permanent shutdown. **New pool** always deploys this current WASM, even when viewing a legacy pool. The new default was deployed empty, owned by the CLI deployment identity; connect your own wallet and choose **New pool** to create one you control. Refresh the page to load the new default and preserved historical entries. No funds or agents are migrated automatically.
+
+The previous default and browser-saved pools remain selectable. Their explicitly retained WASM hashes are accepted for recovery. Existing pools cannot be upgraded; even earlier accounting-v2 deployments lack `close_pool`. The console detects shutdown support by the explicit boolean `closed` field in `get_pool`, not by accounting version alone. Unsupported pools offer **Recover funds** plus **Return to wallet**, never a misleading successful closure. See the root README for deployment and accounting details. A token-balance read failure is surfaced rather than displayed as a zero balance.
+
+Keep `POOL_ID`, `POLICY_ID`, `VERIFIER_ID`, and `USDC_SAC_ID` unset unless deliberately overriding the manifest. `KOVAN_DEPLOYMENTS` also overrides its location. After changing environment overrides, restart the dashboard; manifest changes are read at runtime. `node scripts/deploy-pool.mjs --check --source <identity>` checks a rollout without broadcasting transactions (run from `dashboard/`, after building the contracts).
+
+## Optional yield (v3)
+
+The pool panel explains both funding paths: **Fund → Invest pool USDC**, or **Lock existing shares** without withdrawing the external underlying position. V3 pools expose cash, shares, estimated assets, and discounted budget backing separately. Configure the vault before opening agents. Previews set explicit minimum outputs and a ledger deadline; Freighter signs every owner operation. Agent draws redeem only a cash shortfall, and fail atomically if backing or redemption is insufficient. Pool closure returns shares in kind, not as USDC.
+
+This is implemented locally, **not enabled on the current v2 deployment**. `New pool` still uses the manifest's v2 WASM. No matching vault is allowlisted: the published DeFindex testnet vault uses a different USDC asset. Do not change USDC to make an incompatible vault appear supported. [Activation, risks and tests](../docs/YIELD.md) describe the required fresh v3 rollout and reviewed `yield_vaults` configuration. No automatic migration or investment occurs.
+
+`POST /api/yield/quote` takes `{pool, action, amount}` (base-unit string), where action is `invest`, `lock_shares`, or `redeem_shares`. It only reads/simulates. Its response contains a bounded argument set for `/api/tx/build`, then the usual owner wallet signature and `/api/tx/submit`. New risk-taking paths require the reviewed vault allowlist; delisting does not disable redemption or share recovery. V1/v2 reads and cash operations remain supported.
 
 ## Covenant options and examples
 
@@ -46,7 +66,7 @@ For a new app-managed agent, choose **Download signer key** on its card. Freight
 
 The export contains `secret`, `publicKey`, `agent`, `pool` and `network`. It gives you a **copy**; the app keeps its signing copy. This is not an exclusive handoff or a change to the pool owner or covenant. Existing keys created before verified owner binding remain usable but cannot be exported through the app. Ownership is never inferred just because someone created a new agent with a known public key.
 
-An external runtime can use `lib/authpayload.ts`'s `signAgentEntry` with its own secret and the account's on-chain verifier/rule, then submit through its fee payer or an x402 facilitator. Signing must use the smart account's C-address, not a plain G-account payment. The private key does not need to be sent to Kovan.
+External runtimes can use `@kovan/sdk`'s `pool.prepareAgent` with a caller-provided digest signer and separate fee payer, without this dashboard or a private-key export. Low-level `signAgentEntry` remains available for existing integrations. Signing authorizes the smart account's C-address, not a plain G-account payment; the private key need not be sent to Kovan.
 
 ## Key API
 

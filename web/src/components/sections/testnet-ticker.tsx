@@ -8,15 +8,15 @@ export function TestnetTicker() {
   const contracts: number = sorobanContracts.length;
   const figures = [
     { value: pools, label: pools === 1 ? "pool" : "pools" },
-    { value: Number.isFinite(locked) ? locked : 0, label: "USDC" },
-    { value: agents, label: agents === 1 ? "agent" : "agents" },
+    { value: Number.isFinite(locked) ? locked : 0, label: "USDC funded (legacy evidence)" },
+    { value: agents, label: "agent records (legacy evidence)" },
     { value: contracts, label: contracts === 1 ? "contract" : "contracts" },
     { value: testCount, label: testCount === 1 ? "test" : "tests" },
   ];
 
   return (
     <div className="tticker" aria-label="Stellar testnet figures, not customer volume">
-      <span className="k">Stellar testnet · on-chain figures, not customer volume</span>
+      <span className="k">Stellar testnet · recorded evidence, not live balances or customer volume</span>
       {figures.map((figure) => (
         <span className="stat" key={figure.label}>
           <CountUp value={figure.value} />

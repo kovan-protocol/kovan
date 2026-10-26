@@ -63,6 +63,14 @@ try {
       let body;
       if (path === "/api/state") body = state;
       else if (path === "/api/events") body = { events: [], latestLedger: 100, oldestLedger: 1, truncated: false };
+      else if (path === "/api/yield/quote") {
+        const q = JSON.parse(request.postData);
+        const minimum = String(BigInt(q.amount) * 9950n / 10000n);
+        body = { fn: q.action, pool: q.pool, vault: state.yield.vault, expected: q.amount, minimum,
+          unit: q.action === "invest" ? "shares" : "USDC", validUntil: state.latestLedger + 60,
+          args: q.action === "invest" ? { amount: q.amount, min_shares: minimum, valid_until: state.latestLedger + 60 }
+            : { shares: q.amount, min_assets: minimum, valid_until: state.latestLedger + 60 } };
+      }
       else if (path === "/api/tx/build") {
         const action = JSON.parse(request.postData);
         requests.push(action);
@@ -92,10 +100,22 @@ try {
           assert.ok(state.agents.every(a => a.status[0] === "Closed"));
           refundedAtClosure = state.pool.balance;
           Object.assign(state.pool, { closed: true, locked: "0", balance: "0" });
+          if (state.yield) Object.assign(state.yield, { shares: "0", estimated_assets: "0", budget_backing: "0" });
         }
         if (action.fn === "withdraw") {
           state.pool.balance = String(BigInt(state.pool.balance) - BigInt(action.args.amount));
           state.pool.locked = String(BigInt(state.pool.locked) - BigInt(action.args.amount));
+        }
+        if (action.fn === "configure_yield") state.yield.vault = action.args.vault;
+        if (["invest", "lock_shares", "redeem_shares", "release_shares"].includes(action.fn)) {
+          const amount = BigInt(action.args.amount ?? action.args.shares);
+          const add = (n, delta) => String(BigInt(n) + delta);
+          if (action.fn === "invest") state.pool.balance = add(state.pool.balance, -amount);
+          if (action.fn === "redeem_shares") state.pool.balance = add(state.pool.balance, amount);
+          state.yield.shares = add(state.yield.shares, ["invest", "lock_shares"].includes(action.fn) ? amount : -amount);
+          state.yield.estimated_assets = state.yield.shares;
+          state.yield.budget_backing = String(BigInt(state.yield.shares) * 9n / 10n);
+          state.pool.locked = add(state.pool.balance, BigInt(state.yield.budget_backing));
         }
         body = { status: "SUCCESS", hash: `mock-hash-${submitted.length}` };
       } else { body = { error: "Unexpected mocked API request" }; failures.push(path); }
@@ -307,8 +327,70 @@ try {
   }
   await click("Confirm permanent closure");
   await until(async () => state.pool.closed, "empty pool closed");
+
+  // Yield v3 UI: explicit opt-in, both funding paths, preview/rejection/retry,
+  // redemption into pool cash, and in-kind recovery. Never calls real provider APIs.
+  state = initial(false);
+  state.agents = [];
+  Object.assign(state.pool, { accounting_version: 3, closed: false, outstanding: "0", balance: "100000000", locked: "100000000", sum_limits: "0", agent_count: 0 });
+  state.yield = { vault: null, shares: "0", share_balance_ok: true, share_decimals: 7, estimated_assets: "0", budget_backing: "0", backing_bps: 9000, valuation_ok: true };
+  state.yieldVaults = [];
+  submitted.length = 0;
+  await load();
+  assert.match(await text(), /No compatible testnet vault is enabled/);
+  state.yieldVaults = [{ name: "Mocked test vault", vault: agent, usdc: pool, wasm_hash: "a".repeat(64) }];
+  await click("Refresh");
+  await until(async () => (await text()).includes("Sign to enable vault"), "yield activation renders");
+  assert.equal(await enabled("Sign to enable vault"), false);
+  await click("Connect Freighter");
+  await until(() => enabled("New pool"), "yield owner connected");
+  const acknowledgeRisk = () => evaluate(`document.querySelector('section[aria-labelledby="yield-title"] input[type="checkbox"]').click()`);
+  assert.equal(await enabled("Sign to enable vault"), false, "risk acknowledgement required");
+  await acknowledgeRisk();
+  await click("Sign to enable vault");
+  await until(() => enabled("Preview transaction"), "configured yield controls");
+  assert.equal(submitted.at(-1).fn, "configure_yield");
+  await click("Preview transaction");
+  await until(async () => (await text()).includes("Minimum received"), "investment preview");
+  assert.equal(await enabled("Sign invest pool usdc"), false);
+  assert.equal(submitted.length, 1, "preview must not broadcast");
+  await acknowledgeRisk();
+  await evaluate("window.__rejectSign=true");
+  await click("Sign invest pool usdc");
+  await until(async () => (await text()).includes("Test signature rejected"), "yield rejection");
+  assert.equal(submitted.length, 1);
+  await until(() => enabled("Sign invest pool usdc"), "yield retry");
+  await click("Sign invest pool usdc");
+  await until(async () => state.yield.shares === "10000000" && (await text()).includes("Invest pool USDC confirmed"), "invested");
+  assert.equal(submitted.at(-1).args.min_shares, "9950000");
+  const changeYieldAction = value => evaluate(`{
+    const input=document.querySelector('#yield-action');
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(input,${JSON.stringify(value)});
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  }`);
+  await changeYieldAction("lock_shares");
+  await click("Preview transaction");
+  await until(async () => (await text()).includes("Minimum position value"), "lock preview");
+  await acknowledgeRisk();
+  for (const width of [375, 768, 1280]) {
+    await call("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, `yield overflow at ${width}`);
+  }
+  assert.equal(await evaluate("document.querySelector('#yield-amount').labels.length > 0 && document.querySelector('#yield-action').labels.length > 0"), true);
+  await click("Sign lock existing shares");
+  await until(async () => state.yield.shares === "20000000" && (await text()).includes("Lock existing shares confirmed"), "locked");
+  assert.equal(state.pool.balance, "90000000", "locking shares does not move underlying cash");
+  await changeYieldAction("redeem_shares");
+  await click("Preview transaction");
+  await until(() => enabled("Sign redeem shares to pool"), "redeem preview");
+  await click("Sign redeem shares to pool");
+  await until(async () => state.pool.balance === "100000000" && (await text()).includes("Redeem shares to pool confirmed"), "redeemed to pool");
+  await click("Sign return of all shares");
+  await until(async () => state.yield.shares === "0" && (await text()).includes("Return vault shares to owner confirmed"), "shares returned");
+  assert.deepEqual(submitted.map(a => a.fn), ["configure_yield", "invest", "lock_shares", "redeem_shares", "release_shares"]);
+  assert.ok(submitted.every(a => a.source === owner && a.pool === pool));
   assert.deepEqual(failures, []);
-  console.log("PASS: covenant guidance, owner gating, confirmation/cancel/Escape, legacy/V2 recovery, permanent pool closure, final-signature rejection/retry, disabled reuse after reload, empty-pool shutdown, late refunds, exact owner withdrawal, busy-state guards, and 375/768/1280px layouts. All APIs and wallet signatures mocked; no transactions sent.");
+  console.log("PASS: covenant guidance, owner gating, legacy/V2 recovery and closure, rejection/retry, late refunds, yield opt-in and both funding paths, protected previews, redemption and in-kind recovery, busy guards, and 375/768/1280px layouts. All APIs and wallet signatures mocked; no transactions sent.");
 } finally {
   ws?.close();
   browser?.kill("SIGTERM");
