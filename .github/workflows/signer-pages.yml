@@ -1,0 +1,50 @@
+name: Signer page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "signer/**"
+      - "sdk/**"
+      - "deployments/testnet.json"
+      - ".agents/skills/kovan/**"
+      - ".github/workflows/signer-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Build SDK
+        working-directory: sdk
+        run: npm ci && npm run build
+      - name: Test and build signer
+        working-directory: signer
+        run: npm ci && npm test && npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: signer/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
