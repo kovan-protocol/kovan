@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated signer assets and bundled dependencies, built from signer/.
+    "public/sign/**",
+    "public/kovan.mjs",
   ]),
 ]);
 

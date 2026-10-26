@@ -6,8 +6,9 @@ import { ArrowDownLeft, ArrowRight, ArrowUpRight, GitBranch, LockKeyhole, Shield
 import { CountUp } from "@/components/motion/count-up";
 import { contractUrl, deployment, drawLimit, fundUsdc } from "@/lib/testnet";
 import { AmbientCarousel } from "./ambient-carousel";
+import { AgentContext } from "./agent-context";
 import { useCopy, usePreferences } from "./preferences";
-import { ClosingNote, PrimaryAction, Reveal, TextLink } from "./primitives";
+import { ClosingNote, Reveal, TextLink } from "./primitives";
 import { ProductFlow } from "./product-flow";
 import { Playground } from "./playground";
 import { PrincipleMotion } from "./principle-motion";
@@ -23,7 +24,7 @@ export function HomeContent() {
         <h1><RiseText text={t("Shared USDC budgets your AI agents can't overspend.", "Presupuestos compartidos en USDC que tus agentes de IA no pueden sobrepasar.")} /></h1>
         <p className="hero-subtitle">{t("Your agents move. Your limits stay.", "Tus agentes avanzan. Tus límites se respetan.")}</p>
         <p className="hero-description">{t("Humans configure. Agents only execute inside limits.", "Las personas configuran. Los agentes solo ejecutan dentro de los límites.")}</p>
-        <div className="hero-actions"><PrimaryAction href="/agent-example" label={t("Try with your agent", "Prueba con tu agente")} /></div>
+        <div className="hero-actions"><AgentContext /></div>
       </div>
       <div className="hero-visual"><ProductFlow locale={locale} /></div>
     </section>
