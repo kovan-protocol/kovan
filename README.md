@@ -67,7 +67,9 @@ The console supports **app-managed signers** and **your own runtime's public key
 
 | Item | Link |
 |---|---|
-| Live dashboard | TBD |
+| Website | <https://kovan-indol.vercel.app> |
+| Agent install / guide | `/plugin install kovan --marketplace kovan-protocol/kovan` (Claude Code) · <https://kovan-protocol.github.io/kovan/agent.md> (any agent) |
+| Signing page (for cloud agents) | <https://kovan-protocol.github.io/kovan/> |
 | Demo video (2–4 min) | TBD |
 | Backup video (unlisted) | TBD |
 | Deck | TBD |
@@ -111,6 +113,18 @@ Historical lifecycle evidence below belongs to the legacy pool [`CAS7ARNTLTRAD4W
 | return funds | Agent returns 0.29 USDC to the pool | [`c455d6…`](https://stellar.expert/explorer/testnet/tx/c455d6a3229fe29f82ecd00d26de2d0c86ee76f365a8230bb96b153db71665b3) |
 
 ## Setup
+
+### Use with your agent
+
+Install Kovan into your agent, then ask it in plain words, e.g. *"Set me up a $100 Kovan pool with 2 agents."*
+
+```text
+Claude Code:   /plugin install kovan --marketplace kovan-protocol/kovan
+               (older versions: /plugin marketplace add kovan-protocol/kovan, then /plugin install kovan@kovan)
+Any agent:     "Read https://kovan-protocol.github.io/kovan/agent.md and follow it."
+```
+
+The agent prepares every transaction itself with [`kovan.mjs`](skills/kovan/scripts/kovan.mjs), one self-contained Node file. Each owner action opens a small wallet page on `127.0.0.1` where you approve in Freighter. The agent never holds your key, and you check the real transaction in Freighter's own window. Agents spend with their own keys, inside their covenant. Agents running in the cloud use the hosted [signing page](https://kovan-protocol.github.io/kovan/) instead. Details: [skills/kovan/SKILL.md](skills/kovan/SKILL.md) · [signer/README.md](signer/README.md).
 
 ### Developer SDK
 
