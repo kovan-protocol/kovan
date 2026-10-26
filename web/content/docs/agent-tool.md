@@ -97,6 +97,22 @@ Prints the contract IDs and code hashes the tool trusts.
 
 Full list: [Contracts → Error codes](/docs/contracts#error-codes).
 
+## Chat agents: setup links
+
+Chat assistants that can't run commands (ChatGPT, Grok, Claude.ai) write **one plain link** from the limits you give them in the chat. You open it, connect Freighter once, and approve each step; the page creates the pool, funds it and creates every agent.
+
+```text
+https://kovan-protocol.vercel.app/setup?fund=100
+  &agent=name:research,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
+  &agent=name:monitor,draw:40,pay:G…DATA,per:0.5,total:40,hours:48
+```
+
+(One line in practice.) Each `agent` takes comma-separated `key:value` pairs: `name`, `draw` (draw limit), `pay` + `per` + `total` (providers and their caps), `send` + `send_per` + `send_total` (recipients), `hours` (expiry), and optionally `key` (the agent's public key). Lists use `|`. Add `pool=C…` to add agents to an existing pool. All amounts are USDC.
+
+- The page validates everything with the same checks as `kovan.mjs` and refuses bad links with the reason.
+- Without `key`, each agent's key is generated in your browser and offered as a download, for the bot that will spend. Agent accounts get testnet XLM for fees automatically.
+- At the end you get a short summary to paste back into the chat. Progress survives a reload, so a refresh can't create a second pool.
+
 ## Cloud agents
 
 If the agent can't serve a page on the person's machine, it sends a link to the hosted signing page instead. The page builds the transaction in the person's browser, so the agent doesn't even need their address:

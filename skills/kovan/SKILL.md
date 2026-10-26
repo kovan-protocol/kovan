@@ -1,6 +1,6 @@
 ---
 name: kovan
-description: Set up and use Kovan on Stellar testnet - create a USDC pool, fund it, create agents bound by on-chain covenants, and spend from an agent wallet inside its limits. Use when a person asks you to "create a Kovan pool", "fund a pool", "create/deploy agents" with spending limits, or to draw or pay from a Kovan agent. You prepare every transaction; the person approves owner actions in their own wallet (Freighter). You never hold the owner's key.
+description: Set up and use Kovan on Stellar testnet - create a USDC pool, fund it, create agents bound by on-chain covenants, and spend from an agent wallet inside its limits. Use when a person asks you to "create a Kovan pool", "fund a pool", "create/deploy agents" with spending limits, or to draw or pay from a Kovan agent. You prepare every transaction; the person approves owner actions in their own wallet (Freighter). You never hold the owner's key. Chat assistants that can't run commands write a single setup link instead.
 ---
 
 # Kovan for agents
@@ -28,6 +28,8 @@ Kovan lets an owner lock USDC in a **pool** and give each AI agent a **wallet** 
 6. **Report refusals; don't bargain.** If the covenant or the pool refuses an action, tell the person why. Don't retry with other numbers unless they agree.
 
 ## The tool: `kovan.mjs`
+
+> Can't run commands? Skip to [Chat agents: one setup link](#chat-agents-one-setup-link).
 
 One self-contained Node.js file (Node 20+). It builds and simulates transactions with the Kovan SDK, using contract IDs and code hashes built into it, and serves a small local wallet page when the owner must approve.
 
@@ -108,6 +110,44 @@ Before sending, the tool simulates the action against the covenant, so a refused
 - `providers`: addresses paid per call (x402 servers, data/RPC APIs), `G…` accounts.
 - `recipients`: plain transfers, such as another agent's wallet (`C…`) or a treasury.
 - The tool refuses anything it can't validate: unknown fields, secret keys where a public key belongs, muxed `M…` addresses, caps above totals, a pool not running Kovan's published code.
+
+## Chat agents: one setup link
+
+If you're a chat assistant that can't run commands (ChatGPT, Grok, Claude.ai…), write **one link** from the limits the person gave you. They open it, connect Freighter once, and approve each step; the page creates the pool, funds it and creates every agent. You don't need their address, and no code or encoding is required.
+
+```text
+https://kovan-protocol.vercel.app/setup?fund=<USDC>&agent=<spec>&agent=<spec>
+```
+
+- `fund`: USDC to lock in a **new** pool. Omit `pool` to create one.
+- `pool=C…`: use the person's existing pool instead of creating one (`fund` then adds to it).
+- `agent`: one per agent, at most 5. Comma-separated `key:value` pairs:
+
+| Key | Meaning | Required |
+|---|---|---|
+| `name` | Label, e.g. `research` (letters, digits, spaces, `.`, `-`, `_`) | no |
+| `draw` | Draw limit in USDC: the most this agent may take from the pool | yes |
+| `pay` | Providers it may pay per call (`G…` addresses), separated by `\|` | `pay` and/or `send` |
+| `per`, `total` | Per-payment cap and total cap for `pay`, in USDC | with `pay` |
+| `send` | Plain-transfer recipients (`G…` or `C…`), separated by `\|` | `pay` and/or `send` |
+| `send_per`, `send_total` | Per-transfer and total caps for `send`, in USDC | with `send` |
+| `hours` | Expiry in hours (default 24, max 720) | no |
+| `key` | The agent's public key `G…`, if its runtime already has one | no |
+
+Example: *"$100 pool, two agents, each may pay `GDATA…` up to 0.50 per call and 40 in total, for 2 days"* becomes:
+
+```text
+https://kovan-protocol.vercel.app/setup?fund=100&agent=name:research,draw:40,pay:GDATA…,per:0.5,total:40,hours:48&agent=name:monitor,draw:40,pay:GDATA…,per:0.5,total:40,hours:48
+```
+
+Rules for writing it:
+
+- Use only the limits the person stated. If a payee address, an amount or a duration is missing, **ask**; never invent addresses.
+- Draw limits of a new pool must add up to at most `fund`. Caps must be above 0, and `per` at most `total`.
+- Repeat the plan back in plain words (who may be paid, how much, until when) before giving the link.
+- Without `key`, the page generates each agent's key in the person's browser and offers it as a download, to give to the bot that will spend. Never ask for that file or any secret in the chat.
+
+When they're done, the page shows a short summary (pool and agent addresses, limits, transactions) for them to paste back to you. Bad links are refused on the page with the reason.
 
 ## Cloud agents
 

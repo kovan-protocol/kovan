@@ -25,6 +25,8 @@ Claude Code:  /plugin install kovan --marketplace kovan-protocol/kovan
 Other agents: "Read https://kovan-protocol.vercel.app/agent.md and follow it."
 ```
 
+ChatGPT, Grok and other chat assistants can't run commands. After reading the guide, they write a single [setup link](/docs/agent-tool#chat-agents-setup-links) with your limits. Open it and approve each step in Freighter.
+
 ### 2. Ask for what you want
 
 > Set me up a $100 Kovan pool with 2 agents. Each may pay `G…PROVIDER` up to 0.50 USDC per call and 40 USDC in total, for 48 hours.
