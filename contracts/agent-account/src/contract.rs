@@ -90,6 +90,21 @@ impl KovanAgentAccount {
 
     pub fn mandate_version(_e: &Env) -> u32 { MANDATE_VERSION }
 
+    pub fn recovery_version(_e: &Env) -> u32 { 1 }
+
+    /// Only the immutable pool can renew its recovery allowance. No caller can
+    /// choose a different spender, token, amount or destination. Works even
+    /// after expiry/revocation and does not require the agent's key.
+    pub fn renew_recovery(e: &Env) {
+        let config: AccountConfig = e.storage().instance().get(&AccountKey::KovanConfigV1).unwrap();
+        config.pool.require_auth();
+        let live_until = e.ledger().sequence().checked_add(ALLOWANCE_LEDGERS)
+            .unwrap_or_else(|| panic_with_error!(e, CovenantError::Expired));
+        token::TokenClient::new(e, &config.usdc).approve(
+            &e.current_contract_address(), &config.pool, &i128::MAX, &live_until,
+        );
+    }
+
     /// Read-only signing vector helper. A digest alone grants no authorization.
     pub fn mandate_auth_digest(e: &Env, signature_payload: BytesN<32>, payment: PaymentBinding) -> BytesN<32> {
         AuthDigestPreimage { account: e.current_contract_address(), signature_payload: payment_payload(e, &signature_payload, &payment).to_bytes(), context_rule_ids: vec![e, 0u32] }.digest(e)

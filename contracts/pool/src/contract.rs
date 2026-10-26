@@ -44,6 +44,8 @@ impl KovanPool {
 
     pub fn mandate_version(_e: &Env) -> u32 { MANDATE_VERSION }
 
+    pub fn recovery_version(_e: &Env) -> u32 { 1 }
+
     /// Immutable deployment bindings, so clients never mix policy generations.
     pub fn get_config(e: &Env) -> st::PoolConfig {
         st::PoolConfig {
@@ -210,8 +212,7 @@ impl KovanPool {
             panic_with_error!(e, PoolError::ExceedsDrawLimit);
         }
         if yield_source::config(e).is_some() {
-            yield_source::require_backed(e);
-            yield_source::ensure_cash(e, amount);
+            yield_source::prepare_draw(e, amount);
         }
         usdc(e).transfer(&e.current_contract_address(), &agent, &amount);
         rec.drawn += amount;
@@ -387,7 +388,28 @@ impl KovanPool {
         }
         Self::require_subset(e, &prec.covenant, &child_covenant);
 
+        // Every ancestor walk and recursive revoke is bounded, including
+        // chains of single-child delegations and closed historical children.
+        let mut root = parent.clone();
+        let mut ancestor = prec.parent.clone();
+        let mut depth = 1u32; // proposed child's depth; roots are depth zero
+        while let Some(address) = ancestor {
+            depth += 1;
+            if depth > st::MAX_DELEGATION_DEPTH {
+                panic_with_error!(e, PoolError::DelegationTooDeep);
+            }
+            ancestor = st::get_agent(e, &address).parent;
+            root = address;
+        }
+        let family_key = PoolKey::FamilySize(root);
+        let family_size: u32 = e.storage().persistent().get(&family_key).unwrap_or(1);
+        if family_size >= st::MAX_FAMILY_AGENTS {
+            panic_with_error!(e, PoolError::TooManyDescendants);
+        }
+
         let child = Self::deploy_account(e, child_pubkey, &child_covenant);
+        e.storage().persistent().set(&family_key, &(family_size + 1));
+        e.storage().persistent().extend_ttl(&family_key, st::TTL_THRESHOLD, st::EXTEND_AMOUNT);
         prec.draw_limit -= child_draw_limit;
         prec.children.push_back(child.clone());
         st::set_agent(e, &parent, &prec);
@@ -452,6 +474,7 @@ impl KovanPool {
     /// that amount increase the pool's accounted funds, rather than getting stuck.
     fn recover(e: &Env, agent: &Address, rec: &mut AgentRecord, amount: i128) {
         let me = e.current_contract_address();
+        e.invoke_contract::<()>(agent, &soroban_sdk::Symbol::new(e, "renew_recovery"), Vec::new(e));
         usdc(e).transfer_from(&me, agent, &me, &amount);
         let principal = amount.min(rec.drawn);
         rec.drawn -= principal;

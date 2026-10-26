@@ -69,6 +69,16 @@ fn constructor_grants_pool_allowance() {
 }
 
 #[test]
+fn recovery_renewal_requires_the_fixed_pool() {
+    let fx = setup();
+    fx.e.set_auths(&[]);
+    let c = KovanAgentAccountClient::new(&fx.e, &fx.account);
+    assert_eq!(c.recovery_version(), 1);
+    assert!(c.try_renew_recovery().is_err());
+    assert_eq!(token::TokenClient::new(&fx.e, &fx.usdc).allowance(&fx.account, &fx.pool), i128::MAX);
+}
+
+#[test]
 fn constructor_installs_covenant() {
     let fx = setup();
     let p = CovenantPolicyContractClient::new(&fx.e, &fx.policy);

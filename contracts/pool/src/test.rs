@@ -14,6 +14,8 @@ use crate::storage::Status;
 mod lifecycle;
 mod yield_tests;
 mod defindex_wasm;
+mod xoxno_fork;
+mod safety;
 
 #[test]
 fn public_config_matches_immutable_constructor_bindings() {
@@ -71,6 +73,7 @@ pub fn setup_with_pool_wasm(pool_wasm: Option<&[u8]>) -> Fx {
     let owner = Address::generate(&e);
     let admin = Address::generate(&e);
     let usdc_sac = e.register_stellar_asset_contract_v2(admin);
+    usdc_sac.issuer().set_flag(soroban_sdk::testutils::IssuerFlags::RevocableFlag);
     let usdc = usdc_sac.address();
     token::StellarAssetClient::new(&e, &usdc).mint(&owner, &100_000_000);
     let policy = e.register(CovenantPolicyContract, ());
@@ -462,7 +465,9 @@ fn failed_recovery_rolls_back_closure_and_revocation() {
     let fx = setup();
     let agent = funded_agent(&fx);
     fx.pool.draw(&agent, &LIMIT);
-    token::TokenClient::new(&fx.e, &fx.usdc).approve(&agent, &fx.pool_addr, &0, &10_000);
+    // Allowances are now renewed automatically. An issuer freeze must still
+    // fail recovery atomically instead of closing an unfunded account.
+    token::StellarAssetClient::new(&fx.e, &fx.usdc).set_authorized(&agent, &false);
     let before = fx.pool.get_pool();
     assert!(fx.pool.try_close(&agent, &fx.owner).is_err());
     assert_eq!(fx.pool.get_pool(), before);

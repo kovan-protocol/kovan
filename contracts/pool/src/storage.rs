@@ -78,6 +78,7 @@ pub enum PoolKey {
     Closed,
     OpenAgents,
     YieldConfig,
+    FamilySize(Address),
 }
 
 #[contracterror]
@@ -112,10 +113,15 @@ pub enum PoolError {
     YieldUnderfunded = 26,
     YieldArithmetic = 27,
     UnsupportedMandate = 28,
+    TooManyDescendants = 29,
+    DelegationTooDeep = 30,
 }
 
-/// Children per parent, so `revoke` and `close` stay within one transaction's budget.
+/// Bound both breadth and depth, not just immediate children. Family size is
+/// lifetime-created nodes: closed children remain in the revocation traversal.
 pub const MAX_CHILDREN: u32 = 16;
+pub const MAX_FAMILY_AGENTS: u32 = 17;
+pub const MAX_DELEGATION_DEPTH: u32 = 4;
 
 const DAY_IN_LEDGERS: u32 = 17280;
 pub const EXTEND_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;

@@ -318,17 +318,30 @@ fn redeem_inner(e: &Env, c: &YieldConfig, shares: i128, min_assets: i128) {
     .publish(e);
 }
 
-/// Called only inside an authorized draw. One bounded redemption; failure rolls everything back.
-pub fn ensure_cash(e: &Env, amount: i128) {
+/// Called only inside an authorized draw. Reuse one pre-draw valuation for
+/// solvency and redemption sizing: each quote can traverse a lending strategy.
+/// No external mutation occurs between this snapshot and the redemption. The
+/// caller still performs a fresh post-draw solvency check after token effects.
+pub fn prepare_draw(e: &Env, amount: i128) {
     let available = cash(e).balance(&e.current_contract_address());
+    let valuation = info(e);
+    let backing = math(
+        e,
+        available
+            .checked_add(st::get_i128(e, PoolKey::Outstanding))
+            .and_then(|n| n.checked_add(valuation.budget_backing)),
+    );
+    if backing < st::get_i128(e, PoolKey::SumLimits) {
+        panic_with_error!(e, PoolError::YieldUnderfunded);
+    }
     if available >= amount {
         return;
     }
     let c = checked(e);
-    let shares = token::TokenClient::new(e, &c.vault).balance(&e.current_contract_address());
-    let assets = quote(e, &c, shares);
+    let shares = valuation.shares;
+    let assets = valuation.estimated_assets;
     let shortfall = amount - available;
-    if assets < shortfall || assets <= 0 {
+    if !valuation.valuation_ok || assets < shortfall || assets <= 0 {
         panic_with_error!(e, PoolError::YieldLiquidity);
     }
     // ceil(shortfall * shares / assets). Actual min-out and post-solvency are checked too.
